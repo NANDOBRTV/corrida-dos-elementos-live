@@ -54,7 +54,7 @@ export function formatBenchReport(rows,{device="Navegador móvel",quality="balan
     "Perfil base idêntico: "+quality,
     "Data: "+date,
     "Mapas testados: "+summary.maps,
-    ...(Number.isFinite(trackLength)&&trackLength>0?["Distância da pista: "+trackLength+" m · primeira e segunda metade"]:[]),
+    ...(Number.isFinite(trackLength)&&trackLength>0?["Distância da pista: "+trackLength+" m · largada e trecho final"]:[]),
     "Média fixa: "+summary.fixedFps+" FPS",
     "Média adaptativa: "+summary.adaptiveFps+" FPS",
     "Diferença observada: "+(summary.deltaPercent===null?"indisponível":(summary.deltaPercent>0?"+":"")+summary.deltaPercent+"%"),

@@ -5,3 +5,8 @@ node_modules/
 *.log
 coverage/
 .DS_Store
+
+# Playwright (gerado apenas durante testes)
+playwright-report/
+test-results/
+e2e-artifacts/

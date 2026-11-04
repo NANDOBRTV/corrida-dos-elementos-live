@@ -4,7 +4,7 @@ Projeto independente de **corrida automática 3D em estilo voxel**, pensado para
 
 ## O que já existe
 
-- Cinco cenários 3D com Three.js: 🌲 Floresta → 🏜️ Deserto → 🌋 Vulcão → ❄️ Gelo → 🔥 Inferno.
+- Dois cenários 3D definitivos com Three.js: ❄️ Gelo ↔ 🌲 Floresta, alternando a cada rodada.
 - Corredores voxel com animações, nomes, cores, obstáculos e câmera dinâmica.
 - Motor automático com passos fixos de 50 ms e semente reproduzível.
 - Estados LOBBY (20s), COUNTDOWN (5s), RUNNING (até 85s) e RESULTS (10s).
@@ -37,7 +37,7 @@ A publicação do site exige que você habilite GitHub Pages uma vez. Three.js �
 - Repita cinco vezes para confirmar que o ID não duplica.
 - Use **Avançar fase** para iniciar a corrida, depois envie **entrar** com outro ID; ele aparecerá na próxima fila.
 - Após os resultados, avance para o lobby seguinte e observe a promoção da fila, sem reinscrição automática.
-- Use **Visualizar cenário 3D** para conferir os cinco biomas. Essa visualização não altera classificação.
+- Use **Visualizar cenário 3D** para conferir os dois biomas. Essa visualização não altera classificação.
 - Use **Pausar motor**, **Turbo teste** e **Reiniciar demonstração** conforme necessário.
 - Para executar os testes automatizados no navegador, abra a página [tests.html](./tests.html) no site publicado.
 
@@ -51,7 +51,7 @@ Os testes são executáveis também pelo GitHub Actions. Para rodar com Node 22,
 | assets/styles.css | Layout responsivo |
 | src/config.js | Biomas e posições de obstáculos |
 | src/engine.js | Corridas, inscrições, filas, ranking |
-| src/world.js | Pista e cinco cenários 3D |
+| src/world.js | Pista e dois cenários 3D |
 | src/avatars.js | Personagens voxel e animações |
 | src/app.js | UI, WebGL, simulação e salvamento local |
 | src/selftest.js | Casos automatizados |
@@ -61,7 +61,7 @@ Os testes são executáveis também pelo GitHub Actions. Para rodar com Node 22,
 
 ## Próximas etapas
 
-1. Validar os cinco mapas visualmente no celular e corrigir eventuais problemas com base nos prints.
+1. Validar Gelo e Floresta visualmente no celular e corrigir eventuais problemas com base nos prints.
 2. Implementar backend com inscrições e resultados sincronizados.
 3. Integrar serviço Node.js persistente ao TikTok LIVE de maneira autenticada e segura.
 4. Adicionar presentes reais, efeitos e monitoramento.
@@ -106,3 +106,13 @@ A qualidade visual não altera física, fila nem classificação. O Redmi 13C e 
 
 Confira o plano de conclusão e a lista das pendências antes do lançamento: [docs/PRE-LANCAMENTO.md](docs/PRE-LANCAMENTO.md).
 
+
+## Versão 2.3 — Gelo e Floresta (pré-lançamento)
+
+A pedido do projeto, somente **❄️ Gelo e 🌲 Floresta** participam da rotação oficial. Os três mapas anteriores deixam de ser gerados ou selecionados no painel. O benchmark local foi reduzido de dez para **quatro etapas** (dois mapas × fixo/Auto).
+
+Snapshots PostgreSQL legados em Deserto, Vulcão ou Inferno são migrados para o novo mapa da rodada, sem apagar inscritos, posições, resultados ou dados do campeonato. Os registros históricos antigos permanecem armazenados.
+
+A otimização 3D dos corredores agora agrupa cubos animados em uma malha instanciada para reduzir chamadas de desenho. O FPS do Redmi 13C precisa ser medido novamente: remover mapas não reduz, por si só, a carga de renderização durante uma corrida, pois o jogo já carregava um cenário por vez.
+
+O conector de eventos TikTok reais continua desativado até a conclusão do jogo.

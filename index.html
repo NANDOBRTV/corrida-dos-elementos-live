@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./assets/styles.css">
+  <link rel="stylesheet" href="./assets/live-reference.css">
   <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js"}}</script>
   <script type="module" src="./src/app.js"></script>
 </head>
@@ -20,7 +21,7 @@
         <div class="identity">
           <span class="brand-mark" aria-hidden="true">⚡</span>
           <div>
-            <div class="mini-label">ELEMENTAL RACING / SEASON 01</div>
+            <div class="mini-label">PISTA 3D · PRÉ-LANÇAMENTO</div>
             <h1>CORRIDA DOS <span>ELEMENTOS</span></h1>
           </div>
         </div>
@@ -47,6 +48,21 @@
           <div class="state-pill"><span class="status-led"></span> <span id="phaseName">LOBBY ABERTO</span></div>
           <div class="race-chip" id="raceChip">CORRIDA AUTOMÁTICA</div>
         </div>
+        <div class="live-timer-card" aria-label="Tempo e distância da corrida">
+          <strong id="liveTimer">0:00</strong>
+          <span id="liveRemaining">150 m até a chegada</span>
+          <small id="liveRaceCount">0/50 corredores</small>
+        </div>
+        <div class="live-minimap" aria-label="Progresso da pista">
+          <div class="live-minimap-road" aria-hidden="true"><span id="liveMapDot"></span></div>
+          <small id="liveMiniMapName">❄️ GELO</small>
+        </div>
+        <div class="live-sprint-card" id="liveSprintCard" hidden>
+          <span class="live-sprint-emoji">⚡</span>
+          <strong id="liveSprintName">TURBO</strong>
+          <small>SPRINT · TESTE</small>
+        </div>
+        <div class="live-map-weather" id="liveWeatherTag">❄️ NEVE NA PISTA</div>
         <div class="arena-bottom">
           <div class="arena-info"><span id="arenaSub">VALE ESMERALDA</span><strong id="arenaMessage">PRÓXIMA LARGADA</strong></div>
           <div class="arena-live"><span>NO CONTROLE DO MOTOR</span><strong id="arenaElapsed">00:00</strong></div>
@@ -75,6 +91,15 @@
         <div class="recent-champion" id="recentChampion" hidden></div>
       </section>
       <div class="notice-line"><span class="notice-icon">◉</span><span id="latestEvent">Aguardando participantes...</span></div>
+      <section class="live-chat-messages" aria-label="Eventos simulados da corrida">
+        <span class="live-chat-title">◉ EVENTOS DE TESTE</span>
+        <div id="liveChatMessages"><p>Aguardando participantes...</p></div>
+      </section>
+      <div class="live-power-rail" aria-label="Habilidades simuladas">
+        <div>⚡ <span>TURBO</span></div>
+        <div>🎁 <span>PRESENTES</span></div>
+        <div>🏆 <span>PÓDIO</span></div>
+      </div>
       <div class="gift-feed" id="giftFeed" aria-label="Presentes recentes" hidden></div>
       <div class="next-line"><span id="nextMapText">PRÓXIMA: 🌲 FLORESTA</span><strong id="nextQueueCount">0 NA FILA</strong></div>
 
@@ -128,7 +153,7 @@
         <p id="graphicsInfo">Detectando capacidade gráfica...</p>
         <div id="performanceReport" class="performance-report" role="status">Medindo FPS neste aparelho...</div>
         <a class="performance-link" href="?view=live&quality=low&debug=1">Abrir tela LIVE com diagnóstico de FPS</a>
-        <a class="performance-link" href="./benchmark.html">📊 TESTAR FPS REAL NO CELULAR — 5 BIOMAS</a>
+        <a class="performance-link" href="./benchmark.html">📊 TESTAR FPS REAL NO CELULAR — 2 MAPAS</a>
         <p>Ao selecionar Auto, o jogo reduz ou recupera suavemente a resolução interna em tempo real sem recarregar ou remover os dois cenários. Os outros perfis ficam fixos.</p>
       </div>
       <div class="preview-map-box">

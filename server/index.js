@@ -105,10 +105,7 @@ export async function createApp(opts={}){
         "Connection":"keep-alive","X-Accel-Buffering":"no"});
       res.write("retry: 2500\n\n");
       subscribers.add(res);
-      res.write("event: race
-data: "+JSON.stringify({state,serverTime:now(),tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected})+"
-
-");
+      res.write("event: race\ndata: "+JSON.stringify({state,serverTime:now(),tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected})+"\n\n");
       req.on("close",()=>{subscribers.delete(res);});
       return;
     }

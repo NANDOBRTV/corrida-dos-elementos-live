@@ -14,7 +14,34 @@ export function normalizeTikTokChat(event) {
   const eventId=rawId==null?null:String(rawId).slice(0,150);
   return {userId,displayName,content:"entrar",eventId,source:"tiktok"};
 }
-export function startTikTokBridge({onChat,onStatus=()=>{},username=process.env.TIKTOK_USERNAME}={}) {
+export function normalizeTikTokGift(event) {
+  if(!event||typeof event!=="object")return null;
+  const rawUser=event.user?.userId??event.user?.id??event.user?.uniqueId;
+  if(rawUser===null||rawUser===undefined)return null;
+  if(typeof rawUser==="number"&&(!Number.isSafeInteger(rawUser)||rawUser<0))return null;
+  const userId=String(rawUser).trim();
+  if(!userId||userId==="undefined"||userId.length>128)return null;
+  const gift=event.gift??event.giftDetails??{};
+  const kind=gift.type??gift.giftType??event.giftType;
+  // Combos enviam frames cumulativos: processar apenas o último.
+  const streak=Number(kind)===1;
+  if(streak&&event.repeatEnd!==true&&event.repeatEnd!==1&&event.repeatEnd!=="1")return null;
+  const giftId=event.giftId??gift.id??gift.giftId;
+  if(giftId===null||giftId===undefined||String(giftId).length>80)return null;
+  const quantity=Number(event.repeatCount??1);
+  if(!Number.isSafeInteger(quantity)||quantity<1)return null;
+  const displayName=String(event.user?.nickname??event.user?.uniqueId??"Espectador").trim().slice(0,28)||"Espectador";
+  const giftName=String(gift.name??gift.giftName??"Presente").trim().slice(0,40)||"Presente";
+  const msgId=event.common?.msgId??event.msgId??event.transactionId;
+  return {
+    source:"tiktok",userId,displayName,giftId:String(giftId),giftName,
+    repeatCount:Math.min(quantity,999),
+    groupId:event.groupId==null?null:String(event.groupId).slice(0,120),
+    eventId:msgId==null?null:String(msgId).slice(0,140)
+  };
+}
+
+export function startTikTokBridge({onChat,onGift=()=>{},onStatus=()=>{},username=process.env.TIKTOK_USERNAME}={}) {
   const handle=(typeof username==="string"?username:"").trim().replace(/^@/,"");
   if(!handle)return {enabled:false,status:()=>({enabled:false,connected:false}),close:async()=>{}};
   let stopped=false,connected=false,connecting=false,connection=null,reconnectTimer=null;
@@ -47,7 +74,12 @@ export function startTikTokBridge({onChat,onStatus=()=>{},username=process.env.T
         if(!normalized)return;
         try{onChat(normalized)}catch(error){console.error("[tiktok] erro de inscrição",error.message);}
       });
-      conn.on(WebcastEvent.GIFT,()=>{ /* Presentes serão mapeados em versão posterior. */ });
+      conn.on(WebcastEvent.GIFT,event=>{
+        if(stopped)return;
+        const normalized=normalizeTikTokGift(event);
+        if(!normalized)return;
+        try{onGift(normalized)}catch(error){console.error("[tiktok] erro de presente",error.message);}
+      });
       conn.on(ControlEvent.ERROR,({info,exception})=>{
         console.warn("[tiktok] evento de erro",String(info??exception?.message??"indisponível").slice(0,150));
       });

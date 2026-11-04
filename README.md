@@ -1,3 +1,9 @@
+### Roblox Studio — progresso suavizado
+
+A ponte protegida envia também a velocidade oficial do corredor. O cliente Roblox faz uma previsão visual entre consultas de 2 segundos, sem modificar a corrida no servidor, e anima braços e pernas localmente. Essa parte ainda depende de validação dentro do Roblox Studio.
+
+---
+
 ### Versão 3.0.1 — até 50 consultas agrupadas e pista Roblox Studio
 
 A consulta pública pelo nome Roblox agora aceita até 50 nomes distintos por lote, com limite de chamadas para evitar saturação da API. Permite `entrar @NomeRoblox` além de `entrar NomeRoblox`. O módulo Roblox Studio inclui terreno original com Gelo/Floresta e 600 studs de cenário reutilizável. **A versão Roblox Studio ainda não foi executada em um servidor Roblox real**.

@@ -96,3 +96,19 @@ test("Command also allows an optional @ before Roblox username",()=>{
     mode:"roblox",username:"Nando_2026",content:"entrar Nando_2026"
   });
 });
+
+test("Studio movement feed has velocity for smooth client interpolation",async t=>{
+  const storage={enabled:false,load:async()=>null,save:async()=>{},close:async()=>{}};
+  const app=await createApp({storage,seedDemo:false,adminKey:"test-admin",
+    robloxLookup:{lookup:async username=>({id:50009,username})},
+    robloxBridgeKey:"test-bridge",disableTikTok:true});
+  const addr=await app.listen(0);t.after(()=>app.close());
+  const base="http://127.0.0.1:"+addr.port;
+  const res=await fetch(base+"/api/admin/join",{method:"POST",
+    headers:{"x-admin-key":"test-admin","content-type":"application/json"},
+    body:JSON.stringify({userId:"visitor",displayName:"Viewer",content:"entrar DemoAccount12"})});
+  assert.equal(res.status,200);
+  const feed=await (await fetch(base+"/api/roblox/participants",{headers:{"x-roblox-bridge-key":"test-bridge"}})).json();
+  assert.equal(typeof feed.participants[0].speed,"number");
+  assert.ok(Number.isFinite(feed.participants[0].speed));
+});

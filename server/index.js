@@ -193,7 +193,7 @@ export async function createApp(opts={}){
       }
       const participants=state.active.filter(r=>Number.isSafeInteger(r.robloxUserId)&&r.robloxUserId>0)
         .map(r=>({userId:r.robloxUserId,username:r.robloxUsername,
-          lane:r.lane,progress:r.progress,status:r.status,turboUntil:r.turboUntil}));
+          lane:r.lane,progress:r.progress,speed:r.speed,status:r.status,turboUntil:r.turboUntil}));
       sendJson(res,200,{ok:true,round:state.round,mapId:state.mapId,phase:state.phase,
         raceMs:state.raceMs,trackLength:state.trackLength,participants});
       return;

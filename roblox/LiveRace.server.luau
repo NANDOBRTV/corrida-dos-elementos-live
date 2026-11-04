@@ -197,10 +197,15 @@ RunService.Heartbeat:Connect(function(dt)
     local model=current[tostring(entry.userId)]
     if model then
       local lane=math.clamp(tonumber(entry.lane) or 2,0,4)
-      local progress=math.clamp(tonumber(entry.progress) or 0,0,latest.trackLength or 5000)
       local moving=entry.status=="running"
+      -- Predict only visual motion between two authorized 2-second snapshots.
+      -- This never alters the Render result or accumulated race distance.
+      local elapsed=math.clamp(os.clock()-lastUpdate,0,INTERVAL)
+      local predicted=(tonumber(entry.progress) or 0)+(moving and math.max(0,tonumber(entry.speed) or 0)*elapsed or 0)
+      local progress=math.clamp(predicted,0,latest.trackLength or 5000)
       local bob=moving and math.abs(math.sin(os.clock()*10+entry.userId%13))*.08 or 0
       model:SetAttribute("RaceProgress",progress)
+      model:SetAttribute("RunnerMoving",moving)
       model:PivotTo(CFrame.new((lane-2)*4,2.8+bob,progress))
     end
   end

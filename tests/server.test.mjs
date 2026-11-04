@@ -63,7 +63,7 @@ test("server assigns countdown and running joins to next race",async t=>{
   await post("/api/admin/action",{action:"advance"});
   state=(await get("/api/state")).body.state;
   assert.equal(state.round,2);
-  assert.equal(state.mapId,"desert");
+  assert.equal(state.mapId,"forest");
   assert.deepEqual(state.active.map(x=>x.id),["next","new"]);
   assert.equal(state.next.length,0);
 });

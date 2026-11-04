@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import {laneX} from "./config.js";
+import {rank} from "./engine.js";
 
 export function createAvatars(scene,{quality="balanced"}={}) {
   const simple=quality==="low";
@@ -12,16 +13,22 @@ export function createAvatars(scene,{quality="balanced"}={}) {
     if(!materials.has(key))materials.set(key,new THREE.MeshStandardMaterial({color,roughness:.72}));
     return materials.get(key);
   }
+  function visualProgress(r,index){
+    // Only visual: a ten-row starting grid does not alter racing physics.
+    const row=Math.floor(index/5);
+    const taper=Math.max(0,1-Math.max(0,r.progress)/30);
+    return r.progress-row*1.48*taper;
+  }
   function labelTexture(text) {
-    const key=text.slice(0,22);
+    const key=text.slice(0,14);
     if(textureCache.has(key)){
       const entry=textureCache.get(key);entry.refs++;return entry.texture;
     }
-    const canvas=document.createElement("canvas");canvas.width=512;canvas.height=96;
+    const canvas=document.createElement("canvas");canvas.width=256;canvas.height=64;
     const ctx=canvas.getContext("2d");
-    ctx.fillStyle="rgba(7,19,16,.84)";ctx.fillRect(0,4,512,86);
-    ctx.font="bold 50px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillStyle="#ffffff";
-    ctx.fillText(key,256,47,493);
+    ctx.fillStyle="rgba(7,19,16,.86)";ctx.fillRect(0,3,256,57);
+    ctx.font="bold 31px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillStyle="#ffffff";
+    ctx.fillText(key,128,31,240);
     const tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;
     textureCache.set(key,{texture:tex,refs:1});return tex;
   }
@@ -29,9 +36,9 @@ export function createAvatars(scene,{quality="balanced"}={}) {
     const mesh=new THREE.Mesh(geometry,sharedMaterial(color));mesh.position.set(...pos);mesh.scale.set(...scale);
     mesh.castShadow=true;parent.add(mesh);return mesh;
   }
-  function build(r) {
+  function build(r,index) {
     const group=new THREE.Group();
-    group.position.set(laneX(r.lane),.76,r.progress);
+    group.position.set(laneX(r.lane),.76,visualProgress(r,index));
     const body=new THREE.Group();group.add(body);
     cube(body,[0,.78,0],[.72,1,.55],r.color);
     cube(body,[0,1.57,0],[.76,.76,.7],0xf0c59e);
@@ -48,13 +55,13 @@ export function createAvatars(scene,{quality="balanced"}={}) {
       cube(leg,[0,-.25,0],[.3,.52,.42],0x273b44);legs.push(leg);
     }
     const label=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture(r.name),depthWrite:false,transparent:true}));
-    label.position.set(0,3.03,0);label.scale.set(3.8,.71,1);group.add(label);
+    label.position.set(0,2.95,0);label.scale.set(1.75,.44,1);label.visible=false;group.add(label);
     if(!simple){
       const shadow=new THREE.Mesh(new THREE.CircleGeometry(.65,12),new THREE.MeshBasicMaterial({color:0x15271c,transparent:true,opacity:.2,depthWrite:false}));
       shadow.rotation.x=-Math.PI/2;shadow.position.y=-.70;group.add(shadow);
     }
     scene.add(group);
-    return {group,body,arms,legs,lastX:laneX(r.lane),lastZ:r.progress,label,labelKey:r.name.slice(0,22)};
+    return {group,body,arms,legs,lastX:laneX(r.lane),lastZ:visualProgress(r,index),label,labelKey:r.name.slice(0,14)};
   }
   function sync(runners) {
     const ids=new Set(runners.map(r=>r.id));
@@ -72,16 +79,25 @@ export function createAvatars(scene,{quality="balanced"}={}) {
         meshes.delete(id);
       }
     }
-    for(const r of runners)if(!meshes.has(r.id))meshes.set(r.id,build(r));
+    for(let i=0;i<runners.length;i++){
+      const r=runners[i];
+      if(!meshes.has(r.id))meshes.set(r.id,build(r,i));
+    }
   }
   function animate(runners,phase,dt,now) {
+    // Full names remain readable in the ranking; only leaders get floating labels.
+    const show=phase==="RUNNING"?(simple?3:5):phase==="RESULTS"?3:0;
+    const labeled=new Set(rank(runners).slice(0,show).map(r=>r.id));
     for(let i=0;i<runners.length;i++){
       const r=runners[i],item=meshes.get(r.id);if(!item)continue;
       const wanted=laneX(r.lane);
       item.lastX+=Math.min(1,dt*7)*(wanted-item.lastX);
       item.group.position.x=item.lastX;
-      item.lastZ+=Math.min(1,dt*8)*(r.progress-item.lastZ);
+      const visualZ=visualProgress(r,i);
+      if(item.lastZ-visualZ>25)item.lastZ=visualZ; // Snap after a new round.
+      item.lastZ+=Math.min(1,dt*8)*(visualZ-item.lastZ);
       item.group.position.z=item.lastZ;
+      item.label.visible=labeled.has(r.id);
       const moving=phase==="RUNNING"&&r.status==="running";
       const t=now*.012+i*.77;
       const tempo=moving?(r.slowUntil>0&&r.speed<r.baseSpeed?.45:1):0;

@@ -10,7 +10,7 @@ test("Usernames are explicit chat commands, not arbitrary messages",()=>{
   assert.deepEqual(parseRaceJoin(" ENTRAR Nando_2026 "),{mode:"roblox",username:"Nando_2026",content:"entrar Nando_2026"});
   assert.equal(parseRaceJoin("ENTRAR").mode,"demo");
   assert.equal(parseRaceJoin("nando_2026"),null);
-  for(const x of ["entrar x","entrar @name","entrar wrong-name","entrar nome dois","entrando nome",
+  for(const x of ["entrar x","entrar @@name","entrar wrong-name","entrar nome dois","entrando nome",
                   "entrar ___","entrar _hello"])
     assert.equal(parseRaceJoin(x),null,x);
   assert.equal(validRobloxUsername("User_900"),true);

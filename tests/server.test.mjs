@@ -5,7 +5,7 @@ import {createApp} from "../server/index.js";
 async function setup(t){
   const saves=[];
   const storage={enabled:false,load:async()=>null,save:async s=>saves.push(s),close:async()=>{}};
-  const app=await createApp({adminKey:"testing-secret",storage,seedDemo:false});
+  const app=await createApp({adminKey:"testing-secret",storage,seedDemo:false,disableTikTok:true});
   const addr=await app.listen(0);
   t.after(()=>app.close());
   const base="http://127.0.0.1:"+addr.port;

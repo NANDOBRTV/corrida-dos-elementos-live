@@ -55,3 +55,13 @@ O workflow anexa capturas de tela em **Actions → execução QA visual → Arti
 **Limite:** os testes visuais de Chromium emulado não substituem os testes de desempenho e toque no hardware real do Redmi 13C. Também não medem os FPS reais do celular nem comprovam transmissão de vídeo no TikTok.
 
 Comandos opcionais no computador de desenvolvimento: npm install; npx playwright install --with-deps chromium; npm run test:browser. O servidor de testes é iniciado automaticamente pelo Playwright. Não é necessário abrir nenhuma LIVE.
+
+### Melhorias descobertas nas capturas
+
+A revisão das capturas automatizadas identificou excesso de sobreposição nos nomes e pouca visibilidade dos corredores na largada. Na própria versão 1.7 foram feitos três ajustes:
+
+1. Os 50 participantes ocupam visualmente uma grade de até 10 linhas por 5 raias, sem alterar velocidade, progresso ou resultado calculados no servidor.
+2. Os nomes flutuantes aparecem apenas nos corredores líderes durante a corrida; o ranking continua exibindo os nomes completos.
+3. A câmera foi aproximada e o nome do bioma deixou de ser truncado nas telas mais estreitas.
+
+As capturas e o relatório automático permitem comparar essas melhorias. Ainda é necessário confirmar a experiência no aparelho físico.

@@ -4,9 +4,12 @@ import { createWorld } from "./world.js";
 import { createAvatars } from "./avatars.js";
 import { connectRemote } from "./remote.js";
 import { applyGiftEvent } from "./gifts.js";
+import {seasonTop,recentWinners} from "./history.js";
+import {getViewMode} from "./view.js";
 
 const STORAGE_KEY="elemental-race-browser-v1";
 const byId=id=>document.getElementById(id);
+document.body.dataset.view=getViewMode(window.location.search);
 const canvas=byId("raceCanvas");
 const notice=byId("joinResponse");
 let state;
@@ -84,6 +87,18 @@ function renderHud() {
       '</span><span class="rank-progress"><span style="width:'+pct+'%;background:'+r.color+
       '"></span></span><span class="rank-percent">'+pct+'%</span></div>';
   }).join("");
+  const leaders=seasonTop(state,3);
+  const leadersPanel=byId("seasonLeaders");
+  leadersPanel.innerHTML=leaders.length?leaders.map((entry,i)=>
+    '<div class="season-row"><strong>'+["🥇","🥈","🥉"][i]+' '+escapeHTML(entry.name)+
+    '</strong><span>'+Math.max(0,Number(entry.wins)||0)+' vitória'+(entry.wins===1?"":"s")+
+    ' · '+Math.max(0,Number(entry.podiums)||0)+' pódios</span></div>'
+  ).join(""):'<span class="season-empty">Aguardando primeira corrida concluída...</span>';
+  const latest=recentWinners(state,1)[0];
+  const recent=byId("recentChampion");
+  recent.hidden=!latest;
+  if(latest)recent.textContent="🏁 Último vencedor: "+latest.winner.name+
+    " • Rodada #"+String(latest.round)+" • "+(latest.winner.timeMs/1000).toFixed(2)+"s";
   byId("latestEvent").textContent=state.messages?.[0]?.text||"Aguardando eventos.";
   const gifts=Array.isArray(state.gifts)?state.gifts.slice(0,3):[];
   const feed=byId("giftFeed");

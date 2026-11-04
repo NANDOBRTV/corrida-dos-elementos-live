@@ -34,3 +34,23 @@ test("Conector não se inicia sem usuário configurado",async()=>{
   assert.equal(bridge.status().connected,false);
   await bridge.close();
 });
+
+test("TikTok LIVE 2.5: aceita comentário real com comment e user.userId",()=>{
+  const event={comment:" EnTrAr ",user:{userId:"7298881234567891012",uniqueId:"espectador_teste",nickname:"Visitante"},common:{msgId:"msg-real-01"}};
+  const parsed=normalizeTikTokChat(event);
+  assert.ok(parsed);
+  assert.equal(parsed.userId,"7298881234567891012");
+  assert.equal(parsed.displayName,"Visitante");
+  assert.equal(parsed.content,"entrar");
+  assert.equal(parsed.eventId,"msg-real-01");
+});
+test("TikTok LIVE 2.5: aceita fallback uniqueId sem inventar perfil",()=>{
+  const event={comment:"entrar",user:{uniqueId:"usuario_teste_1"}};
+  const parsed=normalizeTikTokChat(event);
+  assert.ok(parsed);
+  assert.equal(parsed.userId,"usuario_teste_1");
+  assert.equal(parsed.displayName,"usuario_teste_1");
+});
+test("TikTok LIVE 2.5: ignora outros comentários no campo comment",()=>{
+  assert.equal(normalizeTikTokChat({comment:"curti",user:{userId:"123"}}),null);
+});

@@ -113,6 +113,18 @@
       </div>
 
       <div class="preview-map-box">
+        <label for="graphicsQuality">DESEMPENHO 3D NO CELULAR</label>
+        <select id="graphicsQuality">
+          <option value="auto">Automático (recomendado)</option>
+          <option value="low">Leve — 30 FPS, sombras desligadas</option>
+          <option value="balanced">Equilibrado — 45 FPS</option>
+          <option value="high">Alto — 60 FPS, sombras ativadas</option>
+        </select>
+        <button id="applyGraphics" type="button" class="soft-button quality-apply">APLICAR QUALIDADE</button>
+        <p id="graphicsInfo">Detectando capacidade gráfica...</p>
+        <p>Altera apenas os gráficos e recarrega a página, sem reiniciar a corrida do Render.</p>
+      </div>
+      <div class="preview-map-box">
         <label for="mapPreview">VISUALIZAR CENÁRIO 3D</label>
         <select id="mapPreview">
           <option value="">Mapa oficial da rodada</option>

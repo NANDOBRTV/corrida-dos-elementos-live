@@ -1,5 +1,6 @@
 // Configurações públicas do jogo. Nenhuma credencial TikTok é armazenada aqui.
-export const TRACK_LENGTH = 150;
+export const TRACK_LENGTH = 300;
+export const LEGACY_TRACK_LENGTH = 150;
 export const LANES = 5;
 export const LANE_WIDTH = 1.85;
 export const PHASE_TIMES = Object.freeze({ LOBBY: 20000, COUNTDOWN: 5000, RUNNING: 85000, RESULTS: 10000 });
@@ -16,9 +17,11 @@ export function mapForRound(round) {
 }
 export function biome(id) { return BIOMES[id] || BIOMES.forest; }
 export function laneX(index) { return (index - 2) * LANE_WIDTH; }
-export function obstaclesFor(id) {
+export function obstaclesFor(id,length=TRACK_LENGTH) {
   const result=[];
-  for (let i=0;i<12;i++) result.push({
+  const safeLength=Number.isFinite(length)?Math.max(150,Math.min(300,length)):TRACK_LENGTH;
+  const count=Math.floor(safeLength/12.5);
+  for (let i=0;i<count;i++) result.push({
     index:i, z:14+i*11.15, lane:(i*3+2)%LANES, kind: id==="ice"?"ice":"log"
   });
   return result;

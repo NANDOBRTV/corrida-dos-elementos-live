@@ -3,6 +3,7 @@ import { createState, addDemo, register, rank, tick, countdown, advance, turbo, 
 import { createWorld } from "./world.js";
 import { createAvatars } from "./avatars.js";
 import { connectRemote } from "./remote.js";
+import { applyGiftEvent } from "./gifts.js";
 
 const STORAGE_KEY="elemental-race-browser-v1";
 const byId=id=>document.getElementById(id);
@@ -84,6 +85,15 @@ function renderHud() {
       '"></span></span><span class="rank-percent">'+pct+'%</span></div>';
   }).join("");
   byId("latestEvent").textContent=state.messages?.[0]?.text||"Aguardando eventos.";
+  const gifts=Array.isArray(state.gifts)?state.gifts.slice(0,3):[];
+  const feed=byId("giftFeed");
+  feed.hidden=gifts.length===0;
+  feed.innerHTML=gifts.map(g=>{
+    const title=(g.simulated?"[TESTE] ":"")+"🎁 "+escapeHTML(g.displayName)+" · "+escapeHTML(g.giftName)+
+      (g.quantity>1?" ×"+g.quantity:"");
+    const outcome=g.effect==="turbo"?"⚡ TURBO +4s":"💚 OBRIGADO!";
+    return '<div class="gift-entry"><span>'+title+'</span><strong>'+outcome+'</strong></div>';
+  }).join("");
   byId("nextMapText").textContent="PRÓXIMA: "+biome(mapForRound(state.round+1)).emoji+" "+biome(mapForRound(state.round+1)).name;
   byId("nextQueueCount").textContent=state.next.length+" NA FILA";
   byId("currentQueue").textContent=String(state.active.length);
@@ -166,6 +176,19 @@ byId("turboButton").addEventListener("click",async()=>{
   if(remoteMode){const response=await adminRequest("turbo",{userId:runner?.id});if(response)feedback("Turbo remoto aplicado em "+(runner?.name||"corredor"));return;}
   feedback(runner&&turbo(state,runner.id)?"Turbo aplicado em "+runner.name+" por 5 segundos.":"Turbo disponível apenas durante a corrida.",Boolean(runner));
   renderHud();persist();
+});
+byId("giftTest").addEventListener("click",async()=>{
+  const runner=rank(state.active).find(r=>r.status==="running")??rank(state.active)[0];
+  if(!runner){feedback("Não há corredor inscrito para receber um presente de teste.",false);return;}
+  if(remoteMode){
+    const result=await adminRequest("gift-test",{userId:runner.id});
+    if(result)feedback("Presente SIMULADO: "+(result.effect==="turbo"?"turbo ativado":"agradecimento sem turbo"));
+  }else{
+    const result=applyGiftEvent(state,{userId:runner.id,displayName:runner.name,
+      giftName:"Rosa de teste",giftId:"demo-rose",repeatCount:1,simulated:true});
+    feedback(result.ok?"Presente SIMULADO: "+(result.effect==="turbo"?"turbo ativado":"agradecimento sem turbo"):result.reason,result.ok);
+    renderHud();persist();
+  }
 });
 byId("mapPreview").addEventListener("change",event=>{
   const id=event.target.value;

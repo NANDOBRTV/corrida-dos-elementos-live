@@ -126,3 +126,6 @@ body[data-view="live"] .notice-line{padding:9px 10px}
 body[data-view="live"] .call-to-action{padding:10px 7px}
 body[data-view="live"] .call-to-action strong{font-size:clamp(29px,8vw,38px)}
 body[data-view="live"] .network-status{padding:6px 9px}
+
+.quality-apply{display:block;width:100%;margin-top:9px;background:#244b35;border-color:#699260;color:#eaffd0}
+body[data-view="live"] .quality-apply{display:none}

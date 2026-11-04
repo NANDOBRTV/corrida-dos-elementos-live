@@ -67,7 +67,7 @@ export async function createApp(opts={}){
   let bridge=null;
   let bridgeStatus={enabled:false,connected:false};
   function notify(){
-    const message="event: race\ndata: "+JSON.stringify({state,serverTime:now()})+"\n\n";
+    const message="event: race\ndata: "+JSON.stringify({state,serverTime:now(),tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected})+"\n\n";
     for(const client of subscribers){
       if(client.destroyed){subscribers.delete(client);continue;}
       try{client.write(message);}catch{subscribers.delete(client);}
@@ -105,7 +105,10 @@ export async function createApp(opts={}){
         "Connection":"keep-alive","X-Accel-Buffering":"no"});
       res.write("retry: 2500\n\n");
       subscribers.add(res);
-      res.write("event: race\ndata: "+JSON.stringify({state,serverTime:now()})+"\n\n");
+      res.write("event: race
+data: "+JSON.stringify({state,serverTime:now(),tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected})+"
+
+");
       req.on("close",()=>{subscribers.delete(res);});
       return;
     }

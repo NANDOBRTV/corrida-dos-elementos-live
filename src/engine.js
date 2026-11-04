@@ -1,4 +1,4 @@
-import { TRACK_LENGTH, PHASE_TIMES, BIOME_ORDER, mapForRound, RUNNER_COLORS, obstaclesFor, LANES } from "./config.js";
+import { TRACK_LENGTH, PHASE_TIMES, BIOME_ORDER, mapForRound, RUNNER_COLORS, obstaclesFor, LANES, LEGACY_BIOME_IDS } from "./config.js";
 import {recordCompletedRace} from "./history.js";
 
 export const FIXED_STEP = 50;
@@ -14,7 +14,7 @@ export function randomFrom(seed) {
 export function joinCommand(content) { return typeof content==="string" && content.trim().toLowerCase()==="entrar"; }
 export function createState(seed=127492) {
   return {
-    version:1, round:1, mapId:"forest", phase:"LOBBY", phaseMs:0, raceMs:0,
+    version:1, round:1, mapId:mapForRound(1), phase:"LOBBY", phaseMs:0, raceMs:0,
     accumulator:0, seed:seed>>>0, active:[], next:[], results:[], history:[], seasonLeaders:[], paused:false,
     messages:[{ text:"Ambiente de demonstração iniciado. Digite entrar.", at:0 }]
   };
@@ -154,6 +154,15 @@ export function tick(state,deltaMs) {
 }
 export function countdown(state) {
   return Math.max(0,Math.ceil((PHASE_TIMES[state.phase]-state.phaseMs)/1000));
+}
+// Preserve race progression and participants if a pre-2.3 snapshot was saved
+// in one of the retired maps. Only the current map is remapped; historic results
+// and season standings remain unchanged.
+export function migrateSavedState(v) {
+  if(!v||v.version!==1||!Number.isSafeInteger(v.round)||v.round<1)return v;
+  if(BIOME_ORDER.includes(v.mapId))return v;
+  if(!LEGACY_BIOME_IDS.includes(v.mapId))return v;
+  return {...v,mapId:mapForRound(v.round)};
 }
 export function validateSavedState(v) {
   if(!v||v.version!==1||!Number.isSafeInteger(v.round)||v.round<1||

@@ -8,6 +8,7 @@ import {seasonTop,recentWinners} from "./history.js";
 import {getViewMode} from "./view.js";
 import {qualityFromUrl,QUALITY_SETTINGS,shouldRender} from "./performance.js";
 import {createFrameMonitor,gradePerformance} from "./metrics.js";
+import {createAdaptiveQuality} from "./adaptive.js";
 import {connectionMessage} from "./connection.js";
 
 const STORAGE_KEY="elemental-race-browser-v1";
@@ -19,6 +20,11 @@ const graphics=qualityFromUrl(window.location.search,{
   memory:navigator.deviceMemory,cores:navigator.hardwareConcurrency
 });
 const graphicsProfile=QUALITY_SETTINGS[graphics];
+const requestedGraphics=new URLSearchParams(window.location.search).get("quality")||"auto";
+const adaptiveQuality=createAdaptiveQuality({
+  enabled:requestedGraphics==="auto",
+  targetFps:graphicsProfile.targetFps
+});
 const performanceMonitor=createFrameMonitor({targetFps:graphicsProfile.targetFps});
 const debugOverlay=new URLSearchParams(window.location.search).get("debug")==="1";
 byId("perfOverlay").hidden=!debugOverlay;
@@ -161,15 +167,25 @@ function onFrame(now) {
   if(now-lastPerfReport>=1000){
     lastPerfReport=now;
     const metrics=performanceMonitor.snapshot();
+    const adjustment=!document.hidden&&!renderError?adaptiveQuality.update(metrics,now):{changed:false};
+    if(adjustment.changed&&world){
+      world.setRenderScale(adjustment.scale);
+      performanceMonitor.reset();
+    }
+    const adaptation=adaptiveQuality.status();
+    const displayScale=Math.round(adaptation.scale*100);
+    const qualityStatus=adaptation.enabled
+      ?"Automático · resolução 3D "+displayScale+"% · cenário preservado"
+      :"Perfil fixo · resolução 3D 100%";
     const assessment=gradePerformance(metrics);
     const info=metrics.samples
       ?metrics.fps+" FPS / meta "+metrics.targetFps+" · "+metrics.drawCalls+
         " chamadas 3D · P95 "+metrics.p95FrameMs+" ms · "+metrics.slowFramePercent+"% frames lentos"
       :"Medindo FPS neste aparelho...";
-    byId("performanceReport").textContent=info+"\n"+assessment.text;
+    byId("performanceReport").textContent=info+"\n"+qualityStatus+"\n"+assessment.text;
     if(debugOverlay){
       const badge=byId("perfOverlay");
-      badge.textContent=metrics.samples?metrics.fps+"/"+metrics.targetFps+" FPS · "+metrics.drawCalls+" draw calls":"Medindo FPS...";
+      badge.textContent=metrics.samples?metrics.fps+"/"+metrics.targetFps+" FPS · "+displayScale+"% resolução · "+metrics.drawCalls+" draw calls":"Medindo FPS...";
       badge.dataset.level=assessment.level;
     }
   }
@@ -331,8 +347,9 @@ byId("giftTest").addEventListener("click",async()=>{
 const qualityControl=byId("graphicsQuality");
 const graphicsParams=new URL(window.location.href);
 qualityControl.value=graphicsParams.searchParams.get("quality")||"auto";
-byId("graphicsInfo").textContent="Perfil ativo: "+graphicsProfile.name+
-  " · até "+graphicsProfile.targetFps+" FPS · cenários 3D otimizados";
+byId("graphicsInfo").textContent=(adaptiveQuality.status().enabled?"Auto adaptativo: ":"Perfil fixo: ")+
+  graphicsProfile.name+" · até "+graphicsProfile.targetFps+
+  " FPS · a resolução muda automaticamente apenas no modo Auto";
 byId("applyGraphics").addEventListener("click",()=>{
   const selected=qualityControl.value;
   const url=new URL(window.location.href);
@@ -363,6 +380,7 @@ document.addEventListener("visibilitychange",()=>{
   lastFrame=performance.now();
   last3dFrame=0;
   performanceMonitor.reset();
+  adaptiveQuality.reset();
   if(document.hidden)persist();
 });
 window.addEventListener("pagehide",persist);

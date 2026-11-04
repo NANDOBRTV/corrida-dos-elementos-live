@@ -68,11 +68,19 @@ export async function createApp(opts={}){
   let closed=false;
   let bridge=null;
   let bridgeStatus={enabled:false,connected:false};
+  function publicMeta(){
+    return {storage:storage.enabled?"postgres":"memory",
+      storageHealthy:storage.enabled&&!lastPersistError,
+      tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected};
+  }
   function notify(){
-    const message="event: race\ndata: "+JSON.stringify({state,serverTime:now(),tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected})+"\n\n";
+    const message="event: race\ndata: "+JSON.stringify({state,serverTime:now(),...publicMeta()})+"\n\n";
     for(const client of subscribers){
       if(client.destroyed){subscribers.delete(client);continue;}
-      try{client.write(message);}catch{subscribers.delete(client);}
+      try{
+        // A disconnected or slow browser must not fill the Node.js heap with SSE backlog.
+        if(!client.write(message)){subscribers.delete(client);client.end();}
+      }catch{subscribers.delete(client);client.destroy();}
     }
     stats.snapshots++;lastBroadcast=now();
   }
@@ -125,7 +133,7 @@ export async function createApp(opts={}){
     }
     if(req.method==="GET"&&path==="/api/state"){
       sendJson(res,200,{ok:true,mode:"server",state,serverTime:now(),
-        persistence:storage.enabled?"postgres":"memory",tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected});
+        persistence:storage.enabled?"postgres":"memory",...publicMeta()});
       return;
     }
     if(req.method==="GET"&&path==="/api/stream"){
@@ -134,7 +142,7 @@ export async function createApp(opts={}){
         "Connection":"keep-alive","X-Accel-Buffering":"no"});
       res.write("retry: 2500\n\n");
       subscribers.add(res);
-      res.write("event: race\ndata: "+JSON.stringify({state,serverTime:now(),tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected})+"\n\n");
+      res.write("event: race\ndata: "+JSON.stringify({state,serverTime:now(),...publicMeta()})+"\n\n");
       req.on("close",()=>{subscribers.delete(res);});
       return;
     }

@@ -40,3 +40,18 @@ O modo gráfico não modifica regras de jogo, corrida, inscrições ou ranking.
 Mantenha TIKTOK_LIVE_MODE=disabled no serviço Render, mesmo com TIKTOK_USERNAME cadastrado. A leitura real do chat e presentes só é ativada com TIKTOK_LIVE_MODE=enabled, na etapa final aprovada. Enquanto isso, o jogo funciona exclusivamente com as simulações de teste.
 
 O Render Free não é garantia de 24h: suspende por inatividade. Esta versão não adiciona mecanismos para contornar esse limite; o requisito de hospedagem sempre ativa e transmissão de vídeo continua pendente.
+
+## QA automatizado com navegador real — versão 1.7
+
+Antes de testar em uma LIVE, a versão 1.7 acrescenta um workflow do GitHub Actions chamado **QA visual Android — sem LIVE real**. Ele inicia um servidor Node.js local de teste, com banco em memória e eventos TikTok explicitamente desativados. Um Chromium headless com WebGL por software verifica:
+
+- Se todos os cinco biomas carregam em WebGL e produzem imagens distintas, sem erros JavaScript.
+- Se a tela limpa fica sem painel administrativo, mostra aviso de pré-lançamento e não apresenta rolagem horizontal em 320, 390, 430 e 768 pixels.
+- Se cinquenta corredores simulados aparecem no estado autoritativo e se o ranking da tela recebe atualizações do servidor.
+- Se o endpoint do servidor continua com a conexão TikTok real desativada.
+
+O workflow anexa capturas de tela em **Actions → execução QA visual → Artifacts → corrida-qa-visual** para inspeção posterior, junto com logs e relatório HTML. A versão do Playwright é fixada em 1.64.1 e instalada somente como dependência de desenvolvimento; ela não é necessária para rodar o jogo no Render.
+
+**Limite:** os testes visuais de Chromium emulado não substituem os testes de desempenho e toque no hardware real do Redmi 13C. Também não medem os FPS reais do celular nem comprovam transmissão de vídeo no TikTok.
+
+Comandos opcionais no computador de desenvolvimento: npm install; npx playwright install --with-deps chromium; npm run test:browser. O servidor de testes é iniciado automaticamente pelo Playwright. Não é necessário abrir nenhuma LIVE.

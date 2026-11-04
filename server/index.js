@@ -298,7 +298,7 @@ export async function createApp(opts={}){
   // Outgoing SSE comments don't keep Render Free services awake. Paid plan is needed for true always-on.
   const ssePing=setInterval(()=>{
     // A heartbeat lets spectators detect half-open connections and server restarts.
-    const heartbeat="event: heartbeat\\ndata: "+JSON.stringify({instanceId,serverTime:now()})+"\\n\\n";
+    const heartbeat="event: heartbeat\ndata: "+JSON.stringify({instanceId,serverTime:now()})+"\n\n";
     for(const res of subscribers){
       if(res.destroyed){subscribers.delete(res);continue;}
       try{if(!res.write(heartbeat)){subscribers.delete(res);res.end();}}

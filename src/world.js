@@ -314,8 +314,15 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     const alpha=1-Math.exp(-2.9*Math.min(dt,.2));
     positionTarget.set(0,7.4,Math.max(-17,z-17));
     lookTarget.set(0,1.7,Math.min(currentLength+10,z+18));
-    camera.position.lerp(positionTarget,alpha);
-    cameraTarget.lerp(lookTarget,alpha);
+    // Network recovery and benchmark jumps can move several kilometers.
+    // Avoid rendering an empty transient frame between streamed tiles.
+    if(Math.abs(camera.position.z-positionTarget.z)>160){
+      camera.position.copy(positionTarget);
+      cameraTarget.copy(lookTarget);
+    }else{
+      camera.position.lerp(positionTarget,alpha);
+      cameraTarget.lerp(lookTarget,alpha);
+    }
     camera.lookAt(cameraTarget);
     animateAtmosphere(dt,z);
     updateSpeedTrails(race);

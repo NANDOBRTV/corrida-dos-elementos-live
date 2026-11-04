@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {summarizeFrames,compareTrials,benchmarkSummary,formatBenchReport} from "../src/benchmark-math.js";
+import {summarizeFrames,compareTrials,benchmarkSummary,interpretAdaptiveResult,formatBenchReport} from "../src/benchmark-math.js";
 
 test("FPS is measured from actual rAF intervals, not a guessed device specification",()=>{
   const metric=summarizeFrames(Array(100).fill(20));
@@ -44,4 +44,33 @@ test("Device report includes map data but never asks for account secrets",()=>{
   assert.match(report,/76%/);
   assert.match(report,/nenhuma/i.test(report)?"nenhuma":/Sem conexão ao chat TikTok/);
   assert.ok(!report.includes("ADMIN_KEY"));
+});
+
+test("Do not attribute FPS differences to adaptive quality when all scales stay at 100%",()=>{
+  const rows=[
+    {name:"GELO",fixed:{fps:49.7},adaptive:{fps:48.6,scale:1,avgScale:1}},
+    {name:"VULCÃO",fixed:{fps:50.4},adaptive:{fps:53.9,scale:1,avgScale:1}}
+  ];
+  const result=interpretAdaptiveResult(rows);
+  assert.equal(result.adjustedMaps,0);
+  assert.match(result.conclusion,/não comprova ganho causado/);
+  const report=formatBenchReport(rows);
+  assert.match(report,/Auto manteve 100%/);
+});
+test("Adaptive activation counts time spent below full resolution, not only final scale",()=>{
+  const rows=[
+    {name:"GELO",fixed:{fps:32},adaptive:{fps:39,scale:1,avgScale:.91}},
+    {name:"VULCÃO",fixed:{fps:34},adaptive:{fps:40,scale:.88,avgScale:.92}}
+  ];
+  const result=interpretAdaptiveResult(rows);
+  assert.equal(result.adjustedMaps,2);
+  assert.match(result.conclusion,/2 de 2 mapas/);
+});
+test("Frame cost metadata is shown only when measured",()=>{
+  const rows=[{name:"GELO",fixed:{fps:50},adaptive:{
+    fps:51,scale:1,avgScale:1,avgDrawCalls:78,avgTriangles:19000
+  }}];
+  const report=formatBenchReport(rows);
+  assert.match(report,/draw calls médios: 78/);
+  assert.match(report,/triângulos médios: 19000/);
 });

@@ -3,7 +3,7 @@ import {readFile,stat} from "node:fs/promises";
 import {fileURLToPath} from "node:url";
 import {dirname,join,extname,resolve,sep} from "node:path";
 import {timingSafeEqual,randomBytes} from "node:crypto";
-import {createState,addDemo,register,rank,advance,tick,turbo,validateSavedState} from "../src/engine.js";
+import {createState,addDemo,register,rank,advance,tick,turbo,validateSavedState,migrateSavedState} from "../src/engine.js";
 import {openStorage} from "./storage.js";
 import {startTikTokBridge} from "./tiktok.js";
 import {applyGiftEvent,createGiftDeduplicator} from "../src/gifts.js";
@@ -52,11 +52,14 @@ export async function createApp(opts={}){
   const storage=opts.storage??await openStorage();
   let state=createState();
   const loaded=await storage.load();
-  const recovered=validateSavedState(loaded);
+  const normalized=migrateSavedState(loaded);
+  const recovered=validateSavedState(normalized);
+  const biomeMigrated=recovered&&normalized!==loaded;
   const recovery={loaded:recovered,round:recovered?loaded.round:null,
     phase:recovered?loaded.phase:null};
   if(recovered){
-    state=loaded;
+    state=normalized;
+    if(biomeMigrated)console.log("[game] Migração dos mapas concluída: Gelo e Floresta, rodada",state.round);
     state.accumulator=0;
     console.log("[game] Estado recuperado do armazenamento: rodada",state.round);
   } else if(opts.seedDemo!==false) {
@@ -70,7 +73,7 @@ export async function createApp(opts={}){
   const realLiveEnabled=process.env.TIKTOK_LIVE_MODE==="enabled";
   const subscribers=new Set();
   let lastTick=now(),lastBroadcast=0,lastSave=now();
-  let revision=0,savedRevision=validateSavedState(loaded)?0:-1;
+  let revision=0,savedRevision=recovered&&!biomeMigrated?0:-1;
   let inFlight=null,lastPersistSuccess=null,lastPersistError=null;
   const eventHistory=new Map();
   const instanceId=randomBytes(8).toString("hex");
@@ -185,7 +188,7 @@ export async function createApp(opts={}){
         recoveredOnBoot:recovery.loaded,recoveredRound:recovery.round});return;}
       try{
         const snapshot=await storage.load();
-        const valid=validateSavedState(snapshot);
+        const valid=validateSavedState(migrateSavedState(snapshot));
         sendJson(res,200,{ok:true,storage:"postgres",readable:true,validSnapshot:valid,
           persistedRound:valid?snapshot.round:null,persistedPhase:valid?snapshot.phase:null,
           currentRound:state.round,recoveredOnBoot:recovery.loaded,

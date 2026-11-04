@@ -6,6 +6,7 @@ import {timingSafeEqual,randomBytes} from "node:crypto";
 import {createState,addDemo,register,rank,advance,tick,turbo,validateSavedState} from "../src/engine.js";
 import {openStorage} from "./storage.js";
 import {startTikTokBridge} from "./tiktok.js";
+import {applyGiftEvent,createGiftDeduplicator} from "../src/gifts.js";
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const mime={".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",
@@ -64,7 +65,8 @@ export async function createApp(opts={}){
   let revision=0,savedRevision=validateSavedState(loaded)?0:-1;
   let inFlight=null,lastPersistSuccess=null,lastPersistError=null;
   const eventHistory=new Map();
-  const stats={startedAt:new Date().toISOString(),ticks:0,snapshots:0};
+  const stats={startedAt:new Date().toISOString(),ticks:0,snapshots:0,giftsProcessed:0,giftBoosts:0};
+  const processedGifts=createGiftDeduplicator();
   let closed=false;
   let bridge=null;
   let bridgeStatus={enabled:false,connected:false};
@@ -119,6 +121,15 @@ export async function createApp(opts={}){
     notify();
     return result;
   }
+  function receiveGift(gift){
+    if(!processedGifts.accept(gift))return {ok:false,reason:"Evento duplicado"};
+    const result=mutation(()=>applyGiftEvent(state,gift));
+    if(result.ok){
+      stats.giftsProcessed++;
+      if(result.effect==="turbo")stats.giftBoosts++;
+    }
+    return result;
+  }
   async function handler(req,res){
     if(closed){sendJson(res,503,{ok:false,error:"Serviço encerrando"});return;}
     const url=new URL(req.url??"/","http://localhost");
@@ -127,6 +138,7 @@ export async function createApp(opts={}){
       sendJson(res,200,{ok:true,service:"corrida-dos-elementos-live",role:"race-engine",
         uptimeSeconds:Math.round(process.uptime()),round:state.round,phase:state.phase,
         storage:storage.enabled?"postgres":"memory",storageHealthy:storage.enabled&&!lastPersistError,
+        giftsProcessed:stats.giftsProcessed,giftBoosts:stats.giftBoosts,
         persistedAt:lastPersistSuccess,unflushedChanges:storage.enabled&&savedRevision!==revision,
         tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected});
       return;
@@ -178,6 +190,17 @@ export async function createApp(opts={}){
         else if(action==="turbo") {
           const id=typeof data.userId==="string"?data.userId:rank(state.active).find(r=>r.status==="running")?.id;
           if(!mutation(()=>turbo(state,id))){sendJson(res,400,{ok:false,error:"Turbo disponível somente durante a corrida"});return;}
+        } else if(action==="gift-test"){
+          const userId=typeof data.userId==="string"?data.userId
+            :rank(state.active).find(r=>r.status==="running")?.id;
+          const runner=state.active.find(r=>r.id===userId);
+          if(!runner){sendJson(res,400,{ok:false,error:"Inscreva um corredor antes de simular presente"});return;}
+          const effect=receiveGift({
+            userId:runner.id,displayName:runner.name,giftId:"demo-rose",
+            giftName:"Rosa de teste",repeatCount:1,simulated:true,
+            eventId:"demo-"+randomBytes(12).toString("hex")
+          });
+          outcome={...effect,simulated:true};
         } else if(action==="reset"){
           if(data.confirm!=="RESET_DEMO"){sendJson(res,400,{ok:false,error:"Confirmação necessária"});return;}
           mutation(()=>{state=createState();addDemo(state,10);eventHistory.clear();lastTick=now();});
@@ -234,6 +257,7 @@ export async function createApp(opts={}){
         bridge=startTikTokBridge({
           username:process.env.TIKTOK_USERNAME,
           onStatus:info=>{bridgeStatus=info;},
+          onGift:gift=>receiveGift(gift),
           onChat:({userId,displayName,content,eventId})=>{
             if(eventId&&eventHistory.has(eventId))return;
             const outcome=mutation(()=>register(state,userId,displayName,content));

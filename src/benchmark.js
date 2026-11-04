@@ -4,7 +4,7 @@ import {createState,register,advance} from "./engine.js";
 import {BIOME_ORDER,biome} from "./config.js";
 import {createFrameMonitor} from "./metrics.js";
 import {createAdaptiveQuality} from "./adaptive.js";
-import {summarizeFrames,benchmarkSummary,compareTrials,formatBenchReport} from "./benchmark-math.js";
+import {summarizeFrames,benchmarkSummary,compareTrials,interpretAdaptiveResult,formatBenchReport} from "./benchmark-math.js";
 
 const $=id=>document.getElementById(id);
 const query=new URLSearchParams(location.search);
@@ -41,6 +41,7 @@ function doTrial(mapId,mode,index,signal){
     world.resize();
     const delays=[];
     let last=null,start=null,lastAdapt=null,lastUi=null,scaleSum=0,scaleCount=0;
+    let drawSum=0,triangleSum=0;
     let request=0,finished=false;
     function clean(){signal.removeEventListener("abort",cancel);if(request)cancelAnimationFrame(request);}
     function cancel(){
@@ -62,6 +63,10 @@ function doTrial(mapId,mode,index,signal){
       // Exactly the same 50 visible, animated runners for both comparison modes.
       avatars.animate(runners.active,"RUNNING",Math.min(.1,dt/1000),now);
       world.render(runners,Math.min(.1,dt/1000));
+      if(elapsed>warmupMs&&dt>0&&dt<1000){
+        drawSum+=world.renderer.info.render.calls;
+        triangleSum+=world.renderer.info.render.triangles;
+      }
       monitor.frame(now,world.renderer.info);
       if(lastAdapt===null||now-lastAdapt>=1000){
         lastAdapt=now;
@@ -83,6 +88,8 @@ function doTrial(mapId,mode,index,signal){
         const data=summarizeFrames(delays);
         data.scale=world.getRenderScale();
         data.avgScale=scaleCount?Math.round(scaleSum/scaleCount*100)/100:1;
+        data.avgDrawCalls=scaleCount?Math.round(drawSum/scaleCount):0;
+        data.avgTriangles=scaleCount?Math.round(triangleSum/scaleCount):0;
         data.mode=mode;
         resolve(data);
         return;
@@ -96,6 +103,7 @@ function showReport(){
   $("results").hidden=false;
   const summary=benchmarkSummary(results);
   const pct=summary.deltaPercent;
+  $("interpretation").textContent=interpretAdaptiveResult(results).conclusion;
   $("summaryText").textContent=summary.maps+"/5 mapas · "+summary.fixedFps+
     " FPS fixo / "+summary.adaptiveFps+" FPS Auto"+
     (pct===null?"":(" · "+(pct>0?"+":"")+pct+"%"));
@@ -107,7 +115,8 @@ function showReport(){
     const title=document.createElement("b");title.textContent=biome(row.mapId).emoji+" "+row.name;
     const note=document.createElement("span");note.className="note";
     note.textContent=compare.fixedFps+" FPS fixo · "+compare.adaptiveFps+
-      " FPS Auto · resolução final "+Math.round(row.adaptive.scale*100)+"%";
+      " FPS Auto · resolução final "+Math.round(row.adaptive.scale*100)+
+      "% · "+row.adaptive.avgDrawCalls+" draw calls · "+row.adaptive.avgTriangles+" triângulos";
     left.append(title,note);
     const delta=document.createElement("strong");
     delta.textContent=(compare.deltaPercent>0?"+":"")+compare.deltaPercent+"%";

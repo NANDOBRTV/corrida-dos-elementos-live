@@ -32,6 +32,20 @@ export function benchmarkSummary(rows) {
     deltaPercent:Math.round((adaptive/fixed-1)*1000)/10
   };
 }
+export function interpretAdaptiveResult(rows){
+  const pairs=(Array.isArray(rows)?rows:[]).filter(row=>row?.fixed?.fps>0&&row?.adaptive?.fps>0);
+  const engaged=pairs.filter(({adaptive})=>
+    (Number.isFinite(adaptive.avgScale)&&adaptive.avgScale<.995)||
+    (Number.isFinite(adaptive.scale)&&adaptive.scale<.995)
+  ).length;
+  return {
+    testedMaps:pairs.length,adjustedMaps:engaged,
+    conclusion:engaged===0
+      ?"Auto manteve 100% de resolução em todos os mapas; a diferença de FPS observada não comprova ganho causado pela adaptação."
+      :"Auto reduziu a resolução em "+engaged+" de "+pairs.length+
+      " mapas. A diferença de FPS é observada nesta sessão; repita o teste para confirmar o ganho."
+  };
+}
 export function formatBenchReport(rows,{device="Navegador móvel",quality="balanced",date=""}={}) {
   const summary=benchmarkSummary(rows);
   const lines=[
@@ -43,13 +57,16 @@ export function formatBenchReport(rows,{device="Navegador móvel",quality="balan
     "Média fixa: "+summary.fixedFps+" FPS",
     "Média adaptativa: "+summary.adaptiveFps+" FPS",
     "Diferença observada: "+(summary.deltaPercent===null?"indisponível":(summary.deltaPercent>0?"+":"")+summary.deltaPercent+"%"),
+    "Interpretação: "+interpretAdaptiveResult(rows).conclusion,
     ""
   ];
   for(const row of rows){
     const compare=compareTrials(row.fixed,row.adaptive);
     lines.push(row.name+": "+compare.fixedFps+" FPS fixo / "+compare.adaptiveFps+
       " FPS Auto ("+(compare.deltaPercent>0?"+":"")+compare.deltaPercent+
-      "%), resolução Auto final "+Math.round((row.adaptive.scale??1)*100)+"%");
+      "%), resolução Auto final "+Math.round((row.adaptive.scale??1)*100)+"%"+
+      (Number.isFinite(row.adaptive.avgDrawCalls)?", draw calls médios: "+row.adaptive.avgDrawCalls:"")+
+      (Number.isFinite(row.adaptive.avgTriangles)?", triângulos médios: "+row.adaptive.avgTriangles:""));
   }
   lines.push("Dados de uma única sessão local. Medição depende de temperatura, bateria, tela e navegador.");
   lines.push("Sem conexão ao chat TikTok, sem presentes pagos e sem upload automático.");

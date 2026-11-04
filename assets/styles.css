@@ -93,3 +93,7 @@ input:focus,select:focus{border-color:var(--lime);box-shadow:0 0 0 2px #bdfa6c30
 .gift-entry span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .gift-entry strong{flex-shrink:0;color:#d8fb91;font-size:10px;letter-spacing:.4px}
 @media(max-width:420px){.gift-entry{font-size:10px}.gift-entry strong{font-size:9px}}
+
+.diagnostic-trigger{width:100%;margin-top:12px;background:#224937;border-color:#8ecb8f}
+.diagnostic-report{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;margin:10px 0 0;padding:12px;border-radius:9px;border:1px solid #42694b;background:#071a13;color:#e2f9e8;font-size:11px;line-height:1.65;font-family:ui-monospace,SFMono-Regular,monospace}
+.diagnostic-report[hidden]{display:none}

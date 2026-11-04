@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {laneX} from "./config.js";
 import {rank} from "./engine.js";
+import {appearanceForRunner} from "./cosmetics.js";
 
 export function createAvatars(scene,{quality="balanced"}={}) {
   const simple=quality==="low";
@@ -68,11 +69,13 @@ export function createAvatars(scene,{quality="balanced"}={}) {
     const parts=[];
     const part=(parent,pos,scale,color)=>cube(parent,pos,scale,color,parts);
     // Small original outfit variations, with no additional draw calls or geometry.
-    const skin=[0xf0c59e,0xb57950,0xffd9b2,0xdba67f,0x946448][index%5];
-    const pants=[0x273b44,0x443755,0x28333e,0x556b51,0x373038][index%5];
-    const hair=[0x26333c,0x6a432d,0x191d27,0xb16b31,0x474b69][index%5];
-    const sleeved=index%3!==0;
-    const style=index%5;
+    const appearance=appearanceForRunner(r.id);
+    const style=appearance.variant;
+    const vehicleKind=appearance.vehicle;
+    const skin=[0xf0c59e,0xb57950,0xffd9b2,0xdba67f,0x946448][style];
+    const pants=[0x273b44,0x443755,0x28333e,0x556b51,0x373038][style];
+    const hair=[0x26333c,0x6a432d,0x191d27,0xb16b31,0x474b69][style];
+    const sleeved=style%3!==0;
     const shoes=[0xffffff,0xe8bd71,0x4ef0db,0xf2a8db,0xb7d2fb][style];
     const backpack=[0x393f70,0x7d4a39,0x225f65,0x5b3965,0x345a37][style];
     const group=new THREE.Group();
@@ -81,7 +84,7 @@ export function createAvatars(scene,{quality="balanced"}={}) {
     part(body,[0,.78,0],[.72,1,.55],r.color);
     part(body,[0,1.57,0],[.76,.76,.7],skin);
     if(!simple){
-      part(body,[0,2.02,0],[.83,.18,.75],index%3===0?r.color:hair);
+      part(body,[0,2.02,0],[.83,.18,.75],style%3===0?r.color:hair);
       // Faces point forward (+Z); the broadcast camera follows the runners from behind.
       part(body,[-.17,1.62,.37],[.095,.11,.04],0x22373d);
       part(body,[.17,1.62,.37],[.095,.11,.04],0x22373d);
@@ -101,6 +104,30 @@ export function createAvatars(scene,{quality="balanced"}={}) {
       if(!simple)part(leg,[0,-.51,.08],[.34,.17,.51],shoes);
       legs.push(leg);
     }
+    // Original low-poly vehicle appearances are cosmetic only. The authoritative
+    // physics, speed, turbo, collisions and results stay entirely on the server.
+    if(vehicleKind==="kart"){
+      part(group,[0,-.50,.02],[1.25,.30,1.37],r.color); // chassis
+      part(group,[0,-.23,.64],[.96,.24,.25],0xced9e0); // nose
+      for(const side of [-1,1])for(const zz of [-.50,.46])
+        part(group,[side*.65,-.62,zz],[.29,.37,.35],0x202936);
+      part(group,[0,.05,.55],[.59,.10,.11],0x193340); // steering
+      if(!simple){
+        part(group,[0,-.40,-.70],[.85,.22,.22],0x2d4051);
+        for(const side of [-1,1])
+          part(group,[side*.39,-.29,.78],[.24,.14,.09],0xf7f0b8);
+      }
+    }else if(vehicleKind==="moto"){
+      part(group,[0,-.44,.04],[.45,.36,1.12],r.color);
+      for(const zz of [-.65,.66])
+        part(group,[0,-.63,zz],[.42,.52,.24],0x20242d);
+      part(group,[0,-.12,.49],[.81,.10,.13],0xa9bac5); // handlebar
+      if(!simple){
+        part(group,[0,-.18,-.32],[.43,.18,.43],0x324a50);
+        part(group,[.25,-.48,-.20],[.13,.15,.55],0xe5c580);
+        part(group,[0,-.28,.83],[.28,.22,.14],0xf5efcf);
+      }
+    }
     const label=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture(r.name,r.color),depthWrite:false,transparent:true}));
     label.position.set(0,2.95,0);label.scale.set(1.75,.44,1);label.visible=false;group.add(label);
     if(!simple){
@@ -108,7 +135,7 @@ export function createAvatars(scene,{quality="balanced"}={}) {
       shadow.rotation.x=-Math.PI/2;shadow.position.y=-.70;group.add(shadow);
     }
     scene.add(group);
-    return {group,body,arms,legs,parts,lastX:laneX(r.lane),lastZ:visualProgress(r,index),label,labelKey:r.name.slice(0,14)+"|"+r.color};
+    return {group,body,arms,legs,parts,vehicleKind,lastX:laneX(r.lane),lastZ:visualProgress(r,index),label,labelKey:r.name.slice(0,14)+"|"+r.color};
   }
   function sync(runners) {
     const ids=new Set(runners.map(r=>r.id));
@@ -154,12 +181,14 @@ export function createAvatars(scene,{quality="balanced"}={}) {
       const moving=phase==="RUNNING"&&r.status==="running";
       const t=now*.012+i*.77;
       const tempo=moving?(r.slowUntil>0&&r.speed<r.baseSpeed?.45:1):0;
-      item.body.position.y=moving?Math.abs(Math.sin(t))* .13*tempo:0;
+      const riding=item.vehicleKind!=="foot";
+      const rideOffset=item.vehicleKind==="kart"?-.40:item.vehicleKind==="moto"?-.22:0;
+      item.body.position.y=rideOffset+(moving?Math.abs(Math.sin(t))*(riding?.025:.13)*tempo:0);
       item.body.rotation.z=moving&&tempo<1?Math.sin(t)*.15:0;
       for(let s=0;s<2;s++){
         const swing=moving?Math.sin(t+s*Math.PI)*.65*tempo:0;
-        item.arms[s].rotation.x=phase==="RESULTS"&&i<3?-2.6:swing;
-        item.legs[s].rotation.x=-swing;
+        item.arms[s].rotation.x=riding?-.45:(phase==="RESULTS"&&i<3?-2.6:swing);
+        item.legs[s].rotation.x=riding?.55:-swing;
       }
     }
     flushVoxelBatch();

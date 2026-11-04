@@ -334,6 +334,15 @@ void connectRemote({
         :meta.tiktokConnected?"● TIKTOK CHAT CONECTADO"
         :meta.tiktokEnabled?"● TIKTOK AGUARDANDO LIVE":"● TIKTOK NÃO CONFIGURADO";
       byId("streamTag").textContent=meta.tiktokConnected?"● CHAT LIVE":"● DEMO";
+      const prelaunch=meta.liveEventsMode==="staged";
+      byId("joinCta").classList.toggle("prelaunch",prelaunch);
+      byId("joinCtaTop").textContent=prelaunch?"JOGO EM DESENVOLVIMENTO":"PARTICIPE DA CORRIDA";
+      byId("joinCtaTitle").innerHTML=prelaunch
+        ?"PRÉ-LANÇAMENTO"
+        :"DIGITE <span>ENTRAR</span> NO CHAT";
+      byId("joinCtaBottom").textContent=prelaunch
+        ?"CHAT REAL DESATIVADO • TESTES NO PAINEL DO OPERADOR"
+        :"UMA INSCRIÇÃO POR CORRIDA • SEM REINSCRIÇÃO AUTOMÁTICA";
     }
     if(meta.storage){
       const badge=byId("dbStatus");

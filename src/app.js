@@ -186,6 +186,35 @@ function dateLabel(value){
   const time=new Date(value);
   return Number.isNaN(time.getTime())?"Data indisponível":time.toLocaleString("pt-BR");
 }
+byId("refreshStorage").addEventListener("click",async()=>{
+  const box=byId("storageCheckReport");
+  box.hidden=false;
+  if(!remote){
+    box.textContent="A verificação persistente exige o serviço Render. Este navegador usa simulação local.";
+    return;
+  }
+  const token=byId("adminKey").value.trim();
+  if(!token){box.textContent="Informe a ADMIN_KEY do Render para verificar o PostgreSQL.";return;}
+  box.textContent="Consultando o banco por meio do servidor...";
+  try{
+    const d=await remote.storageCheck(token);
+    const lines=[
+      "💾 VERIFICAÇÃO DE PERSISTÊNCIA",
+      "Armazenamento: "+(d.storage==="postgres"?"PostgreSQL":"Memória temporária"),
+      "Banco acessível: "+(d.readable?"SIM":"NÃO"),
+      "Snapshot válido: "+(d.validSnapshot===true?"SIM":d.validSnapshot===false?"NÃO":"NÃO APLICÁVEL"),
+      "Corrida recuperada na última inicialização: "+(d.recoveredOnBoot?"SIM":"NÃO"),
+      "Rodada restaurada: "+(d.recoveredRound??"Nenhuma"),
+      "Última rodada salva: "+(d.persistedRound??"Não registrada"),
+      "Rodada em execução: "+(d.currentRound??"Não disponível"),
+      "Gravação pendente: "+(d.unflushedChanges?"SIM":"NÃO"),
+      "Última gravação deste processo: "+dateLabel(d.persistedAt)
+    ];
+    box.textContent=lines.join("\n");
+  }catch(err){
+    box.textContent="Verificação indisponível: "+String(err?.message||err);
+  }
+});
 byId("refreshDiagnostics").addEventListener("click",async()=>{
   const panel=byId("diagnosticReport");
   panel.hidden=false;

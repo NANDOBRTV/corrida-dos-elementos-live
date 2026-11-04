@@ -35,3 +35,12 @@ Manter a identidade própria **Corrida dos Elementos LIVE**, com apenas **❄️
 - Gelo e Floresta continuam sendo os únicos biomas jogáveis.
 - `TIKTOK_LIVE_MODE=disabled` no Render e sem teste de LIVE real.
 - Publicação na main somente após pipelines aprovadas.
+
+## Atualização 2.5 — detalhes da câmera, personagens e habilidades
+
+- Personagens mais variados: chapéus, capuzes, mochila e tênis de corrida originais. As peças adicionais continuam dentro do mesmo lote WebGL instanciado; não são novos personagens nem itens vendáveis.
+- Redução das etiquetas simultâneas durante a corrida para evitar que elas cubram toda a pista.
+- Rastros luminosos 3D de turbo: um único lote WebGL com até três segmentos por corredor beneficiado. Eles aparecem apenas enquanto o motor de corrida confirma o efeito de turbo e desaparecem quando o tempo expira, sem modificar velocidade, dano ou regras.
+- Mini-mapa verdadeiro da pista atual: linha reta com cinco raias, 0 a 150 metros, líder e dois perseguidores. Os pontos usam a posição oficial da corrida.
+- Respeita a tela 9:16 a 320 e 390 px e conserva os dois biomas Gelo e Floresta.
+- Esta fase **não** inclui kart, moto ou mochila a jato jogáveis, não ativa comunicação real TikTok e não garante FPS específico em aparelho físico. É necessária uma nova medição no Redmi 13C.

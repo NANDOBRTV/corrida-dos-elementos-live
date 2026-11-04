@@ -307,11 +307,11 @@ test("v2.3 batches fifty animated runners without losing colors or movement",asy
     return {originalCount,groupCount,colorsPreserved,colorDelta,articulated,afterRemoval,
       cleaned:scene.getObjectByName("runner-voxel-batch")===undefined};
   });
-  expect(result.originalCount).toBe(450); // 9 articulated cubes per runner.
+  expect(result.originalCount).toBe(650); // 13 articulated/outfit voxels per balanced runner.
   expect(result.groupCount).toBe(50);
   expect(result.colorsPreserved,"GPU color delta "+result.colorDelta).toBe(true);
   expect(result.articulated).toBe(true);
-  expect(result.afterRemoval).toBe(441);
+  expect(result.afterRemoval).toBe(637);
   expect(result.cleaned).toBe(true);
 });
 
@@ -363,5 +363,75 @@ test("50-runner showcase is explicitly fictional and independent of the real Ren
   expect(after.state.active.length).toBe(before.state.active.length);
   expect(after.state.round).toBe(before.state.round);
   expect(after.liveEventsMode).toBe("staged");
+  expect(errors).toEqual([]);
+});
+
+
+test("v2.5 turbo visuals follow the official state and disappear after cooldown",async({page,request})=>{
+  await reset(request);
+  await start(page,"?view=operator&quality=low");
+  const observed=await page.evaluate(async()=>{
+    const {createWorld}=await import("/src/world.js");
+    const sampleCanvas=document.createElement("canvas");
+    sampleCanvas.style.cssText="position:absolute;left:-9999px;top:0;width:320px;height:420px";
+    document.body.appendChild(sampleCanvas);
+    const world=createWorld(sampleCanvas,{quality:"low"});
+    const data={phase:"RUNNING",raceMs:1000,active:[{
+      id:"boost-test",lane:1,progress:40,color:"#65d9fa",
+      status:"running",turboUntil:8000
+    }]};
+    try{
+      world.setMap("ice");
+      world.resize();
+      world.render(data,.016);
+      const ice=world.scene.getObjectByName("boost-trails");
+      const first=ice.count;
+      const visible=ice.visible;
+      data.raceMs=9000;
+      world.render(data,.016);
+      const expired=ice.count;
+      data.turboUntil=11000;
+      data.active[0].turboUntil=11000;
+      world.setMap("forest");
+      world.render(data,.016);
+      const forest=world.scene.getObjectByName("boost-trails");
+      const second=forest.count;
+      data.phase="RESULTS";
+      world.render(data,.016);
+      return {first,visible,expired,second,afterResult:forest.count,
+        uniqueBatch:forest!==ice,weather:world.scene.getObjectByName("biome-weather-particles")?.count??1};
+    }finally{world.dispose();sampleCanvas.remove();}
+  });
+  expect(observed.first).toBe(3);
+  expect(observed.visible).toBe(true);
+  expect(observed.expired).toBe(0);
+  expect(observed.second).toBe(3);
+  expect(observed.afterResult).toBe(0);
+  expect(observed.uniqueBatch).toBe(true);
+});
+
+test("v2.5 mobile 150 m straight minimap tracks top three racers",async({page,request})=>{
+  await reset(request);
+  const errors=[];page.on("pageerror",e=>errors.push(e.message));
+  await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
+  await expect(page.locator("#remoteMode")).toContainText("PRÉVIA VISUAL LOCAL",{timeout:25_000});
+  await expect(page.locator("#liveMiniMapName")).toContainText("GELO");
+  await expect(page.locator(".live-mini-finish")).toContainText("150 m");
+  await expect(page.locator(".live-mini-start")).toContainText("0 m");
+  for(const id of ["#liveMapDot","#liveMapRival2","#liveMapRival3"])
+    await expect(page.locator(id)).toBeVisible();
+  for(const width of [320,390]){
+    await page.setViewportSize({width,height:844});
+    const layout=await page.evaluate(()=>{
+      const a=document.querySelector(".ranking-panel").getBoundingClientRect();
+      const b=document.querySelector(".live-minimap").getBoundingClientRect();
+      const c=document.querySelector(".live-minimap-road").getBoundingClientRect();
+      return {rankingRight:a.right,minimapLeft:b.left,roadWidth:c.width,
+        overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth};
+    });
+    expect(layout.rankingRight).toBeLessThan(layout.minimapLeft);
+    expect(layout.roadWidth).toBeGreaterThan(35);
+    expect(layout.overflow).toBeLessThanOrEqual(1);
+  }
   expect(errors).toEqual([]);
 });

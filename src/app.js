@@ -89,7 +89,22 @@ function renderHud() {
   byId("liveRemaining").textContent=Math.max(0,Math.ceil(TRACK_LENGTH-leadProgress))+" m até a chegada";
   byId("liveRaceCount").textContent=state.active.length+"/50 corredores";
   byId("liveMiniMapName").textContent=m.emoji+" "+m.name;
-  byId("liveMapDot").style.bottom=Math.min(100,leadProgress/TRACK_LENGTH*100)+"%";
+  const mapWidget=byId("liveMiniMapName").closest(".live-minimap");
+  mapWidget.dataset.biome=m.id;
+  const mapLeader=byId("liveMapDot");
+  mapLeader.hidden=leading.length===0;
+  mapLeader.style.bottom=Math.min(100,leadProgress/TRACK_LENGTH*100)+"%";
+  mapLeader.title=leading.length?leading[0].name+" · "+Math.floor(leadProgress)+"m":"";
+  for(let i=1;i<=2;i++){
+    const marker=byId("liveMapRival"+(i+1));
+    const racer=leading[i];
+    marker.hidden=!racer;
+    if(racer){
+      const progress=Math.max(0,Math.min(TRACK_LENGTH,Number(racer.progress)||0));
+      marker.style.bottom=(progress/TRACK_LENGTH*100)+"%";
+      marker.title=racer.name+" · "+Math.floor(progress)+"m";
+    }
+  }
   byId("liveWeatherTag").textContent=m.id==="ice"?"❄️ NEVE NA PISTA":"🌿 TRILHA DA FLORESTA";
   const boost=state.phase==="RUNNING"
     ?state.active.find(r=>r.turboUntil>state.raceMs&&r.status==="running"):null;

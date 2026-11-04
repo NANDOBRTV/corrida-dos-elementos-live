@@ -72,6 +72,9 @@ export function createAvatars(scene,{quality="balanced"}={}) {
     const pants=[0x273b44,0x443755,0x28333e,0x556b51,0x373038][index%5];
     const hair=[0x26333c,0x6a432d,0x191d27,0xb16b31,0x474b69][index%5];
     const sleeved=index%3!==0;
+    const style=index%5;
+    const shoes=[0xffffff,0xe8bd71,0x4ef0db,0xf2a8db,0xb7d2fb][style];
+    const backpack=[0x393f70,0x7d4a39,0x225f65,0x5b3965,0x345a37][style];
     const group=new THREE.Group();
     group.position.set(laneX(r.lane),.76,visualProgress(r,index));
     const body=new THREE.Group();group.add(body);
@@ -79,15 +82,24 @@ export function createAvatars(scene,{quality="balanced"}={}) {
     part(body,[0,1.57,0],[.76,.76,.7],skin);
     if(!simple){
       part(body,[0,2.02,0],[.83,.18,.75],index%3===0?r.color:hair);
-      part(body,[-.17,1.62,-.37],[.095,.11,.04],0x22373d);
-      part(body,[.17,1.62,-.37],[.095,.11,.04],0x22373d);
+      // Faces point forward (+Z); the broadcast camera follows the runners from behind.
+      part(body,[-.17,1.62,.37],[.095,.11,.04],0x22373d);
+      part(body,[.17,1.62,.37],[.095,.11,.04],0x22373d);
+      // Original character silhouettes stay in the same GPU instance batch.
+      const headwearColor=style===0?r.color:style===1?hair:style===2?0xe1d9ba:style===3?0x434f70:0xf3db9a;
+      part(body,[0,style===2?2.10:2.18,style===2?.17:0],
+        style===2?[.86,.12,.9]:style===3?[.88,.38,.78]:[.79,.18,.76],
+        headwearColor);
+      part(body,[0,.82,-.40],[.54,.64,.21],backpack);
     }
     const arms=[],legs=[];
     for(const side of [-1,1]){
       const arm=new THREE.Group();arm.position.set(side*.54,1.2,0);body.add(arm);
       part(arm,[0,-.34,0],[.23,.69,.35],sleeved?r.color:skin);arms.push(arm);
       const leg=new THREE.Group();leg.position.set(side*.23,.32,0);body.add(leg);
-      part(leg,[0,-.25,0],[.3,.52,.42],pants);legs.push(leg);
+      part(leg,[0,-.25,0],[.3,.52,.42],pants);
+      if(!simple)part(leg,[0,-.51,.08],[.34,.17,.51],shoes);
+      legs.push(leg);
     }
     const label=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture(r.name,r.color),depthWrite:false,transparent:true}));
     label.position.set(0,2.95,0);label.scale.set(1.75,.44,1);label.visible=false;group.add(label);
@@ -127,7 +139,7 @@ export function createAvatars(scene,{quality="balanced"}={}) {
   }
   function animate(runners,phase,dt,now) {
     // Full names remain readable in the ranking; only leaders get floating labels.
-    const show=phase==="RUNNING"?(simple?12:24):phase==="RESULTS"?5:0;
+    const show=phase==="RUNNING"?(simple?8:14):phase==="RESULTS"?5:0;
     const labeled=new Set(rank(runners).slice(0,show).map(r=>r.id));
     for(let i=0;i<runners.length;i++){
       const r=runners[i],item=meshes.get(r.id);if(!item)continue;

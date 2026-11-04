@@ -21,7 +21,9 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   scene.add(root);
   const materials=new Map();
   let mapId="";
-  let weather=null,focusRing=null;
+  let weather=null,focusRing=null,boostTrails=null;
+  const trailTransform=new THREE.Object3D();
+  const trailColor=new THREE.Color();
   const cameraTarget=new THREE.Vector3(0,1,10);
   const positionTarget=new THREE.Vector3();
   const lookTarget=new THREE.Vector3();
@@ -161,6 +163,47 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     focusRing.rotation.x=-Math.PI/2;
     focusRing.visible=false;
     root.add(focusRing);
+    // Single draw call for up to fifty active turbos, three glow streaks each.
+    boostTrails=new THREE.InstancedMesh(
+      new THREE.BoxGeometry(1,1,1),
+      new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.72,
+        depthWrite:false,blending:THREE.AdditiveBlending}),
+      150
+    );
+    boostTrails.name="boost-trails";
+    boostTrails.count=0;
+    boostTrails.visible=false;
+    boostTrails.frustumCulled=false;
+    root.add(boostTrails);
+  }
+  function updateSpeedTrails(race){
+    if(!boostTrails)return;
+    const active=Array.isArray(race.active)?race.active:[];
+    if(race.phase!=="RUNNING"){boostTrails.count=0;boostTrails.visible=false;return;}
+    let count=0;
+    for(let i=0;i<active.length&&count<150;i++){
+      const r=active[i];
+      if(r.status!=="running"||!(r.turboUntil>race.raceMs))continue;
+      const progress=Math.max(0,Number(r.progress)||0);
+      const stagger=Math.max(0,1-progress/30)*Math.floor(i/5)*1.48;
+      const z=progress-stagger;
+      trailColor.set(r.color||0x9dfaff);
+      for(let j=0;j<3&&count<150;j++){
+        trailTransform.position.set(laneX(r.lane),.22+.08*(j%2),z-.85-j*.72);
+        trailTransform.scale.set(.20-j*.035,.10,.75);
+        trailTransform.rotation.set(0,0,0);
+        trailTransform.updateMatrix();
+        boostTrails.setMatrixAt(count,trailTransform.matrix);
+        boostTrails.setColorAt(count,trailColor);
+        count++;
+      }
+    }
+    boostTrails.count=count;
+    boostTrails.visible=count>0;
+    if(count){
+      boostTrails.instanceMatrix.needsUpdate=true;
+      if(boostTrails.instanceColor)boostTrails.instanceColor.needsUpdate=true;
+    }
   }
   function animateAtmosphere(dt,z){
     if(!weather)return;
@@ -181,13 +224,13 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       child.traverse(obj=>{
         if(obj.isSprite){ if(obj.material?.map)obj.material.map.dispose();obj.material?.dispose(); }
         if(obj.isInstancedMesh&&typeof obj.dispose==="function")obj.dispose();
-        if(obj.isPoints||obj.name==="leader-focus-ring"){
+        if(obj.isPoints||obj.name==="leader-focus-ring"||obj.name==="boost-trails"){
           obj.geometry?.dispose();obj.material?.dispose();
         }
       });
     }
     for(const mat of materials.values())mat.dispose();materials.clear();
-    weather=null;focusRing=null;
+    weather=null;focusRing=null;boostTrails=null;
     // Remove old biome lighting but preserve runner meshes mounted directly in the scene.
     for(const child of [...scene.children])if(child.isLight)scene.remove(child);
   }
@@ -247,6 +290,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     cameraTarget.lerp(lookTarget,alpha);
     camera.lookAt(cameraTarget);
     animateAtmosphere(dt,z);
+    updateSpeedTrails(race);
     if(focusRing){
       const leader=active.reduce((best,r)=>!best||r.progress>best.progress?r:best,null);
       focusRing.visible=Boolean(leader);

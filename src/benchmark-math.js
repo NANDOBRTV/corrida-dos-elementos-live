@@ -46,7 +46,7 @@ export function interpretAdaptiveResult(rows){
       " mapas. A diferença de FPS é observada nesta sessão; repita o teste para confirmar o ganho."
   };
 }
-export function formatBenchReport(rows,{device="Navegador móvel",quality="balanced",date=""}={}) {
+export function formatBenchReport(rows,{device="Navegador móvel",quality="balanced",date="",trackLength=null}={}) {
   const summary=benchmarkSummary(rows);
   const lines=[
     "CORRIDA DOS ELEMENTOS LIVE — BENCHMARK LOCAL",
@@ -54,6 +54,7 @@ export function formatBenchReport(rows,{device="Navegador móvel",quality="balan
     "Perfil base idêntico: "+quality,
     "Data: "+date,
     "Mapas testados: "+summary.maps,
+    ...(Number.isFinite(trackLength)&&trackLength>0?["Distância da pista: "+trackLength+" m · primeira e segunda metade"]:[]),
     "Média fixa: "+summary.fixedFps+" FPS",
     "Média adaptativa: "+summary.adaptiveFps+" FPS",
     "Diferença observada: "+(summary.deltaPercent===null?"indisponível":(summary.deltaPercent>0?"+":"")+summary.deltaPercent+"%"),
@@ -66,7 +67,9 @@ export function formatBenchReport(rows,{device="Navegador móvel",quality="balan
       " FPS Auto ("+(compare.deltaPercent>0?"+":"")+compare.deltaPercent+
       "%), resolução Auto final "+Math.round((row.adaptive.scale??1)*100)+"%"+
       (Number.isFinite(row.adaptive.avgDrawCalls)?", draw calls médios: "+row.adaptive.avgDrawCalls:"")+
-      (Number.isFinite(row.adaptive.avgTriangles)?", triângulos médios: "+row.adaptive.avgTriangles:""));
+      (Number.isFinite(row.adaptive.avgTriangles)?", triângulos médios: "+row.adaptive.avgTriangles:"")+
+      (Number.isFinite(row.fixed?.p95Ms)&&Number.isFinite(row.adaptive?.p95Ms)
+        ?", P95 quadro fixo/Auto: "+row.fixed.p95Ms+"/"+row.adaptive.p95Ms+" ms":""));
   }
   lines.push("Dados de uma única sessão local. Medição depende de temperatura, bateria, tela e navegador.");
   lines.push("Sem conexão ao chat TikTok, sem presentes pagos e sem upload automático.");

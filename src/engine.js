@@ -1,4 +1,4 @@
-import { TRACK_LENGTH, PHASE_TIMES, BIOME_ORDER, mapForRound, RUNNER_COLORS, obstaclesFor, LANES, LEGACY_BIOME_IDS } from "./config.js";
+import { TRACK_LENGTH, LEGACY_TRACK_LENGTH, PHASE_TIMES, BIOME_ORDER, mapForRound, RUNNER_COLORS, obstaclesFor, LANES, LEGACY_BIOME_IDS } from "./config.js";
 import {recordCompletedRace} from "./history.js";
 
 export const FIXED_STEP = 50;
@@ -14,7 +14,7 @@ export function randomFrom(seed) {
 export function joinCommand(content) { return typeof content==="string" && content.trim().toLowerCase()==="entrar"; }
 export function createState(seed=127492) {
   return {
-    version:1, round:1, mapId:mapForRound(1), phase:"LOBBY", phaseMs:0, raceMs:0,
+    version:1, round:1, mapId:mapForRound(1), trackLength:TRACK_LENGTH, phase:"LOBBY", phaseMs:0, raceMs:0,
     accumulator:0, seed:seed>>>0, active:[], next:[], results:[], history:[], seasonLeaders:[], paused:false,
     messages:[{ text:"Ambiente de demonstração iniciado. Digite entrar.", at:0 }]
   };
@@ -86,6 +86,7 @@ export function nextRound(state) {
   const pending=state.next;
   state.round++;
   state.mapId=mapForRound(state.round);
+  state.trackLength=TRACK_LENGTH;
   state.seed=(state.seed+7919)>>>0;
   state.active=pending.map((p,i)=>buildRunner(p,i,state.seed));
   state.next=[];
@@ -107,10 +108,14 @@ export function turbo(state,id) {
   announce(state,"Turbo de teste ativado para "+runner.name);
   return true;
 }
+export function raceLength(state){
+  return state?.trackLength===TRACK_LENGTH?TRACK_LENGTH:LEGACY_TRACK_LENGTH;
+}
 function stepRunners(state,ms) {
   state.raceMs+=ms;
   const seconds=ms/1000;
-  const hazards=obstaclesFor(state.mapId);
+  const finishAt=raceLength(state);
+  const hazards=obstaclesFor(state.mapId,finishAt);
   for(const r of state.active) {
     if(r.status!=="running")continue;
     const slowed=r.slowUntil>state.raceMs;
@@ -128,8 +133,8 @@ function stepRunners(state,ms) {
     }
     r.speed=speed;
     const previous=r.progress;
-    r.progress=Math.min(TRACK_LENGTH,r.progress+speed*seconds);
-    if(previous<TRACK_LENGTH&&r.progress>=TRACK_LENGTH) {
+    r.progress=Math.min(finishAt,r.progress+speed*seconds);
+    if(previous<finishAt&&r.progress>=finishAt) {
       r.status="finished";
       r.finishTime=state.raceMs;
       r.speed=0;
@@ -160,13 +165,23 @@ export function countdown(state) {
 // and season standings remain unchanged.
 export function migrateSavedState(v) {
   if(!v||v.version!==1||!Number.isSafeInteger(v.round)||v.round<1)return v;
-  if(BIOME_ORDER.includes(v.mapId))return v;
-  if(!LEGACY_BIOME_IDS.includes(v.mapId))return v;
-  return {...v,mapId:mapForRound(v.round)};
+  const current=BIOME_ORDER.includes(v.mapId);
+  const retired=LEGACY_BIOME_IDS.includes(v.mapId);
+  if(!current&&!retired)return v; // Unknown biome remains invalid, no silent reset.
+  // New records explicitly declare 300m. Snapshots from previous releases lack
+  // trackLength and must finish the current 150m round unchanged.
+  const needsDistance=v.trackLength===undefined;
+  if(!retired&&!needsDistance)return v;
+  return {
+    ...v,
+    mapId:retired?mapForRound(v.round):v.mapId,
+    trackLength:needsDistance?LEGACY_TRACK_LENGTH:v.trackLength
+  };
 }
 export function validateSavedState(v) {
   if(!v||v.version!==1||!Number.isSafeInteger(v.round)||v.round<1||
      !BIOME_ORDER.includes(v.mapId)||!PHASE_TIMES[v.phase]||
+     (v.trackLength!==undefined&&v.trackLength!==TRACK_LENGTH&&v.trackLength!==LEGACY_TRACK_LENGTH)||
      !Array.isArray(v.active)||!Array.isArray(v.next)||!Array.isArray(v.results)||
      v.active.length>50||v.next.length>50)return false;
   return true;

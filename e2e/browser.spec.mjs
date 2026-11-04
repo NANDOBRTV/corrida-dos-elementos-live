@@ -273,6 +273,7 @@ test("v2.3 batches fifty animated runners without losing colors or movement",asy
   const result=await page.evaluate(async()=>{
     const THREE=await import("three");
     const {createAvatars}=await import("/src/avatars.js");
+    const {appearanceForRunner}=await import("/src/cosmetics.js");
     const {createState,register,advance}=await import("/src/engine.js");
     const state=createState(42719);
     for(let i=0;i<50;i++)register(state,"runner-"+i,"Runner "+i,"entrar");
@@ -296,6 +297,14 @@ test("v2.3 batches fifty animated runners without losing colors or movement",asy
     );
     const colorsPreserved=colorDelta<1e-5;
     const originalCount=batch.count;
+    const voxelsPerRunner=r=>13+(appearanceForRunner(r.id).vehicle==="kart"?10:
+      appearanceForRunner(r.id).vehicle==="moto"?7:0);
+    const expectedCount=state.active.reduce((sum,r)=>sum+voxelsPerRunner(r),0);
+    const expectedAfter=expectedCount-voxelsPerRunner(state.active[49]);
+    const vehicleCounts={
+      kart:state.active.filter(r=>appearanceForRunner(r.id).vehicle==="kart").length,
+      moto:state.active.filter(r=>appearanceForRunner(r.id).vehicle==="moto").length
+    };
     avatars.animate(state.active,"RUNNING",.016,1100);
     batch.getMatrixAt(0,second);
     const articulated=!first.equals(second);
@@ -304,14 +313,17 @@ test("v2.3 batches fifty animated runners without losing colors or movement",asy
     avatars.animate(state.active.slice(0,49),"RUNNING",.016,1150);
     const afterRemoval=scene.getObjectByName("runner-voxel-batch").count;
     avatars.clear();
-    return {originalCount,groupCount,colorsPreserved,colorDelta,articulated,afterRemoval,
+    return {originalCount,expectedCount,expectedAfter,vehicleCounts,
+      groupCount,colorsPreserved,colorDelta,articulated,afterRemoval,
       cleaned:scene.getObjectByName("runner-voxel-batch")===undefined};
   });
-  expect(result.originalCount).toBe(650); // 13 articulated/outfit voxels per balanced runner.
+  expect(result.originalCount).toBe(result.expectedCount); // Original runner + kart/moto appearance
   expect(result.groupCount).toBe(50);
   expect(result.colorsPreserved,"GPU color delta "+result.colorDelta).toBe(true);
   expect(result.articulated).toBe(true);
-  expect(result.afterRemoval).toBe(637);
+  expect(result.afterRemoval).toBe(result.expectedAfter);
+  expect(result.vehicleCounts.kart).toBeGreaterThan(0);
+  expect(result.vehicleCounts.moto).toBeGreaterThan(0);
   expect(result.cleaned).toBe(true);
 });
 
@@ -410,13 +422,13 @@ test("v2.5 turbo visuals follow the official state and disappear after cooldown"
   expect(observed.uniqueBatch).toBe(true);
 });
 
-test("v2.5 mobile 150 m straight minimap tracks top three racers",async({page,request})=>{
+test("v2.6 mobile 300 m straight minimap tracks top three racers",async({page,request})=>{
   await reset(request);
   const errors=[];page.on("pageerror",e=>errors.push(e.message));
   await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
   await expect(page.locator("#remoteMode")).toContainText("PRÉVIA VISUAL LOCAL",{timeout:25_000});
   await expect(page.locator("#liveMiniMapName")).toContainText("GELO");
-  await expect(page.locator(".live-mini-finish")).toContainText("150 m");
+  await expect(page.locator(".live-mini-finish")).toContainText("300 m");
   await expect(page.locator(".live-mini-start")).toContainText("0 m");
   for(const id of ["#liveMapDot","#liveMapRival2","#liveMapRival3"])
     await expect(page.locator(id)).toBeVisible();
@@ -434,4 +446,36 @@ test("v2.5 mobile 150 m straight minimap tracks top three racers",async({page,re
     expect(layout.overflow).toBeLessThanOrEqual(1);
   }
   expect(errors).toEqual([]);
+});
+
+
+test("v2.6 300m courses render a real finish in both biomes and retain old 150m rounds",async({page,request})=>{
+  await reset(request);
+  await start(page,"?view=operator&quality=low");
+  const scene=await page.evaluate(async()=>{
+    const {createWorld}=await import("/src/world.js");
+    const canvas=document.createElement("canvas");
+    canvas.style.cssText="position:absolute;left:-9999px;top:0;width:280px;height:440px";
+    document.body.appendChild(canvas);
+    const world=createWorld(canvas,{quality:"low"});
+    const stages=[];
+    try{
+      for(const [id,distance] of [["ice",300],["forest",300],["ice",150]]){
+        world.setMap(id,distance);
+        world.resize();
+        const labels=[];
+        world.scene.traverse(o=>{if(o.isSprite&&o.position.y===7.2)labels.push(o.position.z);});
+        stages.push({id,distance,labels,background:world.scene.background.getHex()});
+      }
+    }finally{world.dispose();canvas.remove();}
+    return stages;
+  });
+  expect(scene).toHaveLength(3);
+  expect(scene[0].labels).toContain(300);
+  expect(scene[1].labels).toContain(300);
+  expect(scene[2].labels).toContain(150);
+  expect(scene[0].background).not.toBe(scene[1].background);
+  await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
+  await expect(page.locator("#liveMiniFinish")).toHaveText("🏁 300 m");
+  await expect(page.locator("#liveRemaining")).toContainText("m até a chegada");
 });

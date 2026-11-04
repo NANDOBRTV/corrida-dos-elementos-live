@@ -73,3 +73,17 @@ Para desabilitar o conector, apague `TIKTOK_USERNAME` do ambiente do serviço. N
 ## ADMIN_KEY
 
 A variável `ADMIN_KEY` é exigida pelo painel administrativo. Ela fica em **Render → Web Service → Environment**. É uma credencial sensível; nunca compartilhe prints que a mostrem, não a armazene no navegador e não a inclua no repositório.
+
+## Presentes TikTok e efeito de corrida (Fase 3)
+
+O conector agora reconhece eventos reais de presente emitidos pelo TikTok LIVE, separadamente dos comentários. Para presentes com sequência (**streak**, gift.type=1), ele **aguarda o evento final** (repeatEnd=1) antes de contar. Isso evita que o contador cumulativo da sequência aplique o mesmo presente repetidamente. Para presentes simples, cada evento completo pode ser contabilizado individualmente. Uma janela de deduplicação por groupId ou msgId reduz repetições da rede.
+
+**Balanceamento deliberado:** um participante que já está correndo recebe apenas **um turbo de quatro segundos por rodada**, independentemente do valor do presente ou da quantidade enviada. Presentes extras recebem agradecimento visual, sem acumular vantagens. Presentes enviados por espectadores fora da corrida não inscrevem automaticamente ninguém; é preciso escrever **entrar** no chat para participar.
+
+Na própria interface, o operador pode pressionar **🎁 SIMULAR PRESENTE**. No Render, o controle exige ADMIN_KEY. Os presentes simulados são identificados como teste e não representam presentes reais nem receita.
+
+O servidor transforma o identificador TikTok em uma pseudônimo estável com HMAC antes de armazená-lo e compartilhá-lo em /api/state ou SSE. A chave deriva de ADMIN_KEY ou, se você configurar, TIKTOK_ID_SALT. Não divulgue essas variáveis. Se trocar a chave, o mesmo espectador receberá um novo ID interno até se inscrever novamente.
+
+Os eventos dependem do conector TikTok **não oficial** e ainda não foram validados em uma transmissão real de @nandobr_ofc. Sem LIVE ativa, a conexão permanece indisponível e o servidor segue controlando as rodadas de teste.
+
+**Atenção:** o Render Free ainda suspende por inatividade. O código de presentes não remove esse limite nem cria vídeo/RTMP 24 horas.

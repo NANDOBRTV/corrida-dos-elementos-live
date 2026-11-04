@@ -265,3 +265,45 @@ test("on-device benchmark completes all five biomes without TikTok, admin or hor
   await page.screenshot({path:join(root,"benchmark-local-390x844.png"),fullPage:true});
   expect(errors).toEqual([]);
 });
+
+
+test("v2.3 batches fifty animated runners without losing colors or movement",async({page,request})=>{
+  await reset(request);
+  await start(page,"?view=operator&quality=balanced");
+  const result=await page.evaluate(async()=>{
+    const THREE=await import("three");
+    const {createAvatars}=await import("/src/avatars.js");
+    const {createState,register,advance}=await import("/src/engine.js");
+    const state=createState(42719);
+    for(let i=0;i<50;i++)register(state,"runner-"+i,"Runner "+i,"entrar");
+    advance(state);advance(state);
+    state.active.forEach((r,i)=>{r.progress=20+i*.02;r.status="running";});
+    const scene=new THREE.Scene();
+    const avatars=createAvatars(scene,{quality:"balanced"});
+    avatars.sync(state.active);
+    avatars.animate(state.active,"RUNNING",.016,1000);
+    const batch=scene.getObjectByName("runner-voxel-batch");
+    const first=new THREE.Matrix4(),second=new THREE.Matrix4();
+    const color=new THREE.Color();
+    batch.getMatrixAt(0,first);
+    batch.getColorAt(0,color);
+    const colorsPreserved=color.equals(new THREE.Color(state.active[0].color));
+    const originalCount=batch.count;
+    avatars.animate(state.active,"RUNNING",.016,1100);
+    batch.getMatrixAt(0,second);
+    const articulated=!first.equals(second);
+    const groupCount=scene.children.filter(x=>x.isGroup).length;
+    avatars.sync(state.active.slice(0,49));
+    avatars.animate(state.active.slice(0,49),"RUNNING",.016,1150);
+    const afterRemoval=scene.getObjectByName("runner-voxel-batch").count;
+    avatars.clear();
+    return {originalCount,groupCount,colorsPreserved,articulated,afterRemoval,
+      cleaned:scene.getObjectByName("runner-voxel-batch")===undefined};
+  });
+  expect(result.originalCount).toBe(450); // 9 articulated cubes per runner.
+  expect(result.groupCount).toBe(50);
+  expect(result.colorsPreserved).toBe(true);
+  expect(result.articulated).toBe(true);
+  expect(result.afterRemoval).toBe(441);
+  expect(result.cleaned).toBe(true);
+});

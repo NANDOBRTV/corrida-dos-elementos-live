@@ -170,3 +170,68 @@ test("public state and SSE report a consistent opaque instance ID",async({reques
   expect(h.instanceId).toMatch(/^[0-9a-f]{16}$/);
   expect(state.instanceId).toBe(h.instanceId);
 });
+
+
+test("adaptive WebGL resolution preserves scene geometry in all five biomes",async({page,request})=>{
+  await reset(request);
+  await start(page,"?view=operator&quality=low");
+  const result=await page.evaluate(async()=>{
+    const {createWorld}=await import("/src/world.js");
+    const {createAdaptiveQuality}=await import("/src/adaptive.js");
+    const ids=["forest","desert","volcano","ice","hell"];
+    const sampleCanvas=document.createElement("canvas");
+    sampleCanvas.style.cssText="position:absolute;left:-9999px;top:0;width:320px;height:420px";
+    document.body.appendChild(sampleCanvas);
+    const world=createWorld(sampleCanvas,{quality:"balanced"});
+    const results=[];
+    try{
+      for(const id of ids){
+        world.setMap(id);
+        world.resize();
+        const before={color:world.scene.background.getHex(),
+          objects:world.scene.children.length,
+          meshes:0,ratio:world.renderer.getPixelRatio()};
+        world.scene.traverse(x=>{if(x.isInstancedMesh)before.meshes+=x.count;else if(x.isMesh)before.meshes++;});
+        world.setRenderScale(.76);
+        const after={color:world.scene.background.getHex(),
+          objects:world.scene.children.length,meshes:0,
+          ratio:world.renderer.getPixelRatio(),scale:world.getRenderScale()};
+        world.scene.traverse(x=>{if(x.isInstancedMesh)after.meshes+=x.count;else if(x.isMesh)after.meshes++;});
+        results.push({id,before,after});
+        world.setRenderScale(1);
+      }
+      const adaptive=createAdaptiveQuality({targetFps:30});
+      let step;
+      for(let t=1000;t<=3000;t+=1000)step=adaptive.update({
+        samples:60,fps:12,p95FrameMs:91,slowFramePercent:100
+      },t);
+      return {results,autoStep:step};
+    }finally{
+      world.dispose();
+      sampleCanvas.remove();
+    }
+  });
+  expect(result.autoStep.reason).toBe("down");
+  expect(result.autoStep.scale).toBe(.88);
+  expect(result.results).toHaveLength(5);
+  for(const entry of result.results){
+    expect(entry.before.meshes).toBeGreaterThan(40);
+    expect(entry.after.meshes).toBe(entry.before.meshes);
+    expect(entry.after.objects).toBe(entry.before.objects);
+    expect(entry.after.color).toBe(entry.before.color);
+    expect(entry.after.scale).toBe(.76);
+    expect(entry.after.ratio).toBeLessThan(entry.before.ratio);
+  }
+});
+
+test("automatic graphics mode explains its live resolution and fixed low remains fixed",async({page,request})=>{
+  await reset(request);
+  await start(page,"?view=operator&quality=auto&debug=1");
+  await expect(page.locator("#graphicsInfo")).toContainText("Auto adaptativo");
+  await expect(page.locator("#performanceReport")).toContainText("Automático");
+  await expect(page.locator("#perfOverlay")).toContainText("% resolução");
+  await page.goto("/?view=operator&quality=low",{waitUntil:"domcontentloaded"});
+  await expect(page.locator("#remoteMode")).toContainText("RENDER ONLINE",{timeout:25_000});
+  await expect(page.locator("#graphicsInfo")).toContainText("Perfil fixo");
+  await expect(page.locator("#performanceReport")).toContainText("100%");
+});

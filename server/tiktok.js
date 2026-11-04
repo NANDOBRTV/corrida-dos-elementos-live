@@ -41,7 +41,7 @@ export function normalizeTikTokGift(event) {
   };
 }
 
-export function startTikTokBridge({onChat,onGift=()=>{},onStatus=()=>{},username=process.env.TIKTOK_USERNAME}={}) {
+export function startTikTokBridge({onChat,onGift=()=>{},onEvent=()=>{},onStatus=()=>{},username=process.env.TIKTOK_USERNAME}={}) {
   const handle=(typeof username==="string"?username:"").trim().replace(/^@/,"");
   if(!handle)return {enabled:false,status:()=>({enabled:false,connected:false}),close:async()=>{}};
   let stopped=false,connected=false,connecting=false,connection=null,reconnectTimer=null;
@@ -51,10 +51,10 @@ export function startTikTokBridge({onChat,onGift=()=>{},onStatus=()=>{},username
     const old=connection;connection=null;
     if(old)try{await old.disconnect()}catch{}
   }
-  function retry(){
+  function retry(reason="disconnected"){
     if(stopped||reconnectTimer)return;
     connected=false;
-    emit({enabled:true,connected:false,username:handle});
+    emit({enabled:true,connected:false,username:handle,phase:"retrying",reason});
     reconnectTimer=setTimeout(()=>{reconnectTimer=null;void connect();},delay);
     reconnectTimer.unref?.();
     delay=Math.min(delay*1.6,90000);
@@ -62,6 +62,7 @@ export function startTikTokBridge({onChat,onGift=()=>{},onStatus=()=>{},username
   async function connect(){
     if(stopped||connecting)return;
     connecting=true;
+    emit({enabled:true,connected:false,username:handle,phase:"connecting"});
     try{
       await disconnectOld();
       const {TikTokLiveConnection,WebcastEvent,ControlEvent}=await import("tiktok-live-connector");
@@ -71,28 +72,31 @@ export function startTikTokBridge({onChat,onGift=()=>{},onStatus=()=>{},username
       conn.on(WebcastEvent.CHAT,event=>{
         if(stopped)return;
         const normalized=normalizeTikTokChat(event);
+        onEvent({type:"chat",recognized:!!normalized});
         if(!normalized)return;
         try{onChat(normalized)}catch(error){console.error("[tiktok] erro de inscrição",error.message);}
       });
       conn.on(WebcastEvent.GIFT,event=>{
         if(stopped)return;
         const normalized=normalizeTikTokGift(event);
+        onEvent({type:"gift",recognized:!!normalized});
         if(!normalized)return;
         try{onGift(normalized)}catch(error){console.error("[tiktok] erro de presente",error.message);}
       });
       conn.on(ControlEvent.ERROR,({info,exception})=>{
         console.warn("[tiktok] evento de erro",String(info??exception?.message??"indisponível").slice(0,150));
       });
-      conn.on("disconnected",()=>{if(!stopped)retry();});
-      conn.on("streamEnd",()=>{if(!stopped)retry();});
+      conn.on("disconnected",()=>{if(!stopped&&connection===conn)retry("disconnected");});
+      conn.on("streamEnd",()=>{if(!stopped&&connection===conn)retry("stream_ended");});
       await conn.connect();
       if(stopped){await conn.disconnect();return;}
       connected=true;delay=12000;
       console.log("[tiktok] chat conectado ao usuário configurado");
-      emit({enabled:true,connected:true,username:handle});
+      emit({enabled:true,connected:true,username:handle,phase:"connected"});
     }catch(error){
       console.warn("[tiktok] conexão não disponível",String(error?.message??error).slice(0,160));
-      retry();
+      const issue=/isn.t online|not live|not online/i.test(String(error?.message??error))?"live_not_active":"connection_failed";
+      retry(issue);
     }finally{connecting=false;}
   }
   void connect();

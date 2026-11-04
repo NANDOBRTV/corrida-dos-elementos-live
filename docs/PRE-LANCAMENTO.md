@@ -111,3 +111,23 @@ Os testes automáticos verificam:
 - Recuperação da mesma inscrição após reinicialização simulada, com um ID de processo diferente.
 
 Limites: **a reconexão automática não impede o Render Free de suspender por inatividade**. Durante uma suspensão o motor não está executando corridas, e a tela avisa que está aguardando. Não há mecanismo de keep-alive artificial, cobrança de plano pago nem tentativa de transmissão TikTok. O PostgreSQL salva o estado e permite retomar, mas não recupera os segundos de motor que deixaram de ocorrer enquanto o serviço estava dormindo.
+
+
+## Versão 2.0 — qualidade gráfica adaptativa sem cortar cenários
+
+O modo **Automático**, selecionado por padrão, utiliza o medidor local de FPS para ajustar somente a **resolução interna de renderização WebGL**. Ele não muda a pista, as regras, as animações, as cores, as árvores, os cactos, os cristais, a lava nem os demais objetos do bioma atual. Também não altera filas, corredores, estado do Render ou PostgreSQL.
+
+A escala pode passar por **100%, 88%, 76% e 65%**, sempre relativa à resolução do perfil inicial escolhido para o aparelho. A mudança ocorre sem reconstruir o mundo ou recarregar a página.
+
+Para evitar oscilações:
+- Considera somente medições com pelo menos 35 frames.
+- Reduz após três avaliações consecutivas de FPS baixo, respeitando intervalo mínimo de oito segundos entre reduções.
+- Recupera aos poucos após oito avaliações consecutivas de estabilidade e pelo menos vinte segundos desde a última alteração.
+- Descarta as amostras anteriores quando o aplicativo sai do segundo plano; não reinicia o nível atual.
+
+**Leve, Equilibrado e Alto são perfis manuais fixos:** não mudam automaticamente. Para voltar ao modo adaptativo, escolha Automático no painel ou retire o parâmetro quality=low / quality=balanced / quality=high da URL.
+
+Na tela com debug, a sobreposição mostra FPS e porcentagem da resolução atual. Exemplo:
+https://corrida-dos-elementos-live.onrender.com/?view=live&debug=1
+
+**Nota:** a redução de resolução pode suavizar a nitidez, mas mantém a composição do cenário e a iluminação. Não garante 30 FPS em todo celular. Ainda são necessários testes no aparelho físico e não há LIVE do TikTok durante o pré-lançamento.

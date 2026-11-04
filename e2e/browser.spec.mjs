@@ -151,11 +151,15 @@ test("LIVE display declares stale data while offline and recovers without a new 
   const currentRound=await page.locator("#roundNumber").textContent();
   const context=page.context();
   await context.setOffline(true);
+  // Some Chromium builds keep existing SSE sockets alive in offline emulation.
+  // The offline event represents the actual browser network state transition.
+  await page.evaluate(()=>window.dispatchEvent(new Event("offline")));
   await expect(page.locator("#connectionNotice")).toBeVisible({timeout:25_000});
   await expect(page.locator("#remoteMode")).toContainText(/RECONEXÃO|INTERROMPIDA/);
   await expect(page.locator("#connectionNotice")).toContainText(/congelad|não está respondendo/i,{timeout:25_000});
   await expect(page.locator("#roundNumber")).toHaveText(currentRound);
   await context.setOffline(false);
+  await page.evaluate(()=>window.dispatchEvent(new Event("online")));
   await expect(page.locator("#remoteMode")).toContainText("RENDER ONLINE",{timeout:35_000});
   await expect(page.locator("#connectionNotice")).toBeHidden({timeout:35_000});
   await expect(page.locator("#tiktokStatus")).toContainText("CHAT REAL DESATIVADO");

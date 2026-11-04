@@ -8,6 +8,7 @@ import {openStorage} from "./storage.js";
 import {startTikTokBridge} from "./tiktok.js";
 import {applyGiftEvent,createGiftDeduplicator} from "../src/gifts.js";
 import {pseudonymizeTikTokUser} from "./privacy.js";
+import {createLiveDiagnostics} from "./telemetry.js";
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const mime={".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",
@@ -69,6 +70,7 @@ export async function createApp(opts={}){
   const eventHistory=new Map();
   const stats={startedAt:new Date().toISOString(),ticks:0,snapshots:0,giftsProcessed:0,giftBoosts:0};
   const processedGifts=createGiftDeduplicator();
+  const liveDiagnostics=createLiveDiagnostics();
   let closed=false;
   let bridge=null;
   let bridgeStatus={enabled:false,connected:false};
@@ -124,8 +126,13 @@ export async function createApp(opts={}){
     return result;
   }
   function receiveGift(gift){
-    if(!processedGifts.accept(gift))return {ok:false,reason:"Evento duplicado"};
+    if(!processedGifts.accept(gift)){
+      const failed={ok:false,reason:"Evento duplicado"};
+      liveDiagnostics.gift(failed);
+      return failed;
+    }
     const result=mutation(()=>applyGiftEvent(state,gift));
+    liveDiagnostics.gift(result,gift.simulated===true);
     if(result.ok){
       stats.giftsProcessed++;
       if(result.effect==="turbo")stats.giftBoosts++;
@@ -158,6 +165,19 @@ export async function createApp(opts={}){
       subscribers.add(res);
       res.write("event: race\ndata: "+JSON.stringify({state,serverTime:now(),...publicMeta()})+"\n\n");
       req.on("close",()=>{subscribers.delete(res);});
+      return;
+    }
+    if(path==="/api/admin/diagnostics"){
+      if(req.method!=="GET"){sendJson(res,405,{ok:false,error:"Somente GET"});return;}
+      if(!authorized(req,secret)){sendJson(res,401,{ok:false,error:"Token administrativo inválido ou ausente"});return;}
+      const snapshot=liveDiagnostics.snapshot({
+        bridge:bridgeStatus,storage:storage.enabled?"postgres":"memory",
+        storageHealthy:storage.enabled&&!lastPersistError,
+        round:state.round,phase:state.phase,
+        current:state.active.length,next:state.next.length,
+        connectedViewers:subscribers.size
+      });
+      sendJson(res,200,{ok:true,diagnostics:snapshot});
       return;
     }
     if(path.startsWith("/api/admin/")){
@@ -256,9 +276,10 @@ export async function createApp(opts={}){
       await new Promise((resolve,reject)=>{server.once("error",reject);server.listen(port,"0.0.0.0",resolve);});
       const address=server.address();console.log("[server] corrida-dos-elementos-live http://0.0.0.0:"+address.port);
       if(!opts.disableTikTok){
-        bridge=startTikTokBridge({
+        bridge=(opts.bridgeFactory??startTikTokBridge)({
           username:process.env.TIKTOK_USERNAME,
-          onStatus:info=>{bridgeStatus=info;},
+          onStatus:info=>{bridgeStatus=info;liveDiagnostics.connection(info);},
+          onEvent:info=>liveDiagnostics.observed(info),
           onGift:gift=>{
             const safeId=pseudonymizeTikTokUser(gift.userId,identitySalt);
             return receiveGift({...gift,userId:safeId});
@@ -267,6 +288,7 @@ export async function createApp(opts={}){
             if(eventId&&eventHistory.has(eventId))return;
             const safeId=pseudonymizeTikTokUser(userId,identitySalt);
             const outcome=mutation(()=>register(state,safeId,displayName,content));
+            liveDiagnostics.registration(outcome);
             if(outcome.ok&&eventId){
               eventHistory.set(eventId,now());
               if(eventHistory.size>2000)eventHistory.delete(eventHistory.keys().next().value);

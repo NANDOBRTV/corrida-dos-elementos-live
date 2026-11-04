@@ -87,3 +87,24 @@ O servidor transforma o identificador TikTok em uma pseudônimo estável com HMA
 Os eventos dependem do conector TikTok **não oficial** e ainda não foram validados em uma transmissão real de @nandobr_ofc. Sem LIVE ativa, a conexão permanece indisponível e o servidor segue controlando as rodadas de teste.
 
 **Atenção:** o Render Free ainda suspende por inatividade. O código de presentes não remove esse limite nem cria vídeo/RTMP 24 horas.
+
+
+## Diagnóstico privado do chat TikTok — versão 1.4
+
+Na URL do Render, abra o Painel do Operador, preencha **ADMIN_KEY** e toque em **📡 VERIFICAR CHAT E PRESENTES REAIS**. A consulta acessa **GET /api/admin/diagnostics** e exige o mesmo token dos demais controles. Ela não está disponível para visitantes não autenticados.
+
+O relatório mostra:
+
+- Tentativas de conexão com o chat, horário da última conexão confirmada e motivo genérico da indisponibilidade (por exemplo, **live_not_active**).
+- Total de comentários observados, comandos **entrar** reconhecidos, inscrições aceitas e inscrições rejeitadas.
+- Eventos de presentes observados, presentes de sequência finalizados, presentes processados, duplicações evitadas e turbos aplicados.
+- Presentes **simulados**, contados separadamente dos presentes reais.
+- Rodada atual, fase, corredores inscritos, fila seguinte, espectadores com SSE e estado do PostgreSQL.
+
+**Os contadores começam do zero a cada reinício do processo Render.** Não são estatísticas históricas do TikTok e não ficam salvos no banco; são apenas diagnósticos para testar a integração. O motor e as inscrições, por outro lado, usam o PostgreSQL quando configurado.
+
+Os contadores não guardam texto de comentários, IDs privados, cookies ou tokens do TikTok. As ações de simulação não aumentam os contadores de comentários/presentes reais, evitando diagnósticos enganosos.
+
+**Como validar com uma LIVE verdadeira:** inicie uma transmissão usando a conta **@nandobr_ofc**, abra a arena Render em outro navegador, aguarde o status de conexão e envie **entrar** usando uma conta espectadora. Consulte o relatório e confira o aumento dos campos de comentários e inscrições. Teste primeiro o botão de presente fictício; a validação de presente real é opcional e não exige realizar uma compra apenas para testar.
+
+O Render Free pode adormecer após inatividade; o botão de diagnóstico **não transforma** o plano gratuito em serviço ininterrupto 24h. Ainda será necessário hospedagem não suspensível para essa garantia operacional.

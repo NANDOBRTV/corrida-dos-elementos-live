@@ -235,3 +235,30 @@ test("automatic graphics mode explains its live resolution and fixed low remains
   await expect(page.locator("#graphicsInfo")).toContainText("Perfil fixo");
   await expect(page.locator("#performanceReport")).toContainText("100%");
 });
+
+
+test("on-device benchmark completes all five biomes without TikTok, admin or horizontal overflow",async({page,request})=>{
+  const errors=[];
+  page.on("pageerror",e=>errors.push(e.message));
+  await page.goto("/benchmark.html?qa=1",{waitUntil:"domcontentloaded"});
+  await expect(page.getByRole("heading",{name:"Teste de FPS no seu celular"})).toBeVisible();
+  await expect(page.locator("#testStatus")).toHaveText("Pronto para começar");
+  await expect(page.locator("#startTest")).toBeEnabled();
+  const width=await page.evaluate(()=>({
+    outer:document.documentElement.clientWidth,
+    scroll:document.documentElement.scrollWidth
+  }));
+  expect(width.scroll).toBeLessThanOrEqual(width.outer+1);
+  const health=await (await request.get("/health")).json();
+  expect(health.liveEventsMode).toBe("staged");
+  await page.locator("#startTest").click();
+  await expect(page.locator("#testStatus")).toContainText("Teste concluído",{timeout:75_000});
+  await expect(page.locator("#results")).toBeVisible();
+  await expect(page.locator("#benchmarkRows .result-row")).toHaveCount(5);
+  await expect(page.locator("#reportText")).toHaveValue(/Mapas testados: 5/);
+  await expect(page.locator("#reportText")).toHaveValue(/FLORESTA/);
+  await expect(page.locator("#reportText")).toHaveValue(/INFERNO/);
+  await expect(page.locator("#startTest")).toBeEnabled();
+  await page.screenshot({path:join(root,"benchmark-local-390x844.png"),fullPage:true});
+  expect(errors).toEqual([]);
+});

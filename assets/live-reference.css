@@ -99,14 +99,19 @@ body[data-view="live"] .live-minimap{
   box-shadow:0 4px 12px #001a2a66
 }
 body[data-view="live"] .live-minimap-road{
-  position:relative;width:38px;height:100px;border-left:4px solid #aec8d7;
-  border-right:4px solid #aec8d7;border-radius:38% 45% 25% 35%;
-  background:linear-gradient(90deg,#506a7a,#8faabd,#536b79);
-  transform:rotate(-7deg);box-shadow:inset 0 0 0 1px #ffffff3b
+  position:relative;width:43px;height:86px;border-left:3px solid #d6e6f1;
+  border-right:3px solid #d6e6f1;border-radius:4px;
+  background:repeating-linear-gradient(90deg,
+    #687e86 0%,#687e86 18%,#c8dfd981 18%,#c8dfd981 20%);
+  box-shadow:0 0 0 1px #ffffff36,inset 0 0 10px #14243666
+}
+body[data-view="live"] .live-minimap[data-biome="forest"] .live-minimap-road{
+  background:repeating-linear-gradient(90deg,
+    #6a856a 0%,#6a856a 18%,#d5edb18c 18%,#d5edb18c 20%)
 }
 body[data-view="live"] .live-minimap-road:after{
-  content:"";position:absolute;left:50%;top:5%;height:90%;
-  border-left:2px dashed #d7e8f9b2;transform:translateX(-50%)
+  content:"";position:absolute;inset:0;border-top:2px solid #ffedba;
+  border-bottom:2px solid #d5ffff;pointer-events:none
 }
 body[data-view="live"] #liveMapDot{
   position:absolute;left:50%;bottom:0;z-index:2;transform:translate(-50%,50%);
@@ -211,4 +216,29 @@ body[data-view="live"][data-phase="lobby"] .call-to-action,
 body[data-view="live"][data-phase="countdown"] .call-to-action{
   top:150px;left:50%;max-width:260px;width:76%;
   background:#10202ded;border:1px solid #e9f8ffff;color:#fff;
+}
+
+/* The actual course is straight, 150 m and five lanes: no fictitious curves. */
+body[data-view="live"] .live-minimap .live-mini-finish,
+body[data-view="live"] .live-minimap .live-mini-start{
+  color:#f8fdfe;font:900 8px/1 "DM Sans",sans-serif;letter-spacing:.15px
+}
+body[data-view="live"] .live-minimap .live-mini-finish{color:#ffe8a8}
+body[data-view="live"] .live-minimap .live-mini-start{color:#c3e7f9}
+body[data-view="live"] .live-minimap-road .live-rival-dot{
+  position:absolute;z-index:2;transform:translate(-50%,50%);
+  width:8px;height:8px;border:1px solid #fff;border-radius:50%;
+  background:#95ffde;box-shadow:0 0 7px #9fffdf;
+  transition:bottom .25s linear
+}
+body[data-view="live"] #liveMapRival2{left:27%}
+body[data-view="live"] #liveMapRival3{left:73%;background:#d4c0ff;box-shadow:0 0 7px #dfbbff}
+body[data-view="live"] .live-rival-dot[hidden],
+body[data-view="live"] #liveMapDot[hidden]{display:none!important}
+body[data-view="live"] .live-minimap small{font-size:8px}
+/* Reduce clutter around the central racers on compact Android screens. */
+@media(max-width:360px){
+  body[data-view="live"] .live-minimap{width:88px}
+  body[data-view="live"] .live-timer-card{width:110px}
+  body[data-view="live"] .rank-name{font-size:8px}
 }

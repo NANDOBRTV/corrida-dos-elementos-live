@@ -42,7 +42,7 @@ export function createAvatars(scene) {
     const shadow=new THREE.Mesh(new THREE.CircleGeometry(.65,12),new THREE.MeshBasicMaterial({color:0x15271c,transparent:true,opacity:.2,depthWrite:false}));
     shadow.rotation.x=-Math.PI/2;shadow.position.y=-.70;group.add(shadow);
     scene.add(group);
-    return {group,body,arms,legs,lastX:laneX(r.lane),label};
+    return {group,body,arms,legs,lastX:laneX(r.lane),lastZ:r.progress,label};
   }
   function sync(runners) {
     const ids=new Set(runners.map(r=>r.id));
@@ -65,7 +65,8 @@ export function createAvatars(scene) {
       const wanted=laneX(r.lane);
       item.lastX+=Math.min(1,dt*7)*(wanted-item.lastX);
       item.group.position.x=item.lastX;
-      item.group.position.z=r.progress;
+      item.lastZ+=Math.min(1,dt*8)*(r.progress-item.lastZ);
+      item.group.position.z=item.lastZ;
       const moving=phase==="RUNNING"&&r.status==="running";
       const t=now*.012+i*.77;
       const tempo=moving?(r.slowUntil>0&&r.speed<r.baseSpeed?.45:1):0;

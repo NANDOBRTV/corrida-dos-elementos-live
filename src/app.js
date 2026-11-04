@@ -7,6 +7,7 @@ import { applyGiftEvent } from "./gifts.js";
 import {seasonTop,recentWinners} from "./history.js";
 import {getViewMode} from "./view.js";
 import {qualityFromUrl,QUALITY_SETTINGS,shouldRender} from "./performance.js";
+import {createFrameMonitor,gradePerformance} from "./metrics.js";
 
 const STORAGE_KEY="elemental-race-browser-v1";
 const byId=id=>document.getElementById(id);
@@ -17,6 +18,9 @@ const graphics=qualityFromUrl(window.location.search,{
   memory:navigator.deviceMemory,cores:navigator.hardwareConcurrency
 });
 const graphicsProfile=QUALITY_SETTINGS[graphics];
+const performanceMonitor=createFrameMonitor({targetFps:graphicsProfile.targetFps});
+const debugOverlay=new URLSearchParams(window.location.search).get("debug")==="1";
+byId("perfOverlay").hidden=!debugOverlay;
 let state;
 let remoteMode=window.location.hostname.toLowerCase().endsWith(".onrender.com"),remote=null;
 try {
@@ -26,7 +30,7 @@ try {
 if(!remoteMode&&state.round===1&&state.active.length===0&&state.next.length===0&&state.phase==="LOBBY")addDemo(state,10);
 state.paused=Boolean(state.paused);
 let selectedPreviewMap="";
-let world=null,avatars=null,displayedMap="",lastFrame=performance.now(),lastPaint=0,lastSave=0,last3dFrame=0,shownRound=state.round;
+let world=null,avatars=null,displayedMap="",lastFrame=performance.now(),lastPaint=0,lastSave=0,last3dFrame=0,lastPerfReport=0,shownRound=state.round;
 let renderError=false;
 
 try {
@@ -147,10 +151,26 @@ function onFrame(now) {
   }
   if(now-lastPaint>=160){renderHud();lastPaint=now;}
   if(now-lastSave>=4000){persist();lastSave=now;}
-  if(!renderError&&shouldRender(now,last3dFrame,graphicsProfile.targetFps)){
+  if(!document.hidden&&!renderError&&shouldRender(now,last3dFrame,graphicsProfile.targetFps)){
     const drawDelta=last3dFrame?Math.min((now-last3dFrame)/1000,.2):delta/1000;
     updateWorld(drawDelta,now);
+    performanceMonitor.frame(now,world?.renderer?.info);
     last3dFrame=now;
+  }
+  if(now-lastPerfReport>=1000){
+    lastPerfReport=now;
+    const metrics=performanceMonitor.snapshot();
+    const assessment=gradePerformance(metrics);
+    const info=metrics.samples
+      ?metrics.fps+" FPS / meta "+metrics.targetFps+" · "+metrics.drawCalls+
+        " chamadas 3D · P95 "+metrics.p95FrameMs+" ms · "+metrics.slowFramePercent+"% frames lentos"
+      :"Medindo FPS neste aparelho...";
+    byId("performanceReport").textContent=info+"\n"+assessment.text;
+    if(debugOverlay){
+      const badge=byId("perfOverlay");
+      badge.textContent=metrics.samples?metrics.fps+"/"+metrics.targetFps+" FPS · "+metrics.drawCalls+" draw calls":"Medindo FPS...";
+      badge.dataset.level=assessment.level;
+    }
   }
   requestAnimationFrame(onFrame);
 }
@@ -309,7 +329,12 @@ byId("resetDemo").addEventListener("click",async()=>{
   renderHud();persist();
 });
 window.addEventListener("resize",()=>world?.resize(),{passive:true});
-document.addEventListener("visibilitychange",()=>{lastFrame=performance.now();if(document.hidden)persist();});
+document.addEventListener("visibilitychange",()=>{
+  lastFrame=performance.now();
+  last3dFrame=0;
+  performanceMonitor.reset();
+  if(document.hidden)persist();
+});
 window.addEventListener("pagehide",persist);
 renderHud();
 if(remoteMode){

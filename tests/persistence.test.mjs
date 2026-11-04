@@ -47,6 +47,14 @@ test("transient Postgres errors remain unsaved and can be retried",async()=>{
   const app=await createApp({adminKey:"test-secret",storage,seedDemo:false,disableTikTok:true});
   const address=await app.listen(0);
   const url="http://127.0.0.1:"+address.port+"/health";
+  // Pause the simulated race before asserting "no pending writes".
+  // Otherwise the normal 50 ms motor tick can create a new revision after flush.
+  const pause=await fetch("http://127.0.0.1:"+address.port+"/api/admin/action",{
+    method:"POST",
+    headers:{"Content-Type":"application/json","x-admin-key":"test-secret"},
+    body:JSON.stringify({action:"pause"})
+  });
+  assert.equal(pause.status,200);
   try{
     assert.equal(await app.flush(),false);
     const bad=await (await fetch(url)).json();

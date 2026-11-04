@@ -2,12 +2,14 @@ import { BIOMES, BIOME_ORDER, TRACK_LENGTH, mapForRound, biome } from "./config.
 import { createState, addDemo, register, rank, tick, countdown, advance, turbo, validateSavedState } from "./engine.js";
 import { createWorld } from "./world.js";
 import { createAvatars } from "./avatars.js";
+import { connectRemote } from "./remote.js";
 
 const STORAGE_KEY="elemental-race-browser-v1";
 const byId=id=>document.getElementById(id);
 const canvas=byId("raceCanvas");
 const notice=byId("joinResponse");
 let state;
+let remoteMode=false,remote=null;
 try {
   const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null");
   state=validateSavedState(saved)?saved:createState();
@@ -33,6 +35,7 @@ function escapeHTML(v) {
   return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 function persist() {
+  if(remoteMode)return;
   try { localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); }catch(err){console.warn("localStorage unavailable",err);}
 }
 function feedback(message,ok=true) {
@@ -104,7 +107,7 @@ function updateWorld(dt,now) {
 function onFrame(now) {
   const delta=Math.min(Math.max(now-lastFrame,0),120);
   lastFrame=now;
-  if(!document.hidden)tick(state,delta);
+  if(!document.hidden && !remoteMode)tick(state,delta);
   if(shownRound!==state.round){
     shownRound=state.round;
     selectedPreviewMap="";
@@ -117,29 +120,50 @@ function onFrame(now) {
   if(!renderError)updateWorld(delta/1000,now);
   requestAnimationFrame(onFrame);
 }
-byId("joinForm").addEventListener("submit",event=>{
+async function adminRequest(action,params={}) {
+  if(!remote)return null;
+  const key=byId("adminKey").value.trim();
+  if(!key){feedback("Informe o token ADMIN_KEY configurado no Render para controlar o motor remoto.",false);return null;}
+  try {return await remote.action(action,params,key);}
+  catch(e){feedback(e?.message||"Falha ao acessar o servidor",false);return null;}
+}
+byId("joinForm").addEventListener("submit",async event=>{
   event.preventDefault();
-  const result=register(state,byId("userId").value,byId("userName").value,byId("chatContent").value);
+  const input={userId:byId("userId").value,displayName:byId("userName").value,content:byId("chatContent").value};
+  if(remoteMode){
+    const response=await adminRequest("join",input);
+    if(response){feedback("Inscrição remota confirmada na rodada "+response.result.round+" ("+response.result.queue+").");renderHud();}
+    return;
+  }
+  const result=register(state,input.userId,input.displayName,input.content);
   feedback(result.ok?"Inscrição CONFIRMADA na rodada "+result.round+" ("+result.queue+").":result.reason,result.ok);
   renderHud();persist();
 });
-byId("togglePause").addEventListener("click",()=>{
+byId("togglePause").addEventListener("click",async()=>{
+  if(remoteMode){
+    const response=await adminRequest(state.paused?"resume":"pause");
+    if(response)feedback(state.paused?"Motor remoto pausado":"Motor remoto retomado");
+    return;
+  }
   state.paused=!state.paused;
   feedback(state.paused?"Motor pausado neste navegador.":"Motor retomado neste navegador.");
   renderHud();persist();
 });
-byId("nextPhase").addEventListener("click",()=>{
+byId("nextPhase").addEventListener("click",async()=>{
+  if(remoteMode){const response=await adminRequest("advance");if(response)feedback("Fase remota alterada: "+state.phase);return;}
   advance(state);
   feedback("Fase alterada: "+state.phase+" — rodada "+state.round+".");
   renderHud();persist();
 });
-byId("addDemo").addEventListener("click",()=>{
+byId("addDemo").addEventListener("click",async()=>{
+  if(remoteMode){const response=await adminRequest("add-demo");if(response)feedback((response.added||0)+" inscritos adicionados ao Render.");return;}
   const count=addDemo(state,10);
   feedback(count?count+" corredores fictícios adicionados.":"IDs demo já inscritos nesta rodada; nenhum duplicado.",Boolean(count));
   renderHud();persist();
 });
-byId("turboButton").addEventListener("click",()=>{
+byId("turboButton").addEventListener("click",async()=>{
   const runner=rank(state.active).find(r=>r.status==="running");
+  if(remoteMode){const response=await adminRequest("turbo",{userId:runner?.id});if(response)feedback("Turbo remoto aplicado em "+(runner?.name||"corredor"));return;}
   feedback(runner&&turbo(state,runner.id)?"Turbo aplicado em "+runner.name+" por 5 segundos.":"Turbo disponível apenas durante a corrida.",Boolean(runner));
   renderHud();persist();
 });
@@ -149,8 +173,13 @@ byId("mapPreview").addEventListener("change",event=>{
   feedback(selectedPreviewMap?"Visualizando "+biome(selectedPreviewMap).name+" (somente cenário; rodada e ranking não mudam).":"Voltando ao mapa oficial.");
   renderHud();
 });
-byId("resetDemo").addEventListener("click",()=>{
-  if(!window.confirm("Reiniciar somente esta demonstração local? Inscrições e estatísticas deste navegador serão apagadas."))return;
+byId("resetDemo").addEventListener("click",async()=>{
+  if(!window.confirm(remoteMode?"Zerar a corrida e filas de TODOS os espectadores conectados ao Render?":"Reiniciar somente esta demonstração local?"))return;
+  if(remoteMode){
+    const result=await adminRequest("reset",{confirm:"RESET_DEMO"});
+    if(result)feedback("Demonstração no servidor reiniciada");
+    return;
+  }
   state=createState();addDemo(state,10);shownRound=1;selectedPreviewMap="";
   byId("mapPreview").value="";
   feedback("Demonstração reiniciada com 10 corredores fictícios.");
@@ -161,3 +190,26 @@ document.addEventListener("visibilitychange",()=>{lastFrame=performance.now();if
 window.addEventListener("pagehide",persist);
 renderHud();
 requestAnimationFrame(onFrame);
+void connectRemote({
+  onState(next){
+    remoteMode=true;
+    if(!validateSavedState(next)){console.warn("Snapshot remoto inválido");return;}
+    state=next;
+    byId("remoteMode").hidden=false;
+    byId("remoteMode").textContent="● RENDER ONLINE · MOTOR NO SERVIDOR";
+    byId("serverPanel").hidden=false;
+    byId("modeDisclaimer").textContent="Render controla a corrida e compartilha o estado entre espectadores. Esta demonstração ainda não está conectada ao TikTok. A continuidade 24h depende de hospedagem sem suspensão.";
+    renderHud();
+  },
+  onStatus(text){byId("remoteStatus").textContent=text;}
+}).then(client=>{
+  if(client){
+    remote=client;remoteMode=true;
+    byId("remoteStatus").textContent="Conectado ao servidor Render";
+    feedback("Motor autoritativo em execução no Render. Os controles exigem ADMIN_KEY.");
+  }else{
+    byId("remoteMode").textContent="● MODO LOCAL • GITHUB PAGES";
+    byId("remoteMode").hidden=false;
+    byId("remoteStatus").textContent="Simulador local — para servidor compartilhado, abra a URL do Render";
+  }
+}).catch(e=>console.error("Falha ao identificar o Render",e));

@@ -12,7 +12,7 @@ export async function connectRemote({onState,onStatus}) {
       if(!res.ok||!res.headers.get("content-type")?.includes("application/json"))return false;
       const data=await res.json();
       if(data.mode!=="server"||!data.state)return false;
-      if(!stopped)onState(data.state);
+      if(!stopped)onState(data.state,{tiktokEnabled:data.tiktokEnabled,tiktokConnected:data.tiktokConnected});
       return true;
     }catch{return false;}
     finally{connecting=false;}
@@ -25,7 +25,7 @@ export async function connectRemote({onState,onStatus}) {
     stream=es;
     es.addEventListener("race",event=>{
       if(stopped)return;
-      try{const {state}=JSON.parse(event.data);if(state)onState(state);}
+      try{const data=JSON.parse(event.data);if(data.state)onState(data.state,{tiktokEnabled:data.tiktokEnabled,tiktokConnected:data.tiktokConnected});}
       catch(e){console.warn("Evento de corrida inválido",e);}
     });
     es.onopen=()=>{if(!stopped)onStatus("Render conectado · corrida controlada pelo servidor");};

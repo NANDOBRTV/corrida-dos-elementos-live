@@ -367,11 +367,15 @@ byId("joinForm").addEventListener("submit",async event=>{
   const input={userId:byId("userId").value,displayName:byId("userName").value,content:byId("chatContent").value};
   if(remoteMode){
     const response=await adminRequest("join",input);
-    if(response){feedback("Inscrição remota confirmada na rodada "+response.result.round+" ("+response.result.queue+").");renderHud();}
+    if(response){
+      const name=response.result.robloxUsername?" • Roblox @"+response.result.robloxUsername:" • personagem genérico";
+      feedback("Inscrição confirmada na rodada "+response.result.round+" ("+response.result.queue+")"+name+".");
+      renderHud();
+    }
     return;
   }
   const result=register(state,input.userId,input.displayName,input.content);
-  feedback(result.ok?"Inscrição CONFIRMADA na rodada "+result.round+" ("+result.queue+").":result.reason,result.ok);
+  feedback(result.ok?"Inscrição local confirmada na rodada "+result.round+" ("+result.queue+").":result.reason+" Para nomes Roblox, use o painel no Render.",result.ok);
   renderHud();persist();
 });
 byId("togglePause").addEventListener("click",async()=>{

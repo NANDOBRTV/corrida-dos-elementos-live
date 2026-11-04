@@ -1,7 +1,8 @@
-import {joinCommand} from "../src/engine.js";
+import {parseRaceJoin} from "../src/roblox-names.js";
 export function normalizeTikTokChat(event) {
   const content=event?.comment??event?.content;
-  if(!joinCommand(content))return null;
+  const command=parseRaceJoin(content);
+  if(!command)return null;
   const raw=event?.user?.userId??event?.user?.id??event?.user?.uniqueId;
   if(raw===undefined||raw===null)return null;
   if(typeof raw==="number"&&(!Number.isSafeInteger(raw)||raw<0))return null;
@@ -12,7 +13,8 @@ export function normalizeTikTokChat(event) {
     .trim().slice(0,28)||"Participante";
   const rawId=event?.common?.msgId??event?.common?.messageId??event?.msgId;
   const eventId=rawId==null?null:String(rawId).slice(0,150);
-  return {userId,displayName,content:"entrar",eventId,source:"tiktok"};
+  return {userId,displayName,content:command.content,eventId,source:"tiktok",
+    ...(command.username?{robloxUsername:command.username}:{})};
 }
 export function normalizeTikTokGift(event) {
   if(!event||typeof event!=="object")return null;

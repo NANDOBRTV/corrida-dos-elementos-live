@@ -1,3 +1,11 @@
+## Versão 3.0 — entrada por usuário Roblox
+
+A partir do comentário `entrar NomeRoblox`, o backend consulta a API oficial de nomes e associa o ID numérico da conta à inscrição atual ou à próxima fila. O ranking exibe o nome de usuário encontrado, sem confundir com o apelido de exibição. Há cache, limite de requisições e proteção contra duas inscrições do mesmo personagem na mesma rodada. O comando legado `entrar` continua válido para simulação.
+
+**Importante:** informar o nome de uma conta pública não prova que o espectador é o proprietário. O site WebGL continua exibindo modelos próprios: o carregamento do avatar 3D verdadeiro só ocorre dentro do Roblox Studio/experiência autorizada, mediante ponte protegida por chave privada. Nenhuma LIVE real foi habilitada.
+
+---
+
 ### Revisão visual v2.9.1
 
 Após comparar capturas reais de Chromium 390×844 com o vídeo de referência, a câmera foi afastada e elevada para enquadrar mais corredores e mais pista de neve. As árvores agora têm folhagem verde-escura com camadas brancas de neve, e a nevasca usa partículas maiores em uma única malha de pontos. Painéis de ranking/tempo/minimapa ficaram mais proporcionais à referência. Motor, obstáculos, física e duração da pista permanecem inalterados.

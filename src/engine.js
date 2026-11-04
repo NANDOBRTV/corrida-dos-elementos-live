@@ -1,5 +1,6 @@
 import { TRACK_LENGTH, PREVIOUS_TRACK_LENGTH, LEGACY_TRACK_LENGTH, LONG_RACE_TIMEOUT, STREAM_TILE_LENGTH, PHASE_TIMES, BIOME_ORDER, mapForRound, RUNNER_COLORS, obstaclesFor, LANES, LEGACY_BIOME_IDS } from "./config.js";
 import {recordCompletedRace} from "./history.js";
+import {parseRaceJoin,validRobloxUsername} from "./roblox-names.js";
 
 export const FIXED_STEP = 50;
 export function hash(text) {
@@ -22,7 +23,7 @@ export function createState(seed=127492) {
 export function buildRunner(person,index,seed) {
   const rng=randomFrom(hash(person.id+"|"+seed));
   return {
-    id:person.id, name:person.name, lane:index%LANES, progress:0,
+    id:person.id, name:person.name, ...(person.robloxUserId?{robloxUserId:person.robloxUserId,robloxUsername:person.robloxUsername}:{}), lane:index%LANES, progress:0,
     baseSpeed:5.05+rng()*1.65, speed:0, status:"waiting",
     finishTime:null, slowUntil:0, turboUntil:0, passed:[], color:RUNNER_COLORS[index%RUNNER_COLORS.length]
   };
@@ -31,19 +32,30 @@ function announce(state,message) {
   state.messages.unshift({text:message.slice(0,150),at:state.round});
   state.messages.length=Math.min(8,state.messages.length);
 }
-export function register(state,userId,displayName,content) {
-  if(!joinCommand(content))return {ok:false,reason:'Comando inválido. Escreva somente entrar.'};
-  if(typeof userId!=="string" || !userId.trim() || userId.length>128)return {ok:false,reason:'Informe um ID de teste estável.'};
-  const id=userId.trim(), name=String(displayName||"Participante").trim().slice(0,28)||"Participante";
-  const current=state.phase==="LOBBY";
-  const target=current?state.active:state.next;
-  if(target.some(p=>p.id===id))return {ok:false,reason:'Este ID já está inscrito nesta rodada.',round:state.round+(current?0:1)};
-  if(target.length>=50)return {ok:false,reason:'Limite de 50 participantes nesta rodada.'};
-  if(current)target.push(buildRunner({id,name},target.length,state.seed));
-  else target.push({id,name});
+export function register(state,userId,displayName,content,robloxProfile=null){
+  const command=parseRaceJoin(content);
+  if(!command)return {ok:false,reason:"Use entrar ou entrar NomeRoblox."};
+  if(typeof userId!=="string"||!userId.trim()||userId.length>128)return {ok:false,reason:"ID inválido."};
+  let identity={};
+  if(command.mode==="roblox"){
+    if(!robloxProfile||!Number.isSafeInteger(robloxProfile.id)||robloxProfile.id<1||
+       !validRobloxUsername(robloxProfile.username)||
+       command.username.toLowerCase()!==robloxProfile.username.toLowerCase())
+      return {ok:false,reason:"A conta Roblox precisa ser localizada antes da inscrição."};
+    identity={robloxUserId:robloxProfile.id,robloxUsername:robloxProfile.username};
+  }
+  const id=userId.trim(),name=identity.robloxUsername||
+    (String(displayName||"Participante").trim().slice(0,28)||"Participante");
+  const current=state.phase==="LOBBY",target=current?state.active:state.next;
+  if(target.some(r=>r.id===id))return {ok:false,reason:"Participante já inscrito nesta rodada."};
+  if(identity.robloxUserId&&target.some(r=>r.robloxUserId===identity.robloxUserId))
+    return {ok:false,reason:"Esse personagem Roblox já foi escolhido nesta rodada."};
+  if(target.length>=50)return {ok:false,reason:"Limite de 50 participantes nesta rodada."};
+  const person={id,name,...identity};
+  if(current)target.push(buildRunner(person,target.length,state.seed));else target.push(person);
   const round=state.round+(current?0:1);
   announce(state,name+" confirmado na rodada "+round);
-  return {ok:true,round,queue:current?"atual":"próxima",id};
+  return {ok:true,round,queue:current?"atual":"próxima",id,...identity};
 }
 export function addDemo(state,amount=10) {
   let count=0;

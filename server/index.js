@@ -10,6 +10,8 @@ import {applyGiftEvent,createGiftDeduplicator} from "../src/gifts.js";
 import {pseudonymizeTikTokUser} from "./privacy.js";
 import {createLiveDiagnostics} from "./telemetry.js";
 import {createLikeBuffer,applyLikeBatch,applySimulatedLikes} from "../src/likes.js";
+import {parseRaceJoin} from "../src/roblox-names.js";
+import {createRobloxLookup,RobloxLookupError} from "./roblox-users.js";
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const mime={".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",
@@ -22,13 +24,14 @@ function sendJson(res,code,data,extra={}){
   res.writeHead(code,{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store",
     "X-Content-Type-Options":"nosniff",...extra});res.end(JSON.stringify(data));
 }
-function authorized(req,secret){
+function authorizedHeader(req,secret,header){
   if(!secret)return false;
-  const candidate=req.headers["x-admin-key"];
+  const candidate=req.headers[header];
   if(typeof candidate!=="string")return false;
-  const supplied=Buffer.from(candidate);const expected=Buffer.from(secret);
+  const supplied=Buffer.from(candidate),expected=Buffer.from(secret);
   return supplied.length===expected.length && timingSafeEqual(supplied,expected);
 }
+function authorized(req,secret){return authorizedHeader(req,secret,"x-admin-key");}
 async function bodyJson(req){
   const chunks=[];let size=0;
   for await (const chunk of req) {
@@ -70,6 +73,8 @@ export async function createApp(opts={}){
   const secret=opts.adminKey??process.env.ADMIN_KEY??"";
   if(!secret)console.warn("[security] ADMIN_KEY ausente: todos os comandos admin bloqueados");
   const identitySalt=process.env.TIKTOK_ID_SALT||secret||randomBytes(32).toString("hex");
+  const robloxBridgeKey=opts.robloxBridgeKey??process.env.ROBLOX_BRIDGE_KEY??"";
+  const robloxLookup=opts.robloxLookup??createRobloxLookup();
   // Segurança pré-lançamento: TIKTOK_USERNAME pode permanecer salvo sem abrir conexão.
   const realLiveEnabled=process.env.TIKTOK_LIVE_MODE==="enabled";
   const subscribers=new Set();
@@ -137,6 +142,20 @@ export async function createApp(opts={}){
     notify();
     return result;
   }
+  async function resolvedRegistration(id,name,content){
+    const command=parseRaceJoin(content);
+    if(!command)return {ok:false,reason:"Use entrar NomeRoblox."};
+    if(typeof id!=="string"||!id.trim()||id.length>128)return {ok:false,reason:"ID inválido."};
+    const target=state.phase==="LOBBY"?state.active:state.next;
+    if(target.some(r=>r.id===id))return {ok:false,reason:"Participante já inscrito nesta rodada."};
+    let profile=null;
+    if(command.username){
+      try{profile=await robloxLookup.lookup(command.username);}
+      catch(e){return {ok:false,reason:e instanceof RobloxLookupError?e.message:"Consulta Roblox indisponível."};}
+    }
+    if(closed)return {ok:false,reason:"Servidor encerrado."};
+    return mutation(()=>register(state,id,name,command.content,profile));
+  }
   function receiveGift(gift){
     if(!processedGifts.accept(gift)){
       const failed={ok:false,reason:"Evento duplicado"};
@@ -164,6 +183,19 @@ export async function createApp(opts={}){
         persistedAt:lastPersistSuccess,unflushedChanges:storage.enabled&&savedRevision!==revision,
         tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected,
         liveEventsMode:realLiveEnabled?"enabled":"staged"});
+      return;
+    }
+    if(path==="/api/roblox/participants"){
+      if(req.method!=="GET"){sendJson(res,405,{ok:false,error:"Somente GET"});return;}
+      if(!robloxBridgeKey){sendJson(res,503,{ok:false,error:"Ponte Roblox Studio não configurada"});return;}
+      if(!authorizedHeader(req,robloxBridgeKey,"x-roblox-bridge-key")){
+        sendJson(res,401,{ok:false,error:"Acesso negado"});return;
+      }
+      const participants=state.active.filter(r=>Number.isSafeInteger(r.robloxUserId)&&r.robloxUserId>0)
+        .map(r=>({userId:r.robloxUserId,username:r.robloxUsername,
+          lane:r.lane,progress:r.progress,status:r.status,turboUntil:r.turboUntil}));
+      sendJson(res,200,{ok:true,round:state.round,mapId:state.mapId,phase:state.phase,
+        raceMs:state.raceMs,trackLength:state.trackLength,participants});
       return;
     }
     if(req.method==="GET"&&path==="/api/state"){
@@ -229,12 +261,13 @@ export async function createApp(opts={}){
         if(eventId&&eventHistory.has(eventId)){
           sendJson(res,200,{ok:true,registered:false,reason:"Evento já processado",state});return;
         }
-        const result=mutation(()=>register(state,id,name,content));
+        const result=await resolvedRegistration(id,name,content);
         if(eventId&&result.ok){
           eventHistory.set(eventId,now());
           if(eventHistory.size>2000)eventHistory.delete(eventHistory.keys().next().value);
         }
-        sendJson(res,result.ok?200:400,{ok:result.ok,registered:result.ok,result,state,error:result.ok?undefined:result.reason});
+        const code=result.ok?200:(/indisponível|Muitas consultas/i.test(result.reason)?503:400);
+        sendJson(res,code,{ok:result.ok,registered:result.ok,result,state,error:result.ok?undefined:result.reason});
         return;
       }
       if(path==="/api/admin/action"){
@@ -340,12 +373,13 @@ export async function createApp(opts={}){
           onChat:({userId,displayName,content,eventId})=>{
             if(eventId&&eventHistory.has(eventId))return;
             const safeId=pseudonymizeTikTokUser(userId,identitySalt);
-            const outcome=mutation(()=>register(state,safeId,displayName,content));
-            liveDiagnostics.registration(outcome);
-            if(outcome.ok&&eventId){
-              eventHistory.set(eventId,now());
-              if(eventHistory.size>2000)eventHistory.delete(eventHistory.keys().next().value);
-            }
+            void resolvedRegistration(safeId,displayName,content).then(outcome=>{
+              liveDiagnostics.registration(outcome);
+              if(outcome.ok&&eventId){
+                eventHistory.set(eventId,now());
+                if(eventHistory.size>2000)eventHistory.delete(eventHistory.keys().next().value);
+              }
+            }).catch(e=>console.warn("[roblox] Falha de inscrição",String(e?.message??e).slice(0,100)));
           }
         });
         bridgeStatus=bridge.status();

@@ -173,7 +173,7 @@ export async function createApp(opts={}){
       stats.ticks++;dirty=true;
     }
     lastTick=current;
-    if(current-lastBroadcast>=400)notify();
+    if(current-lastBroadcast>=850)notify();
     if(current-lastSave>=5000)void persist();
   },50);
   heartbeat.unref?.();

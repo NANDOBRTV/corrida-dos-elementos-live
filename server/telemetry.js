@@ -5,9 +5,10 @@ export function createLiveDiagnostics({clock=()=>new Date().toISOString()}={}) {
   const counts={
     connectionAttempts:0,
     chatEvents:0,enterCommands:0,registrationsAccepted:0,registrationsRejected:0,
-    giftEvents:0,giftFinalEvents:0,giftsApplied:0,duplicateGifts:0,turbosApplied:0,simulatedGifts:0
+    giftEvents:0,giftFinalEvents:0,giftsApplied:0,duplicateGifts:0,turbosApplied:0,simulatedGifts:0,
+    likeEvents:0,likeValid:0,likesObserved:0,duplicateLikes:0
   };
-  const dates={lastAttemptAt:null,lastConnectedAt:null,lastDisconnectAt:null,lastChatAt:null,lastJoinAt:null,lastGiftAt:null};
+  const dates={lastAttemptAt:null,lastConnectedAt:null,lastDisconnectAt:null,lastChatAt:null,lastJoinAt:null,lastGiftAt:null,lastLikeAt:null};
   let lastIssue=null;
   function connection(info={}){
     if(info.phase==="connecting") {
@@ -32,6 +33,9 @@ export function createLiveDiagnostics({clock=()=>new Date().toISOString()}={}) {
       counts.giftEvents++;
       dates.lastGiftAt=time;
       if(info.recognized)counts.giftFinalEvents++;
+    } else if(info.type==="like") {
+      counts.likeEvents++;dates.lastLikeAt=time;
+      if(info.recognized)counts.likeValid++;
     }
   }
   function registration(outcome={}){
@@ -49,6 +53,10 @@ export function createLiveDiagnostics({clock=()=>new Date().toISOString()}={}) {
     counts.giftsApplied++;
     if(outcome.effect==="turbo")counts.turbosApplied++;
   }
+  function like(event,accepted){
+    if(accepted)counts.likesObserved+=event.count;
+    else counts.duplicateLikes++;
+  }
   function snapshot({bridge={},storage="memory",storageHealthy=false,round=1,phase="LOBBY",current=0,next=0,connectedViewers=0}={}){
     return {
       startedAt:start,
@@ -61,10 +69,12 @@ export function createLiveDiagnostics({clock=()=>new Date().toISOString()}={}) {
         giftObserved:counts.giftEvents,giftFinalized:counts.giftFinalEvents,
         giftsApplied:counts.giftsApplied,duplicateGifts:counts.duplicateGifts,
         turbosApplied:counts.turbosApplied,simulatedGifts:counts.simulatedGifts,
-        lastChatAt:dates.lastChatAt,lastJoinAt:dates.lastJoinAt,lastGiftAt:dates.lastGiftAt},
+        lastChatAt:dates.lastChatAt,lastJoinAt:dates.lastJoinAt,lastGiftAt:dates.lastGiftAt,
+        likeObserved:counts.likeEvents,likeValid:counts.likeValid,
+        likeCountObserved:counts.likesObserved,duplicateLikes:counts.duplicateLikes,lastLikeAt:dates.lastLikeAt},
       game:{round,phase,current,next,viewers:connectedViewers},
       persistence:{storage,healthy:storageHealthy===true}
     };
   }
-  return {connection,observed,registration,gift,snapshot};
+  return {connection,observed,registration,gift,like,snapshot};
 }

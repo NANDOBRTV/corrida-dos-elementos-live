@@ -9,6 +9,7 @@ import {startTikTokBridge} from "./tiktok.js";
 import {applyGiftEvent,createGiftDeduplicator} from "../src/gifts.js";
 import {pseudonymizeTikTokUser} from "./privacy.js";
 import {createLiveDiagnostics} from "./telemetry.js";
+import {createLikeBuffer,applyLikeBatch} from "../src/likes.js";
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const mime={".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",
@@ -79,6 +80,7 @@ export async function createApp(opts={}){
   const instanceId=randomBytes(8).toString("hex");
   const stats={startedAt:new Date().toISOString(),ticks:0,snapshots:0,giftsProcessed:0,giftBoosts:0};
   const processedGifts=createGiftDeduplicator();
+  const observedLikes=createLikeBuffer();
   const liveDiagnostics=createLiveDiagnostics();
   let closed=false;
   let bridge=null;
@@ -289,6 +291,8 @@ export async function createApp(opts={}){
   });});
   const heartbeat=setInterval(()=>{
     const current=now();
+    const likesBatch=observedLikes.drain(current);
+    if(likesBatch)mutation(()=>applyLikeBatch(state,likesBatch));
     if(!state.paused){
       tick(state,current-lastTick);
       stats.ticks++;revision++;
@@ -321,6 +325,10 @@ export async function createApp(opts={}){
           username:process.env.TIKTOK_USERNAME,
           onStatus:info=>{bridgeStatus=info;liveDiagnostics.connection(info);},
           onEvent:info=>liveDiagnostics.observed(info),
+          onLike:like=>{
+            const accepted=observedLikes.accept(like);
+            liveDiagnostics.like(like,accepted);
+          },
           onGift:gift=>{
             const safeId=pseudonymizeTikTokUser(gift.userId,identitySalt);
             return receiveGift({...gift,userId:safeId});
@@ -346,6 +354,8 @@ export async function createApp(opts={}){
       for(const client of subscribers){try{client.end();}catch{}}
       subscribers.clear();
       if(bridge)await bridge.close();
+      const finalLikes=observedLikes.drain(now(),true);
+      if(finalLikes)mutation(()=>applyLikeBatch(state,finalLikes));
       const saved=await persist(true);
       if(!saved&&storage.enabled)console.error("[storage] Encerramento sem persistência confirmada");
       await storage.close();

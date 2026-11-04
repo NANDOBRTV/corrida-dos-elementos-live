@@ -91,6 +91,7 @@ function renderHud() {
   byId("liveTimer").textContent=toTime(state.raceMs);
   byId("liveRemaining").textContent=Math.max(0,Math.ceil(distance-leadProgress))+" m até a chegada";
   byId("liveRaceCount").textContent=state.active.length+"/50 corredores";
+  byId("liveLikeCount").textContent="♥ "+(Number.isSafeInteger(state.observedLikes)?state.observedLikes.toLocaleString("pt-BR"):"0")+" curtidas observadas";
   byId("liveMiniMapName").textContent=m.emoji+" "+m.name;
   const mapWidget=byId("liveMiniMapName").closest(".live-minimap");
   mapWidget.dataset.biome=m.id;
@@ -333,6 +334,13 @@ byId("refreshDiagnostics").addEventListener("click",async()=>{
       "Duplicatas ignoradas: "+e.duplicateGifts,
       "Turbos aplicados: "+e.turbosApplied,
       "Presentes de teste (separados): "+e.simulatedGifts,
+      "",
+      "♥ CURTIDAS REAIS (SEM VANTAGEM)",
+      "Eventos recebidos: "+(e.likeObserved??0),
+      "Eventos válidos: "+(e.likeValid??0),
+      "Curtidas observadas: "+(e.likeCountObserved??0),
+      "Duplicatas: "+(e.duplicateLikes??0),
+      "Última curtida: "+dateLabel(e.lastLikeAt),
       "",
       "🏁 ESTADO ATUAL",
       "Rodada: "+g.round+" | Fase: "+g.phase,

@@ -41,7 +41,14 @@ export function normalizeTikTokGift(event) {
   };
 }
 
-export function startTikTokBridge({onChat,onGift=()=>{},onEvent=()=>{},onStatus=()=>{},username=process.env.TIKTOK_USERNAME}={}) {
+export function normalizeTikTokLike(event) {
+  const count=Number(event?.count??event?.likeCount);
+  if(!Number.isSafeInteger(count)||count<1||count>100000)return null;
+  const raw=event?.common?.msgId??event?.msgId;
+  // A identidade de quem curte nunca é armazenada ou divulgada.
+  return {source:"tiktok",count,eventId:raw==null?null:String(raw).slice(0,140)};
+}
+export function startTikTokBridge({onChat,onGift=()=>{},onLike=()=>{},onEvent=()=>{},onStatus=()=>{},username=process.env.TIKTOK_USERNAME}={}) {
   const handle=(typeof username==="string"?username:"").trim().replace(/^@/,"");
   if(!handle)return {enabled:false,status:()=>({enabled:false,connected:false}),close:async()=>{}};
   let stopped=false,connected=false,connecting=false,connection=null,reconnectTimer=null;
@@ -82,6 +89,12 @@ export function startTikTokBridge({onChat,onGift=()=>{},onEvent=()=>{},onStatus=
         onEvent({type:"gift",recognized:!!normalized});
         if(!normalized)return;
         try{onGift(normalized)}catch(error){console.error("[tiktok] erro de presente",error.message);}
+      });
+      conn.on(WebcastEvent.LIKE,event=>{
+        if(stopped)return;
+        const like=normalizeTikTokLike(event);
+        onEvent({type:"like",recognized:!!like});
+        if(like)try{onLike(like)}catch(error){console.error("[tiktok] erro de curtida",error.message);}
       });
       conn.on(ControlEvent.ERROR,({info,exception})=>{
         console.warn("[tiktok] evento de erro",String(info??exception?.message??"indisponível").slice(0,150));

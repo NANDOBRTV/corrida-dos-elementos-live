@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { TRACK_LENGTH, biome, laneX, obstaclesFor } from "./config.js";
+import { TRACK_LENGTH, PREVIOUS_TRACK_LENGTH, STREAM_TILE_LENGTH, biome, laneX, obstaclesFor } from "./config.js";
 import {QUALITY_SETTINGS} from "./performance.js";
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
@@ -8,6 +8,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   const profile=QUALITY_SETTINGS[quality]??QUALITY_SETTINGS.balanced;
   const sceneDetail=i=>profile.sceneStep===1||i%4<2;
   const scene=new THREE.Scene();
+  const finishGroup=new THREE.Group();finishGroup.name="absolute-finish-line";scene.add(finishGroup);
   const camera=new THREE.PerspectiveCamera(58,1,.1,360);
   // Third-person chase perspective for the vertical race format.
   camera.position.set(0,7.3,-17);
@@ -22,6 +23,8 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   const materials=new Map();
   let mapId="";
   let currentLength=TRACK_LENGTH;
+  let renderedLength=PREVIOUS_TRACK_LENGTH;
+  const streamingLength=STREAM_TILE_LENGTH*2;
   let weather=null,focusRing=null,boostTrails=null;
   const trailTransform=new THREE.Object3D();
   const trailColor=new THREE.Color();
@@ -48,7 +51,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     obj.rotation.y=(Math.abs(x*47+z*13)%50)/37;
     obj.castShadow=true;parent.add(obj);
   }
-  function label(text,x,y,z,color="#f5fbef") {
+  function label(text,x,y,z,color="#f5fbef",parent=root) {
     const c=document.createElement("canvas");c.width=512;c.height=128;
     const ctx=c.getContext("2d");
     ctx.fillStyle="rgba(8,25,21,.85)";ctx.fillRect(12,14,488,101);
@@ -58,7 +61,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;
     const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false}));
     sprite.position.set(x,y,z);sprite.scale.set(8,2,1);
-    root.add(sprite);
+    parent.add(sprite);
   }
   function pine(x,z,size=1,snow=false) {
     const t=new THREE.Group();t.position.set(x,0,z);t.scale.setScalar(size);root.add(t);
@@ -73,15 +76,15 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     root.add(m);
     block(root,x,.18,z,size*1.35,.34,size*1.35,0x91cad2);
   }
-  function arch(z,c) {
-    block(root,-6.15,3.1,z,.7,6.2,.8,0x2a3d38);
-    block(root,6.15,3.1,z,.7,6.2,.8,0x2a3d38);
-    block(root,0,6.25,z,13,1.0,.85,c,.15);
+  function arch(z,c,parent=root) {
+    block(parent,-6.15,3.1,z,.7,6.2,.8,0x2a3d38);
+    block(parent,6.15,3.1,z,.7,6.2,.8,0x2a3d38);
+    block(parent,0,6.25,z,13,1.0,.85,c,.15);
   }
   function scenery(id) {
-    // The course grows to 300m while reusing the same low-poly biome recipes.
+    // For the 5km track only two reusable 300m tiles are resident in WebGL.
     // Batching merges equal geometry/material meshes to preserve draw-call budget.
-    const sections=Math.ceil(currentLength/150);
+    const sections=Math.ceil(renderedLength/150);
     for(let section=0;section<sections;section++){
       const base=section*150;
       if(id==="ice"){
@@ -105,7 +108,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     }
   }
   function obstacleMesh(map){
-    for(const h of obstaclesFor(map,currentLength)){
+    for(const h of obstaclesFor(map,renderedLength)){
       const x=laneX(h.lane);
       if(h.kind==="ice")crystal(x,h.z,.68,0x7ad9fa);
       else{
@@ -200,7 +203,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       const z=progress-stagger;
       trailColor.set(r.color||0x9dfaff);
       for(let j=0;j<3&&count<150;j++){
-        trailTransform.position.set(laneX(r.lane),.22+.08*(j%2),z-.85-j*.72);
+        trailTransform.position.set(laneX(r.lane),.22+.08*(j%2),z-root.position.z-.85-j*.72);
         trailTransform.scale.set(.20-j*.035,.10,.75);
         trailTransform.rotation.set(0,0,0);
         trailTransform.updateMatrix();
@@ -227,11 +230,11 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     }
     weather.geometry.attributes.position.needsUpdate=true;
     // Drift follows the race without rebuilding or reallocating geometry.
-    weather.position.z=Math.max(0,Math.min(currentLength,z));
+    weather.position.z=Math.max(0,Math.min(renderedLength,z-root.position.z));
   }
   function clearMap() {
-    while(root.children.length){
-      const child=root.children[0];root.remove(child);
+    for(const owner of [root,finishGroup])while(owner.children.length){
+      const child=owner.children[0];owner.remove(child);
       child.traverse(obj=>{
         if(obj.isSprite){ if(obj.material?.map)obj.material.map.dispose();obj.material?.dispose(); }
         if(obj.isInstancedMesh&&typeof obj.dispose==="function")obj.dispose();
@@ -247,9 +250,12 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   }
   function setMap(id,length=TRACK_LENGTH) {
     const settings=biome(id);
-    const targetLength=length===150?150:TRACK_LENGTH;
+    const targetLength=[150,PREVIOUS_TRACK_LENGTH,TRACK_LENGTH].includes(length)?length:TRACK_LENGTH;
     if(mapId===settings.id&&currentLength===targetLength)return;
     clearMap();mapId=settings.id;currentLength=targetLength;
+    // 5km is a logical distance, NOT the amount of geometry allocated.
+    renderedLength=targetLength===TRACK_LENGTH?streamingLength:targetLength;
+    root.position.z=0;
     scene.background=new THREE.Color(settings.sky);
     scene.fog=new THREE.Fog(settings.fog,30,109);
     const ambient=new THREE.HemisphereLight(settings.sky,settings.ground,1.7);
@@ -258,21 +264,25 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     sun.position.set(-17,34,20);sun.castShadow=true;sun.shadow.mapSize.set(512,512);
     sun.shadow.camera.left=-24;sun.shadow.camera.right=24;sun.shadow.camera.top=35;sun.shadow.camera.bottom=-35;
     scene.add(sun);
-    block(root,0,-.2,currentLength/2,180,.4,currentLength+100,settings.ground);
+    block(root,0,-.2,renderedLength/2,180,.4,renderedLength+100,settings.ground);
     // Five lanes, from 0 to the authoritative finish distance.
-    block(root,0,.025,currentLength/2,11.7,.1,currentLength+4,settings.road);
-    block(root,-6.0,.26,currentLength/2,.38,.44,currentLength+4,settings.trim);
-    block(root,6.0,.26,currentLength/2,.38,.44,currentLength+4,settings.trim);
-    for(const x of [-3.7,-1.85,0,1.85,3.7]) for(let z=5;z<currentLength;z+=7.5){
+    block(root,0,.025,renderedLength/2,11.7,.1,renderedLength+4,settings.road);
+    block(root,-6.0,.26,renderedLength/2,.38,.44,renderedLength+4,settings.trim);
+    block(root,6.0,.26,renderedLength/2,.38,.44,renderedLength+4,settings.trim);
+    for(const x of [-3.7,-1.85,0,1.85,3.7]) for(let z=5;z<renderedLength;z+=7.5){
       block(root,x,.086,z,.08,.02,2.2,0xece5c3);
     }
-    // Clear start line for the close-up chase camera. Finish arch remains.
-    arch(currentLength,0xffe7a4);
+    // Only one finish at the true 5,000m mark, not at each streamed tile.
+    if(targetLength===TRACK_LENGTH)arch(targetLength,0xffe7a4,finishGroup);
+    else arch(targetLength,0xffe7a4);
     block(root,0,.09,0,11.5,.03,.65,settings.id==="ice"?0xf5faff:0xe2f2d4);
-    block(root,0,.09,currentLength,11.5,.03,1.2,0xffecc3);
+    if(targetLength===TRACK_LENGTH)
+      block(finishGroup,0,.09,targetLength,11.5,.03,1.2,0xffecc3);
+    else block(root,0,.09,targetLength,11.5,.03,1.2,0xffecc3);
     scenery(settings.id);obstacleMesh(settings.id);
     setupAtmosphere(settings.id);
-    label("CHEGADA",0,7.2,currentLength);
+    if(targetLength===TRACK_LENGTH)label("CHEGADA",0,7.2,targetLength,"#f5fbef",finishGroup);
+    else label("CHEGADA",0,7.2,targetLength);
     batchStaticScenery();
   }
   function setRenderScale(value) {
@@ -295,6 +305,12 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     const distances=active.map(r=>Math.max(0,Number(r.progress)||0)).sort((a,b)=>a-b);
     const middle=distances.length?distances[Math.floor(distances.length*.45)]:0;
     const z=Math.min(currentLength,middle);
+    if(currentLength===TRACK_LENGTH){
+      // Two matching 300m tiles overlap before/after each shift, so 5km
+      // never creates 5km of geometry (or triggers a rebuild every frame).
+      const nextBase=Math.max(0,Math.floor(Math.max(0,z-200)/STREAM_TILE_LENGTH)*STREAM_TILE_LENGTH);
+      if(root.position.z!==nextBase)root.position.z=nextBase;
+    }
     const alpha=1-Math.exp(-2.9*Math.min(dt,.2));
     positionTarget.set(0,7.4,Math.max(-17,z-17));
     lookTarget.set(0,1.7,Math.min(currentLength+10,z+18));
@@ -310,7 +326,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
         const index=active.indexOf(leader);
         const stagger=Math.max(0,1-Math.max(0,leader.progress)/30);
         focusRing.position.set(laneX(leader.lane),.12,
-          Math.max(0,leader.progress-Math.floor(index/5)*1.48*stagger));
+          Math.max(0,leader.progress-Math.floor(index/5)*1.48*stagger)-root.position.z);
       }
     }
     renderer.render(scene,camera);

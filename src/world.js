@@ -211,13 +211,13 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     for(const x of [-3.7,-1.85,0,1.85,3.7]) for(let z=5;z<TRACK_LENGTH;z+=7.5){
       block(root,x,.086,z,.08,.02,2.2,0xece5c3);
     }
-    arch(0,0xc6fb65);
+    // Clear start line for the close-up chase camera. Finish arch remains.
     arch(TRACK_LENGTH,0xffe7a4);
-    block(root,0,.09,0,11.5,.03,1.2,0xc9f66b);
+    block(root,0,.09,0,11.5,.03,.65,settings.id==="ice"?0xf5faff:0xe2f2d4);
     block(root,0,.09,TRACK_LENGTH,11.5,.03,1.2,0xffecc3);
     scenery(settings.id);obstacleMesh(settings.id);
     setupAtmosphere(settings.id);
-    label("LARGADA",0,7.2,0);label("CHEGADA",0,7.2,TRACK_LENGTH);
+    label("CHEGADA",0,7.2,TRACK_LENGTH);
     batchStaticScenery();
   }
   function setRenderScale(value) {

@@ -142,3 +142,27 @@ test("Private Postgres check stays protected while preview server uses memory",a
   expect(response.storage).toBe("memory");
   expect(response.readable).toBe(false);
 });
+
+
+test("LIVE display declares stale data while offline and recovers without a new local race",async({page,request})=>{
+  await reset(request);
+  await start(page,"?view=live&quality=low");
+  await expect(page.locator("#remoteMode")).toContainText("RENDER ONLINE");
+  const currentRound=await page.locator("#roundNumber").textContent();
+  const context=page.context();
+  await context.setOffline(true);
+  await expect(page.locator("#connectionNotice")).toBeVisible({timeout:25_000});
+  await expect(page.locator("#remoteMode")).toContainText(/RECONEXÃO|INTERROMPIDA/);
+  await expect(page.locator("#connectionNotice")).toContainText(/congelad|não está respondendo/i,{timeout:25_000});
+  await expect(page.locator("#roundNumber")).toHaveText(currentRound);
+  await context.setOffline(false);
+  await expect(page.locator("#remoteMode")).toContainText("RENDER ONLINE",{timeout:35_000});
+  await expect(page.locator("#connectionNotice")).toBeHidden({timeout:35_000});
+  await expect(page.locator("#tiktokStatus")).toContainText("CHAT REAL DESATIVADO");
+});
+test("public state and SSE report a consistent opaque instance ID",async({request})=>{
+  const h=await (await request.get("/health")).json();
+  const state=await (await request.get("/api/state")).json();
+  expect(h.instanceId).toMatch(/^[0-9a-f]{16}$/);
+  expect(state.instanceId).toBe(h.instanceId);
+});

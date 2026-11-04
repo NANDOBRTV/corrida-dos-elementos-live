@@ -65,3 +65,34 @@ A revisão das capturas automatizadas identificou excesso de sobreposição nos 
 3. A câmera foi aproximada e o nome do bioma deixou de ser truncado nas telas mais estreitas.
 
 As capturas e o relatório automático permitem comparar essas melhorias. Ainda é necessário confirmar a experiência no aparelho físico.
+
+## Teste de desempenho e recuperação real — versão 1.8
+
+**Sem LIVE do TikTok:** continua definido TIKTOK_LIVE_MODE=disabled.
+
+### Teste de FPS no Redmi 13C
+
+1. Abra https://corrida-dos-elementos-live.onrender.com/?view=live&quality=low&debug=1 no Chrome.
+2. A pequena etiqueta no alto da pista exibe os FPS de renderização medidos no **seu navegador**, a meta 30 FPS e a quantidade aproximada de chamadas de desenho do WebGL.
+3. Se os FPS caírem, mantenha o perfil Leve e compare com ?quality=balanced (apenas se o aparelho estiver fluido).
+4. Para uma apresentação sem a etiqueta, abra a tela comum em ?view=live&quality=low.
+5. No painel do operador, a área **DESEMPENHO 3D NO CELULAR** mostra FPS, P95 do intervalo entre frames, percentual de frames lentos, draw calls e uma avaliação automática.
+
+**Limitações:** uma medida do navegador não é benchmark de FPS de streaming TikTok; o navegador pode pausar no background ou reduzir quadros para poupar bateria. O diagnóstico nunca muda o motor oficial do servidor.
+
+### Conferência do PostgreSQL antes e depois de um deploy
+
+No painel do operador, digite sua ADMIN_KEY e toque em **VERIFICAR RECUPERAÇÃO DO POSTGRESQL**. O backend consulta diretamente o banco privado do Render e retorna apenas:
+- se está acessível e se o snapshot é válido;
+- qual rodada está persistida e qual está rodando;
+- se o último processo iniciou carregando um snapshot salvo;
+- qual rodada foi carregada na última inicialização;
+- se há uma gravação ainda não confirmada.
+
+O endpoint GET /api/admin/storage-check exige o mesmo token administrativo do restante da aplicação. Ele não mostra inscritos, identificadores, chaves, dados completos ou URLs do banco.
+
+**Validação de recuperação:** registre rodada salva e rodada restaurada, publique uma nova versão normalmente, e confira o mesmo endpoint após o novo deploy. Também verifique os logs [game] Estado recuperado do armazenamento: rodada N. O Render pode reiniciar por diversos motivos; a recuperação positiva demonstra que um snapshot foi lido, mas não substitui testes de indisponibilidade e redundância de banco.
+
+A ferramenta externa para consultar PostgreSQL pode estar bloqueada pela allowlist de rede; o novo endpoint foi projetado para executar a consulta pelo próprio servidor Render (na mesma rede do banco). Nunca abra o banco publicamente só para executar diagnósticos.
+
+**Render Free ainda suspende por inatividade** e o banco gratuito não é definitivo; nada nesta versão habilita atividade 24 horas no plano gratuito.

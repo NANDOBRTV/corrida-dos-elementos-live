@@ -132,3 +132,11 @@ body[data-view="live"] .quality-apply{display:none}
 
 .call-to-action.prelaunch{background:linear-gradient(100deg,#aee0d2,#d4f5dc);color:#163c2e}
 .call-to-action.prelaunch strong{letter-spacing:1px}
+
+/* v1.8 — desempenho medido localmente; a sobreposição só aparece em ?debug=1 */
+.performance-report{margin:9px 0;background:#081e16;border:1px solid #43634c;padding:10px;border-radius:8px;color:#cce2d0;font:600 11px/1.65 "DM Sans",sans-serif;white-space:pre-line;overflow-wrap:anywhere}
+.performance-link{display:block;font-size:11px;font-weight:800;color:#c4f76b;padding:5px 0;text-decoration:underline;text-underline-offset:3px}
+.perf-overlay{position:absolute;right:9px;top:53px;z-index:5;pointer-events:none;color:#ddffcf;background:#091f1bd9;border:1px solid #b4e89a99;border-radius:7px;padding:6px 8px;font:800 10px/1.25 "DM Sans",system-ui,sans-serif;max-width:68%;box-shadow:0 4px 18px #0005}
+.perf-overlay[data-level=low]{color:#ffd5c9;border-color:#ff918f}
+.perf-overlay[data-level=medium]{color:#ffe9b2;border-color:#dec47c}
+.perf-overlay[hidden]{display:none!important}

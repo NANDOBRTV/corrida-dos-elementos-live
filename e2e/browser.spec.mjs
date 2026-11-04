@@ -119,3 +119,26 @@ test("operator control displays real server status and prelaunch opt-out",async(
   expect(old.state.round).toBeGreaterThan(0);
   await page.screenshot({path:join(root,"operator-390x844.png"),fullPage:true,timeout:25_000});
 });
+
+
+test("Android debug mode measures real rendered FPS without exposing controls",async({page,request})=>{
+  await reset(request);
+  await start(page,"?view=live&quality=low&debug=1");
+  await expect(page.locator("#perfOverlay")).toBeVisible();
+  await expect.poll(async()=>await page.locator("#perfOverlay").textContent(),
+    {timeout:25_000,intervals:[500,1000]})
+    .toMatch(/[0-9]+\/30 FPS/);
+  expect(await page.locator("#operatorPanel").isVisible()).toBe(false);
+  const stats=await page.locator("#perfOverlay").textContent();
+  expect(stats).toMatch(/draw calls/);
+  await page.screenshot({path:join(root,"live-fps-diagnostic-390x844.png"),fullPage:true});
+});
+test("Private Postgres check stays protected while preview server uses memory",async({request})=>{
+  const denied=await request.get("/api/admin/storage-check");
+  expect(denied.status()).toBe(401);
+  const allowed=await request.get("/api/admin/storage-check",{headers:{"x-admin-key":ADMIN}});
+  expect(allowed.ok()).toBeTruthy();
+  const response=await allowed.json();
+  expect(response.storage).toBe("memory");
+  expect(response.readable).toBe(false);
+});

@@ -42,6 +42,18 @@ export async function connectRemote({onState,onStatus}) {
   },8000);
   return {
     mode:"server",
+    async storageCheck(token=""){
+      if(stopped)throw Error("Conexão encerrada");
+      if(!token)throw Error("Informe a ADMIN_KEY do Render");
+      const res=await fetch("./api/admin/storage-check",{
+        headers:{"x-admin-key":token},
+        cache:"no-store",
+        signal:AbortSignal.timeout(12000)
+      });
+      const data=await res.json().catch(()=>({ok:false,error:"Resposta inválida"}));
+      if(!res.ok||!data.ok)throw Error(data.error||"Verificação do banco indisponível");
+      return data;
+    },
     async diagnostics(token=""){
       if(stopped)throw Error("Conexão encerrada");
       if(!token)throw Error("Informe a ADMIN_KEY do Render");

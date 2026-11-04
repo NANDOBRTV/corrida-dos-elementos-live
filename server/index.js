@@ -52,7 +52,10 @@ export async function createApp(opts={}){
   const storage=opts.storage??await openStorage();
   let state=createState();
   const loaded=await storage.load();
-  if(validateSavedState(loaded)){
+  const recovered=validateSavedState(loaded);
+  const recovery={loaded:recovered,round:recovered?loaded.round:null,
+    phase:recovered?loaded.phase:null};
+  if(recovered){
     state=loaded;
     state.accumulator=0;
     console.log("[game] Estado recuperado do armazenamento: rodada",state.round);
@@ -149,6 +152,7 @@ export async function createApp(opts={}){
     if(req.method==="GET"&&path==="/health"){
       sendJson(res,200,{ok:true,service:"corrida-dos-elementos-live",role:"race-engine",
         uptimeSeconds:Math.round(process.uptime()),round:state.round,phase:state.phase,
+        recovery,
         storage:storage.enabled?"postgres":"memory",storageHealthy:storage.enabled&&!lastPersistError,
         giftsProcessed:stats.giftsProcessed,giftBoosts:stats.giftBoosts,
         persistedAt:lastPersistSuccess,unflushedChanges:storage.enabled&&savedRevision!==revision,
@@ -169,6 +173,27 @@ export async function createApp(opts={}){
       subscribers.add(res);
       res.write("event: race\ndata: "+JSON.stringify({state,serverTime:now(),...publicMeta()})+"\n\n");
       req.on("close",()=>{subscribers.delete(res);});
+      return;
+    }
+    // Checks the actual configured storage from inside Render's private network.
+    // Never exposes participants, tokens, connection strings or raw snapshots.
+    if(path==="/api/admin/storage-check"){
+      if(req.method!=="GET"){sendJson(res,405,{ok:false,error:"Somente GET"});return;}
+      if(!authorized(req,secret)){sendJson(res,401,{ok:false,error:"Token administrativo inválido ou ausente"});return;}
+      if(!storage.enabled){sendJson(res,200,{ok:true,storage:"memory",readable:false,
+        recoveredOnBoot:recovery.loaded,recoveredRound:recovery.round});return;}
+      try{
+        const snapshot=await storage.load();
+        const valid=validateSavedState(snapshot);
+        sendJson(res,200,{ok:true,storage:"postgres",readable:true,validSnapshot:valid,
+          persistedRound:valid?snapshot.round:null,persistedPhase:valid?snapshot.phase:null,
+          currentRound:state.round,recoveredOnBoot:recovery.loaded,
+          recoveredRound:recovery.round,unflushedChanges:savedRevision!==revision,
+          persistedAt:lastPersistSuccess});
+      }catch(error){
+        console.error("[storage] Leitura de diagnóstico indisponível:",String(error?.message??error).slice(0,150));
+        sendJson(res,503,{ok:false,error:"Leitura do armazenamento indisponível"});
+      }
       return;
     }
     if(path==="/api/admin/diagnostics"){

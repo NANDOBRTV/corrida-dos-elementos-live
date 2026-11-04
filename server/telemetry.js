@@ -5,7 +5,7 @@ export function createLiveDiagnostics({clock=()=>new Date().toISOString()}={}) {
   const counts={
     connectionAttempts:0,
     chatEvents:0,enterCommands:0,registrationsAccepted:0,registrationsRejected:0,
-    giftEvents:0,giftFinalEvents:0,giftsApplied:0,duplicateGifts:0,turbosApplied:0
+    giftEvents:0,giftFinalEvents:0,giftsApplied:0,duplicateGifts:0,turbosApplied:0,simulatedGifts:0
   };
   const dates={lastAttemptAt:null,lastConnectedAt:null,lastDisconnectAt:null,lastChatAt:null,lastJoinAt:null,lastGiftAt:null};
   let lastIssue=null;
@@ -40,11 +40,12 @@ export function createLiveDiagnostics({clock=()=>new Date().toISOString()}={}) {
       dates.lastJoinAt=clock();
     } else counts.registrationsRejected++;
   }
-  function gift(outcome={}){
+  function gift(outcome={},simulated=false){
     if(!outcome.ok) {
       if(outcome.reason==="Evento duplicado")counts.duplicateGifts++;
       return;
     }
+    if(simulated){counts.simulatedGifts++;return;}
     counts.giftsApplied++;
     if(outcome.effect==="turbo")counts.turbosApplied++;
   }
@@ -59,7 +60,7 @@ export function createLiveDiagnostics({clock=()=>new Date().toISOString()}={}) {
         registrationsRejected:counts.registrationsRejected,
         giftObserved:counts.giftEvents,giftFinalized:counts.giftFinalEvents,
         giftsApplied:counts.giftsApplied,duplicateGifts:counts.duplicateGifts,
-        turbosApplied:counts.turbosApplied,
+        turbosApplied:counts.turbosApplied,simulatedGifts:counts.simulatedGifts,
         lastChatAt:dates.lastChatAt,lastJoinAt:dates.lastJoinAt,lastGiftAt:dates.lastGiftAt},
       game:{round,phase,current,next,viewers:connectedViewers},
       persistence:{storage,healthy:storageHealthy===true}

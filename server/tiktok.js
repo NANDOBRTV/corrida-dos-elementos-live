@@ -1,14 +1,14 @@
 import {joinCommand} from "../src/engine.js";
 export function normalizeTikTokChat(event) {
-  const content=event?.content;
+  const content=event?.comment??event?.content;
   if(!joinCommand(content))return null;
-  const raw=event?.user?.id;
+  const raw=event?.user?.userId??event?.user?.id??event?.user?.uniqueId;
   if(raw===undefined||raw===null)return null;
   if(typeof raw==="number"&&(!Number.isSafeInteger(raw)||raw<0))return null;
   let userId;
   try{userId=String(raw).trim()}catch{return null;}
   if(!userId||userId==="undefined"||userId==="null"||userId.length>128)return null;
-  const displayName=String(event?.user?.nickname??event?.user?.displayId??"Participante")
+  const displayName=String(event?.user?.nickname??event?.user?.uniqueId??event?.user?.displayId??"Participante")
     .trim().slice(0,28)||"Participante";
   const rawId=event?.common?.msgId??event?.common?.messageId??event?.msgId;
   const eventId=rawId==null?null:String(rawId).slice(0,150);

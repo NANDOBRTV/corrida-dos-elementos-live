@@ -137,6 +137,70 @@ async function adminRequest(action,params={}) {
   try {return await remote.action(action,params,key);}
   catch(e){feedback(e?.message||"Falha ao acessar o servidor",false);return null;}
 }
+function dateLabel(value){
+  if(!value)return "Ainda não registrado";
+  const time=new Date(value);
+  return Number.isNaN(time.getTime())?"Data indisponível":time.toLocaleString("pt-BR");
+}
+byId("refreshDiagnostics").addEventListener("click",async()=>{
+  const panel=byId("diagnosticReport");
+  panel.hidden=false;
+  if(!remote){
+    panel.textContent="Este painel só funciona no serviço Render. No GitHub Pages, os eventos são locais e simulados.";
+    return;
+  }
+  const key=byId("adminKey").value.trim();
+  if(!key){
+    panel.textContent="Informe a ADMIN_KEY do Render acima para consultar os contadores privados.";
+    return;
+  }
+  panel.textContent="Consultando estado do conector no Render...";
+  try{
+    const d=await remote.diagnostics(key);
+    const c=d.connector,e=d.events,g=d.game,p=d.persistence;
+    const reason={
+      live_not_active:"Conta não está transmitindo",
+      connection_failed:"Falha de conexão",
+      disconnected:"Conexão interrompida",
+      stream_ended:"A transmissão foi encerrada"
+    }[c.lastIssue]||c.lastIssue||"Nenhuma falha registrada";
+    const lines=[
+      "📡 DIAGNÓSTICO DA LIVE",
+      "Conexão TikTok: "+(c.connected?"CONECTADA":c.enabled?"AGUARDANDO":"DESATIVADA"),
+      "Motivo atual: "+(c.connected?"Conectado":reason),
+      "Tentativas de conexão: "+c.attempts,
+      "Última conexão confirmada: "+dateLabel(c.lastConnectedAt),
+      "",
+      "💬 COMENTÁRIOS REAIS",
+      "Eventos observados: "+e.chatObserved,
+      "Comando entrar reconhecido: "+e.enterRecognized,
+      "Inscrições aceitas: "+e.registrationsAccepted,
+      "Inscrições rejeitadas: "+e.registrationsRejected,
+      "Último comentário: "+dateLabel(e.lastChatAt),
+      "",
+      "🎁 PRESENTES REAIS",
+      "Eventos recebidos: "+e.giftObserved,
+      "Presentes finalizados: "+e.giftFinalized,
+      "Presentes processados: "+e.giftsApplied,
+      "Duplicatas ignoradas: "+e.duplicateGifts,
+      "Turbos aplicados: "+e.turbosApplied,
+      "Presentes de teste (separados): "+e.simulatedGifts,
+      "",
+      "🏁 ESTADO ATUAL",
+      "Rodada: "+g.round+" | Fase: "+g.phase,
+      "Na corrida: "+g.current+" | Próxima fila: "+g.next,
+      "Espectadores conectados ao jogo: "+g.viewers,
+      "Banco: "+(p.storage==="postgres"?(p.healthy?"PostgreSQL OK":"Falha na gravação"):"Somente memória"),
+      "",
+      "Contadores a partir de "+dateLabel(d.startedAt)+".",
+      "Sem conexão com uma LIVE real, os contadores reais permanecem zerados."
+    ];
+    panel.textContent=lines.join("\n");
+  }catch(error){
+    panel.textContent="Não foi possível verificar: "+String(error?.message||error);
+  }
+});
+
 byId("joinForm").addEventListener("submit",async event=>{
   event.preventDefault();
   const input={userId:byId("userId").value,displayName:byId("userName").value,content:byId("chatContent").value};

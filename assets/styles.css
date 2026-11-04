@@ -140,3 +140,11 @@ body[data-view="live"] .quality-apply{display:none}
 .perf-overlay[data-level=low]{color:#ffd5c9;border-color:#ff918f}
 .perf-overlay[data-level=medium]{color:#ffe9b2;border-color:#dec47c}
 .perf-overlay[hidden]{display:none!important}
+
+/* v1.9 — explicit authoritative state freshness and reconnect banners */
+.connection-warning{padding:9px 12px;margin:4px 0 9px;border:1px solid #eac77b;border-radius:9px;background:#3b2e18;color:#fff0c9;font-size:11px;font-weight:750;text-align:center;line-height:1.45}
+.connection-warning[hidden]{display:none!important}
+body[data-connection="stale"] .network-status#remoteMode,
+body[data-connection="reconnecting"] .network-status#remoteMode{border-color:#c4964e;color:#ffe0a3;background:#473017}
+body[data-connection="stale"] #raceCanvas{filter:saturate(.55) brightness(.75)}
+body[data-connection="stale"] #raceChip{background:#50331a;color:#ffdfad}

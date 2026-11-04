@@ -1,7 +1,7 @@
 import {createWorld} from "./world.js";
 import {createAvatars} from "./avatars.js";
 import {createState,register,advance} from "./engine.js";
-import {BIOME_ORDER,biome} from "./config.js";
+import {BIOME_ORDER,biome,TRACK_LENGTH} from "./config.js";
 import {createFrameMonitor} from "./metrics.js";
 import {createAdaptiveQuality} from "./adaptive.js";
 import {summarizeFrames,benchmarkSummary,compareTrials,interpretAdaptiveResult,formatBenchReport} from "./benchmark-math.js";
@@ -38,12 +38,13 @@ function doTrial(mapId,mode,index,signal){
     const monitor=createFrameMonitor({targetFps:45,sampleSize:180});
     const adaptation=createAdaptiveQuality({targetFps:45,enabled:mode==="adaptive"});
     world.setMap(mapId);
+    runners.active.forEach((r,i)=>{r.progress=38+(i%10)*.55;});
     world.setRenderScale(1);
     world.resize();
     const delays=[];
     let last=null,start=null,lastAdapt=null,lastUi=null,scaleSum=0,scaleCount=0;
     let drawSum=0,triangleSum=0;
-    let request=0,finished=false;
+    let request=0,finished=false,lateSection=false;
     function clean(){signal.removeEventListener("abort",cancel);if(request)cancelAnimationFrame(request);}
     function cancel(){
       if(finished)return;
@@ -61,6 +62,14 @@ function doTrial(mapId,mode,index,signal){
         scaleSum+=world.getRenderScale();scaleCount++;
       }
       last=now;
+      // Sample both halves of the 300m course using identical positions in
+      // fixed and adaptive trials, rather than only measuring the start area.
+      if(!lateSection&&elapsed>=trialMs/2){
+        lateSection=true;
+        runners.active.forEach((r,i)=>{
+          r.progress=TRACK_LENGTH*.72+(i%10)*.55;
+        });
+      }
       // Exactly the same 50 visible, animated runners for both comparison modes.
       avatars.animate(runners.active,"RUNNING",Math.min(.1,dt/1000),now);
       world.render(runners,Math.min(.1,dt/1000));
@@ -117,7 +126,8 @@ function showReport(){
     const note=document.createElement("span");note.className="note";
     note.textContent=compare.fixedFps+" FPS fixo · "+compare.adaptiveFps+
       " FPS Auto · resolução final "+Math.round(row.adaptive.scale*100)+
-      "% · "+row.adaptive.avgDrawCalls+" draw calls · "+row.adaptive.avgTriangles+" triângulos";
+      "% · "+row.adaptive.avgDrawCalls+" draw calls · "+row.adaptive.avgTriangles+
+      " triângulos · P95 "+row.fixed.p95Ms+"/"+row.adaptive.p95Ms+" ms";
     left.append(title,note);
     const delta=document.createElement("strong");
     delta.textContent=(compare.deltaPercent>0?"+":"")+compare.deltaPercent+"%";
@@ -129,7 +139,7 @@ function showReport(){
   const device=(navigator.platform||"Navegador")+" · "+memory+" GB estimados · "+
     cores+" núcleos declarados · "+innerWidth+"px viewport";
   $("reportText").value=formatBenchReport(results,{
-    device,quality:rendererProfile,date:new Date().toLocaleString("pt-BR")
+    device,quality:rendererProfile,date:new Date().toLocaleString("pt-BR"),trackLength:TRACK_LENGTH
   });
 }
 function finishCleanup(){

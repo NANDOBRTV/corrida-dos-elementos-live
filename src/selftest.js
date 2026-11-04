@@ -53,8 +53,8 @@ export const CASES=[
     advance(s);advance(s);
     check(s.active.length===1&&s.active[0].id==="user-0");
   }],
-  ["Rotação dos cinco mapas tem ordem exata",()=>{
-    const expected=[...BIOME_ORDER,...BIOME_ORDER,"forest"];
+  ["Rotação alterna exclusivamente Gelo e Floresta",()=>{
+    const expected=[...BIOME_ORDER,...BIOME_ORDER,"ice"];
     for(let i=0;i<expected.length;i++)check(mapForRound(i+1)===expected[i]);
   }],
   ["Todos os obstáculos ficam dentro da pista",()=>{

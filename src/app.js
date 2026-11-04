@@ -209,6 +209,14 @@ void connectRemote({
       byId("tiktokStatus").textContent=meta.tiktokConnected?"● TIKTOK CHAT CONECTADO":meta.tiktokEnabled?"● TIKTOK AGUARDANDO LIVE":"● TIKTOK NÃO CONFIGURADO";
       byId("streamTag").textContent=meta.tiktokConnected?"● CHAT LIVE":"● DEMO";
     }
+    if(meta.storage){
+      const badge=byId("dbStatus");
+      badge.hidden=false;
+      badge.textContent=meta.storage==="postgres"
+        ?(meta.storageHealthy?"● POSTGRESQL CONECTADO":"● FALHA AO SALVAR NO POSTGRESQL")
+        :"● SALVAMENTO TEMPORÁRIO • MEMÓRIA";
+      badge.style.color=meta.storage==="postgres"&&meta.storageHealthy?"#cbff91":"#ffd7a0";
+    }
     byId("modeDisclaimer").textContent="O Render compartilha a corrida entre espectadores. Leitura de chat TikTok e transmissão de vídeo são serviços diferentes. Funcionamento 24h exige hospedagem sem suspensão e armazenamento persistente.";
     renderHud();
   },

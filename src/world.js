@@ -1,22 +1,27 @@
 import * as THREE from "three";
 import { TRACK_LENGTH, biome, laneX, obstaclesFor } from "./config.js";
+import {QUALITY_SETTINGS} from "./performance.js";
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
 const octahedronGeometry=new THREE.OctahedronGeometry(1,0);
 const sphereGeometry=new THREE.SphereGeometry(1,8,6);
-export function createWorld(canvas) {
+export function createWorld(canvas,{quality="balanced"}={}) {
+  const profile=QUALITY_SETTINGS[quality]??QUALITY_SETTINGS.balanced;
+  const sceneDetail=i=>profile.sceneStep===1||i%4<2;
   const scene=new THREE.Scene();
   const camera=new THREE.PerspectiveCamera(58,1,.1,210);
   camera.position.set(13,13,-19);
   const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:"low-power"});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.3));
-  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,profile.pixelRatio));
+  renderer.shadowMap.enabled=profile.shadows;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   const root=new THREE.Group();
   scene.add(root);
   const materials=new Map();
   let mapId="";
   const cameraTarget=new THREE.Vector3(0,1,10);
+  const positionTarget=new THREE.Vector3();
+  const lookTarget=new THREE.Vector3();
   function material(color,emissive=0) {
     const key=String(color)+"/"+emissive;
     if(!materials.has(key)) materials.set(key,new THREE.MeshStandardMaterial({
@@ -85,21 +90,22 @@ export function createWorld(canvas) {
   }
   function scenery(id) {
     if(id==="forest") {
-      for(let i=0;i<48;i++)pine((i%2?-1:1)*(10+(i%6)*2.5),(i*17+7)%150,.65+(i%5)*.16);
+      for(let i=0;i<48;i++)if(sceneDetail(i))pine((i%2?-1:1)*(10+(i%6)*2.5),(i*17+7)%150,.65+(i%5)*.16);
       block(root,17,.03,76,4,.06,152,0x48a4d2);
       for(const z of [29,70,115]) {
         block(root,17,.35,z,7,.6,3.6,0xa07849);
         block(root,13.8,.9,z,.18,1,3.6,0x704e31);
         block(root,20.2,.9,z,.18,1,3.6,0x704e31);
       }
-      for(let i=0;i<24;i++)rock(root,(i%2?-1:1)*(8+(i%5)*2.6),(i*29)%150,.65,0x87938c);
+      for(let i=0;i<24;i++)if(sceneDetail(i))rock(root,(i%2?-1:1)*(8+(i%5)*2.6),(i*29)%150,.65,0x87938c);
     } else if(id==="desert") {
       for(let i=0;i<28;i++){
+        if(!sceneDetail(i))continue;
         const x=(i%2?-1:1)*(13+(i%5)*3),z=(i*17)%150;
         const h=1+i%4*.6;
         for(let layer=0;layer<3;layer++)block(root,x,layer*.65+.23,z,6-layer*1.25,h*.55,4-layer*.6,layer===2?0xe9bd75:0xc69456);
       }
-      for(let i=0;i<30;i++)cactus((i%2?-1:1)*(10+(i%5)*2.9),(i*23+13)%150,.7+(i%4)*.17);
+      for(let i=0;i<30;i++)if(sceneDetail(i))cactus((i%2?-1:1)*(10+(i%5)*2.9),(i*23+13)%150,.7+(i%4)*.17);
       for(const z of [37,100]){
         for(let i=0;i<4;i++)block(root,-23,i*1.28+.65,z,10-i*2,1.3,10-i*2,i%2?0xd4a770:0xbd8853);
       }
@@ -108,6 +114,7 @@ export function createWorld(canvas) {
       lavaRiver(18,6.7,0xe64c29);
       lavaRiver(-20,7.4,0xff6a2d);
       for(let i=0;i<38;i++){
+        if(!sceneDetail(i))continue;
         const x=(i%2?-1:1)*(10+(i%6)*2.6),z=(i*19)%150,h=1.8+(i%6);
         block(root,x,h/2,z,1.3,h,1.5,i%4?0x312c32:0x604149);
         if(i%4===0)block(root,x,h+.13,z,1.5,.26,1.7,0xf6703f,1);
@@ -118,13 +125,13 @@ export function createWorld(canvas) {
         fire.position.set(-28,6,z);fire.scale.set(2,1.2,2);root.add(fire);
       }
     } else if(id==="ice") {
-      for(let i=0;i<40;i++)pine((i%2?-1:1)*(11+(i%6)*2.4),(i*21)%150,.65+(i%4)*.18,true);
-      for(let i=0;i<30;i++)crystal((i%2?-1:1)*(9+(i%5)*3),(i*23+5)%150,.7+(i%5)*.19);
+      for(let i=0;i<40;i++)if(sceneDetail(i))pine((i%2?-1:1)*(11+(i%6)*2.4),(i*21)%150,.65+(i%4)*.18,true);
+      for(let i=0;i<30;i++)if(sceneDetail(i))crystal((i%2?-1:1)*(9+(i%5)*3),(i*23+5)%150,.7+(i%5)*.19);
       for(const z of [29,81,123])block(root,-21,.02,z,12,.06,9,0x8acfe3);
     } else if(id==="hell") {
       lavaRiver(18,7,0xe43c41);
       lavaRiver(-22,7,0xd65a2e);
-      for(let i=0;i<35;i++)pillar((i%2?-1:1)*(10+(i%6)*2.8),(i*21)%150,1.9+(i%6)*.75,0x241e2c,0xff724f);
+      for(let i=0;i<35;i++)if(sceneDetail(i))pillar((i%2?-1:1)*(10+(i%6)*2.8),(i*21)%150,1.9+(i%6)*.75,0x241e2c,0xff724f);
       for(const z of [22,52,90,125]){
         pillar(-7.5,z,5.6,0x201b28,0xfc553b);
         pillar(7.5,z,5.6,0x201b28,0xfc553b);
@@ -146,11 +153,45 @@ export function createWorld(canvas) {
       }
     }
   }
+  // Agrupa centenas de blocos voxel estáticos em InstancedMesh.
+  // Renderiza cada cor/geometria em uma chamada, preservando transformações de árvores,
+  // cactos, vulcões e cristais. Os corredores animados são objetos separados da cena.
+  function batchStaticScenery(){
+    root.updateWorldMatrix(true,true);
+    const inverseRoot=new THREE.Matrix4().copy(root.matrixWorld).invert();
+    const groups=new Map();
+    root.traverse(obj=>{
+      if(!obj.isMesh||obj.isInstancedMesh||!obj.material||
+        (obj.geometry!==boxGeometry&&obj.geometry!==octahedronGeometry&&obj.geometry!==sphereGeometry))return;
+      const key=[obj.geometry.uuid,obj.material.uuid,obj.castShadow?"1":"0",obj.receiveShadow?"1":"0"].join(":");
+      if(!groups.has(key))groups.set(key,[]);
+      groups.get(key).push(obj);
+    });
+    const local=new THREE.Matrix4();
+    for(const group of groups.values()){
+      if(group.length<2)continue;
+      const first=group[0];
+      const instance=new THREE.InstancedMesh(first.geometry,first.material,group.length);
+      instance.name="voxel-batch";
+      instance.castShadow=first.castShadow&&profile.shadows;
+      instance.receiveShadow=first.receiveShadow;
+      instance.frustumCulled=false;
+      for(let i=0;i<group.length;i++){
+        const mesh=group[i];
+        local.multiplyMatrices(inverseRoot,mesh.matrixWorld);
+        instance.setMatrixAt(i,local);
+        mesh.parent.remove(mesh);
+      }
+      instance.instanceMatrix.needsUpdate=true;
+      root.add(instance);
+    }
+  }
   function clearMap() {
     while(root.children.length){
       const child=root.children[0];root.remove(child);
       child.traverse(obj=>{
         if(obj.isSprite){ if(obj.material?.map)obj.material.map.dispose();obj.material?.dispose(); }
+        if(obj.isInstancedMesh&&typeof obj.dispose==="function")obj.dispose();
       });
     }
     for(const mat of materials.values())mat.dispose();materials.clear();
@@ -183,6 +224,7 @@ export function createWorld(canvas) {
     block(root,0,.09,TRACK_LENGTH,11.5,.03,1.2,0xffecc3);
     scenery(settings.id);obstacleMesh(settings.id);
     label("LARGADA",0,7.2,0);label("CHEGADA",0,7.2,TRACK_LENGTH);
+    batchStaticScenery();
   }
   function resize() {
     const w=Math.max(1,canvas.clientWidth),h=Math.max(1,canvas.clientHeight);
@@ -193,13 +235,15 @@ export function createWorld(canvas) {
     const progress=Math.max(0,...race.active.map(r=>r.progress));
     const z=Math.min(TRACK_LENGTH+5,progress);
     const alpha=1-Math.exp(-2.8*Math.min(dt,.2));
-    camera.position.lerp(new THREE.Vector3(12.8,13.5,Math.max(-19,z-21)),alpha);
-    cameraTarget.lerp(new THREE.Vector3(0,1.3,Math.min(TRACK_LENGTH,z+9)),alpha);
+    positionTarget.set(12.8,13.5,Math.max(-19,z-21));
+    lookTarget.set(0,1.3,Math.min(TRACK_LENGTH,z+9));
+    camera.position.lerp(positionTarget,alpha);
+    cameraTarget.lerp(lookTarget,alpha);
     camera.lookAt(cameraTarget);
     renderer.render(scene,camera);
   }
   function dispose(){
     clearMap();boxGeometry.dispose();octahedronGeometry.dispose();sphereGeometry.dispose();renderer.dispose();
   }
-  return { scene, renderer, setMap, resize, render, dispose };
+  return { scene, renderer, setMap, resize, render, dispose, quality:profile.name };
 }

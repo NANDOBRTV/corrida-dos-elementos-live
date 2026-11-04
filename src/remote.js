@@ -7,6 +7,7 @@ export async function connectRemote({onState,onStatus=()=>{},onConnection=()=>{}
   const renderHost=host.endsWith(".onrender.com")||host==="localhost"||host==="127.0.0.1";
   const tracker=createConnectionTracker();
   let stopped=false,stream=null,reading=false,monitor=null,lastPollAt=0,lastPhase="";
+  let explicitlyOffline=navigator.onLine===false;
   const getMeta=data=>({
     tiktokEnabled:data.tiktokEnabled,tiktokConnected:data.tiktokConnected,
     storage:data.storage??data.persistence,storageHealthy:data.storageHealthy,
@@ -14,6 +15,10 @@ export async function connectRemote({onState,onStatus=()=>{},onConnection=()=>{}
   });
   function report(force=false){
     const status=tracker.status(Date.now());
+    if(explicitlyOffline){
+      tracker.interrupted();
+      status.phase=status.phase==="stale"?"stale":"reconnecting";
+    }
     if(force||status.phase!==lastPhase){
       lastPhase=status.phase;
       onConnection(status);
@@ -21,14 +26,14 @@ export async function connectRemote({onState,onStatus=()=>{},onConnection=()=>{}
     }
   }
   function applySnapshot(data,source){
-    if(stopped||!data?.state)return;
+    if(stopped||explicitlyOffline||!data?.state)return;
     const result=tracker.receive({now:Date.now(),source,instanceId:data.instanceId});
     onState(data.state,getMeta(data));
     if(result.restarted)onRestart({instanceId:result.instanceId});
     report();
   }
   async function readState(){
-    if(stopped||reading)return false;
+    if(stopped||reading||explicitlyOffline)return false;
     reading=true;
     lastPollAt=Date.now();
     try{
@@ -72,12 +77,30 @@ export async function connectRemote({onState,onStatus=()=>{},onConnection=()=>{}
       // EventSource reconnects itself. HTTP polling keeps state fresh meanwhile.
     };
   }
+  function onOffline(){
+    explicitlyOffline=true;
+    tracker.interrupted();
+    report(true);
+  }
+  function onOnline(){
+    explicitlyOffline=false;
+    tracker.interrupted();
+    report(true);
+    void readState();
+  }
+  window.addEventListener("offline",onOffline);
+  window.addEventListener("online",onOnline);
   const ready=await readState();
-  if(!ready&&!renderHost)return null;
+  if(!ready&&!renderHost){
+    window.removeEventListener("offline",onOffline);
+    window.removeEventListener("online",onOnline);
+    return null;
+  }
   openStream();
   report(true);
   monitor=setInterval(()=>{
     if(stopped)return;
+    if(navigator.onLine===false&&!explicitlyOffline)onOffline();
     const now=Date.now(),lastEvent=tracker.lastEventAt();
     const status=tracker.status(now);
     report();
@@ -129,6 +152,8 @@ export async function connectRemote({onState,onStatus=()=>{},onConnection=()=>{}
     close(){
       stopped=true;
       clearInterval(monitor);
+      window.removeEventListener("offline",onOffline);
+      window.removeEventListener("online",onOnline);
       stream?.close();stream=null;
     }
   };

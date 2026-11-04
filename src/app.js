@@ -9,12 +9,12 @@ const byId=id=>document.getElementById(id);
 const canvas=byId("raceCanvas");
 const notice=byId("joinResponse");
 let state;
-let remoteMode=false,remote=null;
+let remoteMode=window.location.hostname.toLowerCase().endsWith(".onrender.com"),remote=null;
 try {
   const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null");
   state=validateSavedState(saved)?saved:createState();
 } catch { state=createState(); }
-if(state.round===1&&state.active.length===0&&state.next.length===0&&state.phase==="LOBBY")addDemo(state,10);
+if(!remoteMode&&state.round===1&&state.active.length===0&&state.next.length===0&&state.phase==="LOBBY")addDemo(state,10);
 state.paused=Boolean(state.paused);
 let selectedPreviewMap="";
 let world=null,avatars=null,displayedMap="",lastFrame=performance.now(),lastPaint=0,lastSave=0,shownRound=state.round;
@@ -189,6 +189,12 @@ window.addEventListener("resize",()=>world?.resize(),{passive:true});
 document.addEventListener("visibilitychange",()=>{lastFrame=performance.now();if(document.hidden)persist();});
 window.addEventListener("pagehide",persist);
 renderHud();
+if(remoteMode){
+  byId("remoteMode").hidden=false;
+  byId("remoteMode").textContent="● CONECTANDO AO RENDER";
+  byId("serverPanel").hidden=false;
+  byId("remoteStatus").textContent="Aguardando estado oficial — sem simulação local";
+}
 requestAnimationFrame(onFrame);
 void connectRemote({
   onState(next){
@@ -205,8 +211,7 @@ void connectRemote({
 }).then(client=>{
   if(client){
     remote=client;remoteMode=true;
-    byId("remoteStatus").textContent="Conectado ao servidor Render";
-    feedback("Motor autoritativo em execução no Render. Os controles exigem ADMIN_KEY.");
+    feedback("Modo remoto habilitado. Comandos administrativos exigem ADMIN_KEY.");
   }else{
     byId("remoteMode").textContent="● MODO LOCAL • GITHUB PAGES";
     byId("remoteMode").hidden=false;

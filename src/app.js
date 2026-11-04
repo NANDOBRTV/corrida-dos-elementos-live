@@ -204,7 +204,12 @@ void connectRemote({
     byId("remoteMode").hidden=false;
     byId("remoteMode").textContent="● RENDER ONLINE · MOTOR NO SERVIDOR";
     byId("serverPanel").hidden=false;
-    byId("modeDisclaimer").textContent="Render controla a corrida e compartilha o estado entre espectadores. Esta demonstração ainda não está conectada ao TikTok. A continuidade 24h depende de hospedagem sem suspensão.";
+    if(typeof meta.tiktokEnabled==="boolean"){
+      byId("tiktokStatus").hidden=false;
+      byId("tiktokStatus").textContent=meta.tiktokConnected?"● TIKTOK CHAT CONECTADO":meta.tiktokEnabled?"● TIKTOK AGUARDANDO LIVE":"● TIKTOK NÃO CONFIGURADO";
+      byId("streamTag").textContent=meta.tiktokConnected?"● CHAT LIVE":"● DEMO";
+    }
+    byId("modeDisclaimer").textContent="O Render compartilha a corrida entre espectadores. Leitura de chat TikTok e transmissão de vídeo são serviços diferentes. Funcionamento 24h exige hospedagem sem suspensão e armazenamento persistente.";
     renderHud();
   },
   onStatus(text){byId("remoteStatus").textContent=text;}

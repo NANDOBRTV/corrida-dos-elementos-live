@@ -1,5 +1,5 @@
 import { BIOMES, BIOME_ORDER, TRACK_LENGTH, mapForRound, biome } from "./config.js";
-import { createState, addDemo, register, rank, tick, countdown, advance, turbo, validateSavedState, migrateSavedState } from "./engine.js";
+import { createState, addDemo, register, rank, tick, countdown, advance, turbo, validateSavedState, migrateSavedState, raceLength } from "./engine.js";
 import { createWorld } from "./world.js";
 import { createAvatars } from "./avatars.js";
 import { connectRemote } from "./remote.js";
@@ -46,7 +46,7 @@ if(showcase){
 } else if(!remoteMode&&state.round===1&&state.active.length===0&&state.next.length===0&&state.phase==="LOBBY")addDemo(state,10);
 state.paused=Boolean(state.paused);
 let selectedPreviewMap="";
-let world=null,avatars=null,displayedMap="",lastFrame=performance.now(),lastPaint=0,lastSave=0,last3dFrame=0,lastPerfReport=0,shownRound=state.round;
+let world=null,avatars=null,displayedMap="",displayedLength=0,lastFrame=performance.now(),lastPaint=0,lastSave=0,last3dFrame=0,lastPerfReport=0,shownRound=state.round;
 let renderError=false;
 let showcaseBoostRound=0;
 
@@ -54,7 +54,8 @@ try {
   world=createWorld(canvas,{quality:graphics});
   avatars=createAvatars(world.scene,{quality:graphics});
   displayedMap=state.mapId;
-  world.setMap(displayedMap);
+  displayedLength=raceLength(state);
+  world.setMap(displayedMap,displayedLength);
   world.resize();
 } catch(err) {
   console.error("WebGL initialization failed",err);
@@ -82,26 +83,28 @@ function queueNames(rows) {
 }
 function renderHud() {
   const m=biome(state.mapId);
+  const distance=raceLength(state);
+  byId("liveMiniFinish").textContent="🏁 "+distance+" m";
   document.body.dataset.phase=state.phase.toLowerCase();
   const leading=rank(state.active);
   const leadProgress=leading.length?Math.max(0,Number(leading[0].progress)||0):0;
   byId("liveTimer").textContent=toTime(state.raceMs);
-  byId("liveRemaining").textContent=Math.max(0,Math.ceil(TRACK_LENGTH-leadProgress))+" m até a chegada";
+  byId("liveRemaining").textContent=Math.max(0,Math.ceil(distance-leadProgress))+" m até a chegada";
   byId("liveRaceCount").textContent=state.active.length+"/50 corredores";
   byId("liveMiniMapName").textContent=m.emoji+" "+m.name;
   const mapWidget=byId("liveMiniMapName").closest(".live-minimap");
   mapWidget.dataset.biome=m.id;
   const mapLeader=byId("liveMapDot");
   mapLeader.hidden=leading.length===0;
-  mapLeader.style.bottom=Math.min(100,leadProgress/TRACK_LENGTH*100)+"%";
+  mapLeader.style.bottom=Math.min(100,leadProgress/distance*100)+"%";
   mapLeader.title=leading.length?leading[0].name+" · "+Math.floor(leadProgress)+"m":"";
   for(let i=1;i<=2;i++){
     const marker=byId("liveMapRival"+(i+1));
     const racer=leading[i];
     marker.hidden=!racer;
     if(racer){
-      const progress=Math.max(0,Math.min(TRACK_LENGTH,Number(racer.progress)||0));
-      marker.style.bottom=(progress/TRACK_LENGTH*100)+"%";
+      const progress=Math.max(0,Math.min(distance,Number(racer.progress)||0));
+      marker.style.bottom=(progress/distance*100)+"%";
       marker.title=racer.name+" · "+Math.floor(progress)+"m";
     }
   }
@@ -138,7 +141,7 @@ function renderHud() {
   const ranking=byId("rankingRows");
   if(sorted.length===0)ranking.innerHTML='<p class="empty-ranking">Aguardando inscritos na rodada atual...</p>';
   else ranking.innerHTML=sorted.slice(0,5).map((r,i)=>{
-    const pct=Math.min(100,Math.floor(r.progress/TRACK_LENGTH*100));
+    const pct=Math.min(100,Math.floor(r.progress/distance*100));
     return '<div class="rank-row"><span class="rank-pos">'+String(i+1).padStart(2,"0")+
       '</span><span class="rank-avatar" style="background:'+r.color+'"></span><span class="rank-name">'+escapeHTML(r.name)+
       '</span><span class="rank-progress"><span style="width:'+pct+'%;background:'+r.color+
@@ -181,7 +184,10 @@ function renderHud() {
 function updateWorld(dt,now) {
   if(!world||!avatars)return;
   const wanted=selectedPreviewMap||state.mapId;
-  if(wanted!==displayedMap){world.setMap(wanted);displayedMap=wanted;world.resize();}
+  const length=raceLength(state);
+  if(wanted!==displayedMap||length!==displayedLength){
+    world.setMap(wanted,length);displayedMap=wanted;displayedLength=length;world.resize();
+  }
   avatars.sync(state.active);
   avatars.animate(state.active,state.phase,dt,now);
   world.render(state,dt);

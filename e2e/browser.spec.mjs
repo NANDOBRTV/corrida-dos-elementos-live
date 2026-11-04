@@ -287,7 +287,14 @@ test("v2.3 batches fifty animated runners without losing colors or movement",asy
     const color=new THREE.Color();
     batch.getMatrixAt(0,first);
     batch.getColorAt(0,color);
-    const colorsPreserved=color.equals(new THREE.Color(state.active[0].color));
+    // Instance colors are stored as Float32; exact double equality is too strict.
+    const expectedColor=new THREE.Color(state.active[0].color);
+    const colorDelta=Math.max(
+      Math.abs(color.r-expectedColor.r),
+      Math.abs(color.g-expectedColor.g),
+      Math.abs(color.b-expectedColor.b)
+    );
+    const colorsPreserved=colorDelta<1e-5;
     const originalCount=batch.count;
     avatars.animate(state.active,"RUNNING",.016,1100);
     batch.getMatrixAt(0,second);
@@ -297,12 +304,12 @@ test("v2.3 batches fifty animated runners without losing colors or movement",asy
     avatars.animate(state.active.slice(0,49),"RUNNING",.016,1150);
     const afterRemoval=scene.getObjectByName("runner-voxel-batch").count;
     avatars.clear();
-    return {originalCount,groupCount,colorsPreserved,articulated,afterRemoval,
+    return {originalCount,groupCount,colorsPreserved,colorDelta,articulated,afterRemoval,
       cleaned:scene.getObjectByName("runner-voxel-batch")===undefined};
   });
   expect(result.originalCount).toBe(450); // 9 articulated cubes per runner.
   expect(result.groupCount).toBe(50);
-  expect(result.colorsPreserved).toBe(true);
+  expect(result.colorsPreserved,"GPU color delta "+result.colorDelta).toBe(true);
   expect(result.articulated).toBe(true);
   expect(result.afterRemoval).toBe(441);
   expect(result.cleaned).toBe(true);

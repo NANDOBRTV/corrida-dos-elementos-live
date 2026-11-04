@@ -10,7 +10,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   const sceneDetail=i=>profile.sceneStep===1||i%4<2;
   const scene=new THREE.Scene();
   const camera=new THREE.PerspectiveCamera(58,1,.1,210);
-  camera.position.set(13,13,-19);
+  camera.position.set(10.8,11.5,-15);
   const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:"low-power"});
   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,profile.pixelRatio));
   renderer.shadowMap.enabled=profile.shadows;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
@@ -235,8 +235,8 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     const progress=Math.max(0,...race.active.map(r=>r.progress));
     const z=Math.min(TRACK_LENGTH+5,progress);
     const alpha=1-Math.exp(-2.8*Math.min(dt,.2));
-    positionTarget.set(12.8,13.5,Math.max(-19,z-21));
-    lookTarget.set(0,1.3,Math.min(TRACK_LENGTH,z+9));
+    positionTarget.set(10.9,11.7,Math.max(-15,z-16));
+    lookTarget.set(0,1.3,Math.min(TRACK_LENGTH,z+7.6));
     camera.position.lerp(positionTarget,alpha);
     cameraTarget.lerp(lookTarget,alpha);
     camera.lookAt(cameraTarget);

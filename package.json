@@ -1,7 +1,7 @@
 {
   "name": "corrida-dos-elementos-live",
   "private": true,
-  "version": "2.4.0",
+  "version": "2.5.0",
   "type": "module",
   "description": "Jogo de corrida automática voxel 3D para demonstração no navegador e GitHub Pages",
   "scripts": {

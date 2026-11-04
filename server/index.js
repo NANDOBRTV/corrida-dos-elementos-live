@@ -7,6 +7,7 @@ import {createState,addDemo,register,rank,advance,tick,turbo,validateSavedState}
 import {openStorage} from "./storage.js";
 import {startTikTokBridge} from "./tiktok.js";
 import {applyGiftEvent,createGiftDeduplicator} from "../src/gifts.js";
+import {pseudonymizeTikTokUser} from "./privacy.js";
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const mime={".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",
@@ -60,6 +61,7 @@ export async function createApp(opts={}){
   // Authorized test operations only. Never put this token in frontend assets.
   const secret=opts.adminKey??process.env.ADMIN_KEY??"";
   if(!secret)console.warn("[security] ADMIN_KEY ausente: todos os comandos admin bloqueados");
+  const identitySalt=process.env.TIKTOK_ID_SALT||secret||randomBytes(32).toString("hex");
   const subscribers=new Set();
   let lastTick=now(),lastBroadcast=0,lastSave=now();
   let revision=0,savedRevision=validateSavedState(loaded)?0:-1;
@@ -257,10 +259,14 @@ export async function createApp(opts={}){
         bridge=startTikTokBridge({
           username:process.env.TIKTOK_USERNAME,
           onStatus:info=>{bridgeStatus=info;},
-          onGift:gift=>receiveGift(gift),
+          onGift:gift=>{
+            const safeId=pseudonymizeTikTokUser(gift.userId,identitySalt);
+            return receiveGift({...gift,userId:safeId});
+          },
           onChat:({userId,displayName,content,eventId})=>{
             if(eventId&&eventHistory.has(eventId))return;
-            const outcome=mutation(()=>register(state,userId,displayName,content));
+            const safeId=pseudonymizeTikTokUser(userId,identitySalt);
+            const outcome=mutation(()=>register(state,safeId,displayName,content));
             if(outcome.ok&&eventId){
               eventHistory.set(eventId,now());
               if(eventHistory.size>2000)eventHistory.delete(eventHistory.keys().next().value);

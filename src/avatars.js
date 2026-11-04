@@ -1,24 +1,32 @@
 import * as THREE from "three";
 import {laneX} from "./config.js";
 
-export function createAvatars(scene) {
+export function createAvatars(scene,{quality="balanced"}={}) {
+  const simple=quality==="low";
   const meshes=new Map();
   const geometry=new THREE.BoxGeometry(1,1,1);
   const textureCache=new Map();
+  const materials=new Map();
+  function sharedMaterial(color){
+    const key=String(color);
+    if(!materials.has(key))materials.set(key,new THREE.MeshStandardMaterial({color,roughness:.72}));
+    return materials.get(key);
+  }
   function labelTexture(text) {
     const key=text.slice(0,22);
-    if(textureCache.has(key))return textureCache.get(key);
+    if(textureCache.has(key)){
+      const entry=textureCache.get(key);entry.refs++;return entry.texture;
+    }
     const canvas=document.createElement("canvas");canvas.width=512;canvas.height=96;
     const ctx=canvas.getContext("2d");
     ctx.fillStyle="rgba(7,19,16,.84)";ctx.fillRect(0,4,512,86);
     ctx.font="bold 50px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillStyle="#ffffff";
     ctx.fillText(key,256,47,493);
     const tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;
-    textureCache.set(key,tex);return tex;
+    textureCache.set(key,{texture:tex,refs:1});return tex;
   }
   function cube(parent,pos,scale,color) {
-    const mat=new THREE.MeshStandardMaterial({color,roughness:.72});
-    const mesh=new THREE.Mesh(geometry,mat);mesh.position.set(...pos);mesh.scale.set(...scale);
+    const mesh=new THREE.Mesh(geometry,sharedMaterial(color));mesh.position.set(...pos);mesh.scale.set(...scale);
     mesh.castShadow=true;parent.add(mesh);return mesh;
   }
   function build(r) {
@@ -27,9 +35,11 @@ export function createAvatars(scene) {
     const body=new THREE.Group();group.add(body);
     cube(body,[0,.78,0],[.72,1,.55],r.color);
     cube(body,[0,1.57,0],[.76,.76,.7],0xf0c59e);
-    cube(body,[0,2.02,0],[.83,.18,.75],r.color);
-    cube(body,[-.17,1.62,-.37],[.095,.11,.04],0x22373d);
-    cube(body,[.17,1.62,-.37],[.095,.11,.04],0x22373d);
+    if(!simple){
+      cube(body,[0,2.02,0],[.83,.18,.75],r.color);
+      cube(body,[-.17,1.62,-.37],[.095,.11,.04],0x22373d);
+      cube(body,[.17,1.62,-.37],[.095,.11,.04],0x22373d);
+    }
     const arms=[],legs=[];
     for(const side of [-1,1]){
       const arm=new THREE.Group();arm.position.set(side*.54,1.2,0);body.add(arm);
@@ -39,10 +49,12 @@ export function createAvatars(scene) {
     }
     const label=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture(r.name),depthWrite:false,transparent:true}));
     label.position.set(0,3.03,0);label.scale.set(3.8,.71,1);group.add(label);
-    const shadow=new THREE.Mesh(new THREE.CircleGeometry(.65,12),new THREE.MeshBasicMaterial({color:0x15271c,transparent:true,opacity:.2,depthWrite:false}));
-    shadow.rotation.x=-Math.PI/2;shadow.position.y=-.70;group.add(shadow);
+    if(!simple){
+      const shadow=new THREE.Mesh(new THREE.CircleGeometry(.65,12),new THREE.MeshBasicMaterial({color:0x15271c,transparent:true,opacity:.2,depthWrite:false}));
+      shadow.rotation.x=-Math.PI/2;shadow.position.y=-.70;group.add(shadow);
+    }
     scene.add(group);
-    return {group,body,arms,legs,lastX:laneX(r.lane),lastZ:r.progress,label};
+    return {group,body,arms,legs,lastX:laneX(r.lane),lastZ:r.progress,label,labelKey:r.name.slice(0,22)};
   }
   function sync(runners) {
     const ids=new Set(runners.map(r=>r.id));
@@ -50,10 +62,13 @@ export function createAvatars(scene) {
       if(!ids.has(id)){
         scene.remove(item.group);
         item.group.traverse(obj=>{
-          if(obj.isMesh&&obj.material)obj.material.dispose();
           if(obj.isSprite)obj.material.dispose();
-          if(obj.isMesh&&obj.geometry?.type==="CircleGeometry")obj.geometry.dispose();
+          if(obj.isMesh&&obj.geometry?.type==="CircleGeometry"){
+            obj.geometry.dispose();obj.material.dispose();
+          }
         });
+        const entry=textureCache.get(item.labelKey);
+        if(entry&&--entry.refs<=0){entry.texture.dispose();textureCache.delete(item.labelKey);}
         meshes.delete(id);
       }
     }
@@ -81,7 +96,11 @@ export function createAvatars(scene) {
   }
   function clear(){
     sync([]);
-    for(const t of textureCache.values())t.dispose();textureCache.clear();
+    for(const entry of textureCache.values())entry.texture.dispose();
+    textureCache.clear();
+    for(const mat of materials.values())mat.dispose();
+    materials.clear();
+    geometry.dispose();
   }
   return {sync,animate,clear};
 }

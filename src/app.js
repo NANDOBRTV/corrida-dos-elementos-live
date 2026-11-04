@@ -6,12 +6,17 @@ import { connectRemote } from "./remote.js";
 import { applyGiftEvent } from "./gifts.js";
 import {seasonTop,recentWinners} from "./history.js";
 import {getViewMode} from "./view.js";
+import {qualityFromUrl,QUALITY_SETTINGS,shouldRender} from "./performance.js";
 
 const STORAGE_KEY="elemental-race-browser-v1";
 const byId=id=>document.getElementById(id);
 document.body.dataset.view=getViewMode(window.location.search);
 const canvas=byId("raceCanvas");
 const notice=byId("joinResponse");
+const graphics=qualityFromUrl(window.location.search,{
+  memory:navigator.deviceMemory,cores:navigator.hardwareConcurrency
+});
+const graphicsProfile=QUALITY_SETTINGS[graphics];
 let state;
 let remoteMode=window.location.hostname.toLowerCase().endsWith(".onrender.com"),remote=null;
 try {
@@ -21,12 +26,12 @@ try {
 if(!remoteMode&&state.round===1&&state.active.length===0&&state.next.length===0&&state.phase==="LOBBY")addDemo(state,10);
 state.paused=Boolean(state.paused);
 let selectedPreviewMap="";
-let world=null,avatars=null,displayedMap="",lastFrame=performance.now(),lastPaint=0,lastSave=0,shownRound=state.round;
+let world=null,avatars=null,displayedMap="",lastFrame=performance.now(),lastPaint=0,lastSave=0,last3dFrame=0,shownRound=state.round;
 let renderError=false;
 
 try {
-  world=createWorld(canvas);
-  avatars=createAvatars(world.scene);
+  world=createWorld(canvas,{quality:graphics});
+  avatars=createAvatars(world.scene,{quality:graphics});
   displayedMap=state.mapId;
   world.setMap(displayedMap);
   world.resize();
@@ -142,7 +147,11 @@ function onFrame(now) {
   }
   if(now-lastPaint>=160){renderHud();lastPaint=now;}
   if(now-lastSave>=4000){persist();lastSave=now;}
-  if(!renderError)updateWorld(delta/1000,now);
+  if(!renderError&&shouldRender(now,last3dFrame,graphicsProfile.targetFps)){
+    const drawDelta=last3dFrame?Math.min((now-last3dFrame)/1000,.2):delta/1000;
+    updateWorld(drawDelta,now);
+    last3dFrame=now;
+  }
   requestAnimationFrame(onFrame);
 }
 async function adminRequest(action,params={}) {
@@ -269,6 +278,18 @@ byId("giftTest").addEventListener("click",async()=>{
     renderHud();persist();
   }
 });
+const qualityControl=byId("graphicsQuality");
+const graphicsParams=new URL(window.location.href);
+qualityControl.value=graphicsParams.searchParams.get("quality")||"auto";
+byId("graphicsInfo").textContent="Perfil ativo: "+graphicsProfile.name+
+  " · até "+graphicsProfile.targetFps+" FPS · cenários 3D otimizados";
+byId("applyGraphics").addEventListener("click",()=>{
+  const selected=qualityControl.value;
+  const url=new URL(window.location.href);
+  if(selected==="auto")url.searchParams.delete("quality");
+  else url.searchParams.set("quality",selected);
+  window.location.assign(url.toString());
+});
 byId("mapPreview").addEventListener("change",event=>{
   const id=event.target.value;
   selectedPreviewMap=Object.prototype.hasOwnProperty.call(BIOMES,id)?id:"";
@@ -308,8 +329,20 @@ void connectRemote({
     byId("serverPanel").hidden=false;
     if(typeof meta.tiktokEnabled==="boolean"){
       byId("tiktokStatus").hidden=false;
-      byId("tiktokStatus").textContent=meta.tiktokConnected?"● TIKTOK CHAT CONECTADO":meta.tiktokEnabled?"● TIKTOK AGUARDANDO LIVE":"● TIKTOK NÃO CONFIGURADO";
+      byId("tiktokStatus").textContent=meta.liveEventsMode==="staged"
+        ?"● PRÉ-LANÇAMENTO · CHAT REAL DESATIVADO"
+        :meta.tiktokConnected?"● TIKTOK CHAT CONECTADO"
+        :meta.tiktokEnabled?"● TIKTOK AGUARDANDO LIVE":"● TIKTOK NÃO CONFIGURADO";
       byId("streamTag").textContent=meta.tiktokConnected?"● CHAT LIVE":"● DEMO";
+      const prelaunch=meta.liveEventsMode==="staged";
+      byId("joinCta").classList.toggle("prelaunch",prelaunch);
+      byId("joinCtaTop").textContent=prelaunch?"JOGO EM DESENVOLVIMENTO":"PARTICIPE DA CORRIDA";
+      byId("joinCtaTitle").innerHTML=prelaunch
+        ?"PRÉ-LANÇAMENTO"
+        :"DIGITE <span>ENTRAR</span> NO CHAT";
+      byId("joinCtaBottom").textContent=prelaunch
+        ?"CHAT REAL DESATIVADO • TESTES NO PAINEL DO OPERADOR"
+        :"UMA INSCRIÇÃO POR CORRIDA • SEM REINSCRIÇÃO AUTOMÁTICA";
     }
     if(meta.storage){
       const badge=byId("dbStatus");

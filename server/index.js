@@ -63,6 +63,8 @@ export async function createApp(opts={}){
   const secret=opts.adminKey??process.env.ADMIN_KEY??"";
   if(!secret)console.warn("[security] ADMIN_KEY ausente: todos os comandos admin bloqueados");
   const identitySalt=process.env.TIKTOK_ID_SALT||secret||randomBytes(32).toString("hex");
+  // Segurança pré-lançamento: TIKTOK_USERNAME pode permanecer salvo sem abrir conexão.
+  const realLiveEnabled=process.env.TIKTOK_LIVE_MODE==="enabled";
   const subscribers=new Set();
   let lastTick=now(),lastBroadcast=0,lastSave=now();
   let revision=0,savedRevision=validateSavedState(loaded)?0:-1;
@@ -77,7 +79,8 @@ export async function createApp(opts={}){
   function publicMeta(){
     return {storage:storage.enabled?"postgres":"memory",
       storageHealthy:storage.enabled&&!lastPersistError,
-      tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected};
+      tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected,
+      liveEventsMode:realLiveEnabled?"enabled":"staged"};
   }
   function notify(){
     const message="event: race\ndata: "+JSON.stringify({state,serverTime:now(),...publicMeta()})+"\n\n";
@@ -149,7 +152,8 @@ export async function createApp(opts={}){
         storage:storage.enabled?"postgres":"memory",storageHealthy:storage.enabled&&!lastPersistError,
         giftsProcessed:stats.giftsProcessed,giftBoosts:stats.giftBoosts,
         persistedAt:lastPersistSuccess,unflushedChanges:storage.enabled&&savedRevision!==revision,
-        tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected});
+        tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected,
+        liveEventsMode:realLiveEnabled?"enabled":"staged"});
       return;
     }
     if(req.method==="GET"&&path==="/api/state"){
@@ -275,7 +279,7 @@ export async function createApp(opts={}){
     async listen(port=Number(process.env.PORT)||3000){
       await new Promise((resolve,reject)=>{server.once("error",reject);server.listen(port,"0.0.0.0",resolve);});
       const address=server.address();console.log("[server] corrida-dos-elementos-live http://0.0.0.0:"+address.port);
-      if(!opts.disableTikTok){
+      if(!opts.disableTikTok&&(opts.bridgeFactory||realLiveEnabled)){
         bridge=(opts.bridgeFactory??startTikTokBridge)({
           username:process.env.TIKTOK_USERNAME,
           onStatus:info=>{bridgeStatus=info;liveDiagnostics.connection(info);},

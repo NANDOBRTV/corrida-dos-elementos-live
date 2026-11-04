@@ -54,7 +54,13 @@
           <small id="liveRaceCount">0/50 corredores</small>
         </div>
         <div class="live-minimap" aria-label="Progresso da pista">
-          <div class="live-minimap-road" aria-hidden="true"><span id="liveMapDot"></span></div>
+          <span class="live-mini-finish" aria-hidden="true">🏁 150 m</span>
+          <div class="live-minimap-road" aria-hidden="true">
+            <span id="liveMapDot"></span>
+            <span id="liveMapRival2" class="live-rival-dot" hidden></span>
+            <span id="liveMapRival3" class="live-rival-dot" hidden></span>
+          </div>
+          <span class="live-mini-start" aria-hidden="true">0 m</span>
           <small id="liveMiniMapName">❄️ GELO</small>
         </div>
         <div class="live-sprint-card" id="liveSprintCard" hidden>

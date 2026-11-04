@@ -4,6 +4,7 @@ import { createWorld } from "./world.js";
 import { createAvatars } from "./avatars.js";
 import { connectRemote } from "./remote.js";
 import { applyGiftEvent } from "./gifts.js";
+import { applySimulatedLikes } from "./likes.js";
 import {seasonTop,recentWinners} from "./history.js";
 import {getViewMode} from "./view.js";
 import {qualityFromUrl,QUALITY_SETTINGS,shouldRender} from "./performance.js";
@@ -91,7 +92,10 @@ function renderHud() {
   byId("liveTimer").textContent=toTime(state.raceMs);
   byId("liveRemaining").textContent=Math.max(0,Math.ceil(distance-leadProgress))+" m até a chegada";
   byId("liveRaceCount").textContent=state.active.length+"/50 corredores";
-  byId("liveLikeCount").textContent="♥ "+(Number.isSafeInteger(state.observedLikes)?state.observedLikes.toLocaleString("pt-BR"):"0")+" curtidas observadas";
+  const realLikes=Number.isSafeInteger(state.observedLikes)?state.observedLikes:0;
+  const testLikes=Number.isSafeInteger(state.simulatedLikes)?state.simulatedLikes:0;
+  byId("liveLikeCount").textContent="♥ "+realLikes.toLocaleString("pt-BR")+" curtidas observadas"+
+    (testLikes?" · [TESTE] +"+testLikes.toLocaleString("pt-BR"):"");
   byId("liveMiniMapName").textContent=m.emoji+" "+m.name;
   const mapWidget=byId("liveMiniMapName").closest(".live-minimap");
   mapWidget.dataset.biome=m.id;
@@ -341,6 +345,7 @@ byId("refreshDiagnostics").addEventListener("click",async()=>{
       "Curtidas observadas: "+(e.likeCountObserved??0),
       "Duplicatas: "+(e.duplicateLikes??0),
       "Última curtida: "+dateLabel(e.lastLikeAt),
+      "Curtidas fictícias em teste: "+(e.simulatedLikes??0),
       "",
       "🏁 ESTADO ATUAL",
       "Rodada: "+g.round+" | Fase: "+g.phase,
@@ -396,6 +401,16 @@ byId("turboButton").addEventListener("click",async()=>{
   if(remoteMode){const response=await adminRequest("turbo",{userId:runner?.id});if(response)feedback("Turbo remoto aplicado em "+(runner?.name||"corredor"));return;}
   feedback(runner&&turbo(state,runner.id)?"Turbo aplicado em "+runner.name+" por 5 segundos.":"Turbo disponível apenas durante a corrida.",Boolean(runner));
   renderHud();persist();
+});
+byId("likeTest").addEventListener("click",async()=>{
+  if(remoteMode){
+    const result=await adminRequest("like-test");
+    if(result)feedback("[TESTE] 10 curtidas simuladas, sem influência no ranking.");
+  }else{
+    applySimulatedLikes(state,10);
+    feedback("[TESTE] 10 curtidas fictícias — nenhum evento do TikTok recebido.");
+    renderHud();persist();
+  }
 });
 byId("giftTest").addEventListener("click",async()=>{
   const runner=rank(state.active).find(r=>r.status==="running")??rank(state.active)[0];

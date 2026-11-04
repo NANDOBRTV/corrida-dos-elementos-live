@@ -9,7 +9,7 @@ import {startTikTokBridge} from "./tiktok.js";
 import {applyGiftEvent,createGiftDeduplicator} from "../src/gifts.js";
 import {pseudonymizeTikTokUser} from "./privacy.js";
 import {createLiveDiagnostics} from "./telemetry.js";
-import {createLikeBuffer,applyLikeBatch} from "../src/likes.js";
+import {createLikeBuffer,applyLikeBatch,applySimulatedLikes} from "../src/likes.js";
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const mime={".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",
@@ -247,6 +247,10 @@ export async function createApp(opts={}){
         else if(action==="turbo") {
           const id=typeof data.userId==="string"?data.userId:rank(state.active).find(r=>r.status==="running")?.id;
           if(!mutation(()=>turbo(state,id))){sendJson(res,400,{ok:false,error:"Turbo disponível somente durante a corrida"});return;}
+        } else if(action==="like-test"){
+          const simulated=mutation(()=>applySimulatedLikes(state,10));
+          liveDiagnostics.simulatedLike(simulated.count);
+          outcome={ok:true,...simulated};
         } else if(action==="gift-test"){
           const userId=typeof data.userId==="string"?data.userId
             :(rank(state.active).find(r=>r.status==="running")??rank(state.active)[0])?.id;

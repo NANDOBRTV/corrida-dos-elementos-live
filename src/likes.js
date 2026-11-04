@@ -32,3 +32,13 @@ export function applyLikeBatch(state,batch){
   state.messages.length=Math.min(8,state.messages.length);
   return {count:batch.count,total:state.observedLikes};
 }
+
+export function applySimulatedLikes(state,count=10){
+  if(!state||!Number.isSafeInteger(count)||count<1||count>100)return null;
+  const old=Number.isSafeInteger(state.simulatedLikes)&&state.simulatedLikes>=0?state.simulatedLikes:0;
+  state.simulatedLikes=Math.min(1_000_000_000,old+count);
+  if(!Array.isArray(state.messages))state.messages=[];
+  state.messages.unshift({text:"[TESTE] ♥ "+count+" curtidas fictícias — não alteram a corrida",at:state.round});
+  state.messages.length=Math.min(8,state.messages.length);
+  return {count,total:state.simulatedLikes,simulated:true};
+}

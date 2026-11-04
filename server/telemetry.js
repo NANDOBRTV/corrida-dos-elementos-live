@@ -6,7 +6,7 @@ export function createLiveDiagnostics({clock=()=>new Date().toISOString()}={}) {
     connectionAttempts:0,
     chatEvents:0,enterCommands:0,registrationsAccepted:0,registrationsRejected:0,
     giftEvents:0,giftFinalEvents:0,giftsApplied:0,duplicateGifts:0,turbosApplied:0,simulatedGifts:0,
-    likeEvents:0,likeValid:0,likesObserved:0,duplicateLikes:0
+    likeEvents:0,likeValid:0,likesObserved:0,duplicateLikes:0,simulatedLikes:0
   };
   const dates={lastAttemptAt:null,lastConnectedAt:null,lastDisconnectAt:null,lastChatAt:null,lastJoinAt:null,lastGiftAt:null,lastLikeAt:null};
   let lastIssue=null;
@@ -57,6 +57,7 @@ export function createLiveDiagnostics({clock=()=>new Date().toISOString()}={}) {
     if(accepted)counts.likesObserved+=event.count;
     else counts.duplicateLikes++;
   }
+  function simulatedLike(count){counts.simulatedLikes+=count;}
   function snapshot({bridge={},storage="memory",storageHealthy=false,round=1,phase="LOBBY",current=0,next=0,connectedViewers=0}={}){
     return {
       startedAt:start,
@@ -71,10 +72,11 @@ export function createLiveDiagnostics({clock=()=>new Date().toISOString()}={}) {
         turbosApplied:counts.turbosApplied,simulatedGifts:counts.simulatedGifts,
         lastChatAt:dates.lastChatAt,lastJoinAt:dates.lastJoinAt,lastGiftAt:dates.lastGiftAt,
         likeObserved:counts.likeEvents,likeValid:counts.likeValid,
-        likeCountObserved:counts.likesObserved,duplicateLikes:counts.duplicateLikes,lastLikeAt:dates.lastLikeAt},
+        likeCountObserved:counts.likesObserved,duplicateLikes:counts.duplicateLikes,
+        simulatedLikes:counts.simulatedLikes,lastLikeAt:dates.lastLikeAt},
       game:{round,phase,current,next,viewers:connectedViewers},
       persistence:{storage,healthy:storageHealthy===true}
     };
   }
-  return {connection,observed,registration,gift,like,snapshot};
+  return {connection,observed,registration,gift,like,simulatedLike,snapshot};
 }

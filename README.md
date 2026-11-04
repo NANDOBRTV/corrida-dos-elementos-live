@@ -1,3 +1,9 @@
+## Versão 2.8.1 — simulação segura de curtidas
+
+O painel do operador agora inclui **♥ SIMULAR 10 CURTIDAS**, disponível localmente ou no Render mediante ADMIN_KEY. Todas essas curtidas são marcadas como [TESTE], contabilizadas separadamente das curtidas reais observadas e não interferem em velocidade, inscrição ou ranking. O diagnóstico do servidor mantém os dois contadores separados. Nenhuma LIVE real é iniciada.
+
+---
+
 ## Versão 2.7 — corrida de 5 km otimizada
 
 A pista oficial agora tem **5.000 metros** nos dois biomas (❄️ Gelo e 🌲 Floresta). A prova pode durar até **25 minutos**; encerra antes se todos os corredores chegarem. O sistema de classificação, filas e presentes fictícios continua igual.

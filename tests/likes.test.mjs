@@ -46,3 +46,23 @@ test("Server exposes aggregated likes in official state, no duplicate processing
   assert.equal(data.state.observedLikes,15);
   assert.equal(data.state.active.length,0);
 });
+
+test("Admin can simulate likes separately without implying real TikTok likes",async t=>{
+  const storage={enabled:false,load:async()=>null,save:async()=>{},close:async()=>{}};
+  const app=await createApp({adminKey:"test-only",storage,seedDemo:false,disableTikTok:true});
+  const addr=await app.listen(0);t.after(()=>app.close());
+  const base="http://127.0.0.1:"+addr.port;
+  const endpoint=base+"/api/admin/action";
+  const unauth=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"like-test"})});
+  assert.equal(unauth.status,401);
+  const ok=await (await fetch(endpoint,{method:"POST",
+    headers:{"content-type":"application/json","x-admin-key":"test-only"},
+    body:JSON.stringify({action:"like-test"})})).json();
+  assert.equal(ok.simulated,true);
+  assert.equal(ok.state.simulatedLikes,10);
+  assert.equal(ok.state.observedLikes??0,0);
+  assert.match(ok.state.messages[0].text,/\[TESTE\]/);
+  const report=await (await fetch(base+"/api/admin/diagnostics",{headers:{"x-admin-key":"test-only"}})).json();
+  assert.equal(report.diagnostics.events.simulatedLikes,10);
+  assert.equal(report.diagnostics.events.likeCountObserved,0);
+});

@@ -318,6 +318,8 @@ test("v2.3 batches fifty animated runners without losing colors or movement",asy
 
 test("reference-inspired 9:16 LIVE HUD overlays race image with ranking and timer",async({page,request})=>{
   await reset(request);
+  await action(request,"advance");
+  await action(request,"advance");
   await start(page,"?view=live&quality=low");
   await expect(page.locator("#liveTimer")).toBeVisible();
   await expect(page.locator("#liveRemaining")).toContainText("m até a chegada");
@@ -340,6 +342,7 @@ test("reference-inspired 9:16 LIVE HUD overlays race image with ranking and time
   expect(positions.timerBottom).toBeLessThan(positions.viewportHeight);
   expect(positions.horizontalOverflow).toBeLessThanOrEqual(1);
   await page.screenshot({path:join(root,"reference-hud-live-390x844.png"),fullPage:true});
+  await reset(request);
 });
 
 test("50-runner showcase is explicitly fictional and independent of the real Render motor",async({page,request})=>{

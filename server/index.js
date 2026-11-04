@@ -192,7 +192,7 @@ export async function createApp(opts={}){
           if(!mutation(()=>turbo(state,id))){sendJson(res,400,{ok:false,error:"Turbo disponível somente durante a corrida"});return;}
         } else if(action==="gift-test"){
           const userId=typeof data.userId==="string"?data.userId
-            :rank(state.active).find(r=>r.status==="running")?.id;
+            :(rank(state.active).find(r=>r.status==="running")??rank(state.active)[0])?.id;
           const runner=state.active.find(r=>r.id===userId);
           if(!runner){sendJson(res,400,{ok:false,error:"Inscreva um corredor antes de simular presente"});return;}
           const effect=receiveGift({

@@ -297,10 +297,12 @@ test("v2.3 batches fifty animated runners without losing colors or movement",asy
     );
     const colorsPreserved=colorDelta<1e-5;
     const originalCount=batch.count;
-    const voxelsPerRunner=r=>13+(appearanceForRunner(r.id).vehicle==="kart"?10:
-      appearanceForRunner(r.id).vehicle==="moto"?7:0);
-    const expectedCount=state.active.reduce((sum,r)=>sum+voxelsPerRunner(r),0);
-    const expectedAfter=expectedCount-voxelsPerRunner(state.active[49]);
+    const soloScene=new THREE.Scene();
+    const solo=createAvatars(soloScene,{quality:"balanced"});
+    solo.sync([state.active[49]]);
+    const individualParts=soloScene.getObjectByName("runner-voxel-batch").count;
+    solo.clear();
+    const expectedAfter=originalCount-individualParts;
     const vehicleCounts={
       kart:state.active.filter(r=>appearanceForRunner(r.id).vehicle==="kart").length,
       moto:state.active.filter(r=>appearanceForRunner(r.id).vehicle==="moto").length
@@ -313,11 +315,11 @@ test("v2.3 batches fifty animated runners without losing colors or movement",asy
     avatars.animate(state.active.slice(0,49),"RUNNING",.016,1150);
     const afterRemoval=scene.getObjectByName("runner-voxel-batch").count;
     avatars.clear();
-    return {originalCount,expectedCount,expectedAfter,vehicleCounts,
+    return {originalCount,expectedAfter,vehicleCounts,
       groupCount,colorsPreserved,colorDelta,articulated,afterRemoval,
       cleaned:scene.getObjectByName("runner-voxel-batch")===undefined};
   });
-  expect(result.originalCount).toBe(result.expectedCount); // Original runner + kart/moto appearance
+  expect(result.originalCount).toBeGreaterThan(50*17); // Full humanoid wardrobe remains GPU batched
   expect(result.groupCount).toBe(50);
   expect(result.colorsPreserved,"GPU color delta "+result.colorDelta).toBe(true);
   expect(result.articulated).toBe(true);

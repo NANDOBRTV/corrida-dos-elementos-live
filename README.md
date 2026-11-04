@@ -1,3 +1,11 @@
+## Versão 2.9 — referência visual de corrida com avatares humanoides blocados
+
+A partir do vídeo fornecido pelo proprietário do projeto, a pista de Gelo ganhou uma apresentação mais próxima de uma corrida de avatares estilo Roblox: **personagens originais humanoides R6-like com roupa de corpo inteiro, cabelos, bonés, cachecóis, mochilas e cores variadas**, câmera mais baixa e próxima por trás dos corredores, asfalto cinza, bordas de neve, placares escuros e ícones de kart/moto/jetpack. Os acessórios continuam cosméticos, não há compra nem bônus de velocidade. As formas são processadas em malha instanciada para preservar o desempenho de 50 corredores no Android.
+
+**Não são avatares oficiais do Roblox importados de contas reais.** Para reproduzir roupas ou personagens exatos do vídeo seriam necessários os respectivos arquivos/modelos com direito de uso, animações compatíveis e otimização de malha. Esta versão reproduz o estilo visual com modelos próprios. O TikTok real permanece desativado por padrão; não há transmissor RTMP embutido.
+
+---
+
 ### Runbook operacional e critérios para concluir a LIVE
 
 Veja [docs/OPERACAO-PRE-LIVE.md](docs/OPERACAO-PRE-LIVE.md) para links, checklist de QA no Android, segurança, persistência, data de vencimento do PostgreSQL e requisitos de captura de vídeo. O conector real permanece desativado por padrão.

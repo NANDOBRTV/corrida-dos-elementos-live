@@ -11,7 +11,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   const finishGroup=new THREE.Group();finishGroup.name="absolute-finish-line";scene.add(finishGroup);
   const camera=new THREE.PerspectiveCamera(58,1,.1,360);
   // Third-person chase perspective for the vertical race format.
-  camera.position.set(0,7.3,-17);
+  camera.position.set(0,5.9,-12.5);
   const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:"low-power"});
   const baselinePixelRatio=Math.min(window.devicePixelRatio||1,profile.pixelRatio);
   let renderScale=1;
@@ -267,6 +267,16 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     block(root,0,-.2,renderedLength/2,180,.4,renderedLength+100,settings.ground);
     // Five lanes, from 0 to the authoritative finish distance.
     block(root,0,.025,renderedLength/2,11.7,.1,renderedLength+4,settings.road);
+    if(settings.id==="ice"){
+      // Distinctive jagged snow banks at the sides of a wide grey snow raceway.
+      for(let z=7;z<renderedLength;z+=14){
+        for(const side of [-1,1]){
+          const variation=((z*13+side*17)%7+7)%7;
+          block(root,side*(6.8+variation*.2),.075,z,2.4+variation*.22,.12,5.5+variation,0xf0f4fc);
+          if(variation%3===0)block(root,side*9.0,.13,z+2,1.7,.22,2.8,0xe6ecf8);
+        }
+      }
+    }
     block(root,-6.0,.26,renderedLength/2,.38,.44,renderedLength+4,settings.trim);
     block(root,6.0,.26,renderedLength/2,.38,.44,renderedLength+4,settings.trim);
     for(const x of [-3.7,-1.85,0,1.85,3.7]) for(let z=5;z<renderedLength;z+=7.5){
@@ -297,7 +307,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   function resize() {
     const w=Math.max(1,canvas.clientWidth),h=Math.max(1,canvas.clientHeight);
     renderer.setSize(w,h,false);
-    camera.aspect=w/h;camera.fov=w<h?64:57;camera.updateProjectionMatrix();
+    camera.aspect=w/h;camera.fov=w<h?68:57;camera.updateProjectionMatrix();
   }
   function render(race,dt) {
     const active=Array.isArray(race.active)?race.active:[];
@@ -312,8 +322,8 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       if(root.position.z!==nextBase)root.position.z=nextBase;
     }
     const alpha=1-Math.exp(-2.9*Math.min(dt,.2));
-    positionTarget.set(0,7.4,Math.max(-17,z-17));
-    lookTarget.set(0,1.7,Math.min(currentLength+10,z+18));
+    positionTarget.set(0,5.9,Math.max(-12.5,z-12.5));
+    lookTarget.set(0,1.8,Math.min(currentLength+10,z+18));
     // Network recovery and benchmark jumps can move several kilometers.
     // Avoid rendering an empty transient frame between streamed tiles.
     if(Math.abs(camera.position.z-positionTarget.z)>160){

@@ -1,0 +1,42 @@
+/* Original blocky-humanoid race presentation based on user-supplied video, not Roblox assets. */
+body[data-view="live"]{
+  background:#b8c8dc;
+  font-family:"DM Sans",system-ui,sans-serif;
+}
+body[data-view="live"] .arena:after{
+  background:linear-gradient(180deg,#1826371e 0%,transparent 28%,transparent 66%,#141b3155 100%);
+}
+body[data-view="live"] .masthead{top:max(5px,env(safe-area-inset-top));left:9px;right:9px}
+body[data-view="live"] .identity .brand-mark{background:#e7f2ff;color:#1a2538;border:2px solid #fff}
+body[data-view="live"] .demo-tag{background:#e13866;border:1px solid #ffe5ec;color:#fff}
+body[data-view="live"] .ranking-panel,
+body[data-view="live"] .live-timer-card,
+body[data-view="live"] .live-minimap{
+  background:#1c2334d9;
+  border:1px solid #b8c8e155;
+  box-shadow:0 8px 21px #11182730;
+  backdrop-filter:blur(3px);
+}
+body[data-view="live"] .ranking-panel{border-radius:13px;padding:10px 9px 8px;max-height:196px}
+body[data-view="live"] .panel-heading h2{color:#f8d75a}
+body[data-view="live"] .rank-meters{color:#f9e397}
+body[data-view="live"] .live-timer-card{border-radius:12px}
+body[data-view="live"] .live-timer-card strong{font-size:33px}
+body[data-view="live"] .live-minimap{border-radius:12px}
+body[data-view="live"] .live-chat-messages{
+  background:linear-gradient(90deg,#27304499 0%,#2730443d 75%,transparent 100%);
+  border:0;max-height:168px;
+}
+body[data-view="live"] .live-power-rail{bottom:max(65px,env(safe-area-inset-bottom))}
+body[data-view="live"] .live-power-rail span{background:#18253acc;border:1px solid #f9ffff55}
+body[data-view="live"] .next-line{background:#18253ab6;border:1px solid #f4f6fa50}
+body[data-view="live"] .live-sprint-card{background:#202d3dee;border:2px solid #77dce6;border-radius:13px}
+body[data-view="live"] .live-map-weather{background:#233a4bba}
+@media(max-width:360px){
+  body[data-view="live"] .ranking-panel{max-height:180px}
+  body[data-view="live"] .live-timer-card strong{font-size:28px}
+}
+@media(max-height:680px){
+  body[data-view="live"] .ranking-panel{max-height:145px}
+  body[data-view="live"] .live-chat-messages{max-height:95px}
+}

@@ -447,3 +447,35 @@ test("v2.6 mobile 300 m straight minimap tracks top three racers",async({page,re
   }
   expect(errors).toEqual([]);
 });
+
+
+test("v2.6 300m courses render a real finish in both biomes and retain old 150m rounds",async({page,request})=>{
+  await reset(request);
+  await start(page,"?view=operator&quality=low");
+  const scene=await page.evaluate(async()=>{
+    const {createWorld}=await import("/src/world.js");
+    const canvas=document.createElement("canvas");
+    canvas.style.cssText="position:absolute;left:-9999px;top:0;width:280px;height:440px";
+    document.body.appendChild(canvas);
+    const world=createWorld(canvas,{quality:"low"});
+    const stages=[];
+    try{
+      for(const [id,distance] of [["ice",300],["forest",300],["ice",150]]){
+        world.setMap(id,distance);
+        world.resize();
+        const labels=[];
+        world.scene.traverse(o=>{if(o.isSprite&&o.position.y===7.2)labels.push(o.position.z);});
+        stages.push({id,distance,labels,background:world.scene.background.getHex()});
+      }
+    }finally{world.dispose();canvas.remove();}
+    return stages;
+  });
+  expect(scene).toHaveLength(3);
+  expect(scene[0].labels).toContain(300);
+  expect(scene[1].labels).toContain(300);
+  expect(scene[2].labels).toContain(150);
+  expect(scene[0].background).not.toBe(scene[1].background);
+  await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
+  await expect(page.locator("#liveMiniFinish")).toHaveText("🏁 300 m");
+  await expect(page.locator("#liveRemaining")).toContainText("m até a chegada");
+});

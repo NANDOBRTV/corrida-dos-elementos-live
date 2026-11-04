@@ -47,3 +47,29 @@ A autenticação protege apenas ações administrativas do servidor. Qualquer pe
 Antes de considerar uma versão 24h aprovada, teste o endpoint /health, a página do jogo, a transição de rodadas sem navegador aberto e a persistência após redeploy. Monitore os logs, uso de memória, bandwidth e alertas no dashboard Render.
 
 Atualizações automáticas: push na branch main pode iniciar novo deploy no serviço Render, conforme a opção Auto Deploy.
+
+## Estado da implantação e próxima ativação
+
+O projeto pode funcionar em três níveis separados:
+
+1. **Render Free + memória:** demonstração com motor próprio enquanto a instância não estiver suspensa; estado perdido em reinícios.
+2. **Render + PostgreSQL:** mantém fila/rodada no armazenamento entre reinícios, mas o motor não avança enquanto o serviço está suspenso. Configure a variável `DATABASE_URL` no serviço web com a **Internal Database URL** exibida na página do seu banco no Render (mesma região). Nunca coloque o valor em código ou envie por chat.
+3. **Render Starter + PostgreSQL:** instância paga não suspende por inatividade; o motor pode continuar com o celular fechado. Reinícios ocasionais são possíveis e os dados sobrevivem somente quando `DATABASE_URL` estiver configurada corretamente.
+
+Um PostgreSQL Free do Render expira em 30 dias e não possui backups gerenciados. Agende migração para uma solução durável antes da data de expiração.
+
+## TikTok LIVE — conector opcional preparado
+
+Foi adicionado o módulo `server/tiktok.js`, que usa a API moderna de `tiktok-live-connector`, versão 2.5.0. O conector **fica desativado por padrão**.
+
+Para habilitar, cadastre na área Environment do serviço Render a variável `TIKTOK_USERNAME`, com o @identificador de uma conta que você tem autorização para acompanhar. Reinicie/deploy o serviço. Durante uma LIVE ativa, o módulo tenta conectar e encaminha comentários que sejam exatamente `entrar` ao motor autoritativo. O identificador estável é lido de `event.user.id`; o texto é lido de `event.content`. Sem ID confiável, a inscrição é ignorada. Uma conexão falha tenta se recuperar com intervalo progressivo.
+
+Em `/health`, o servidor informa `tiktokEnabled` e `tiktokConnected`. A existência do código não comprova que houve conexão real. Só considerar integração validada se `tiktokConnected: true` durante uma LIVE e uma inscrição real aparecer na rodada correta.
+
+Esse conector é **não oficial** e depende de API de assinatura externa; pode sofrer limitações ou mudanças de protocolo. Ele **não cria LIVE nem envia vídeo** para TikTok. O endereço RTMP ou a transmissão contínua são problemas separados do recebimento de comentários.
+
+Para desabilitar o conector, apague `TIKTOK_USERNAME` do ambiente do serviço. Não escreva senhas, cookies, tokens ou chaves da conta em um repositório público.
+
+## ADMIN_KEY
+
+A variável `ADMIN_KEY` é exigida pelo painel administrativo. Ela fica em **Render → Web Service → Environment**. É uma credencial sensível; nunca compartilhe prints que a mostrem, não a armazene no navegador e não a inclua no repositório.

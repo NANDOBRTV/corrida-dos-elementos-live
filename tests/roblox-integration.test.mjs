@@ -76,3 +76,23 @@ test("Studio route is unavailable by default, even when admin key exists",async 
   const addr=await app.listen(0);t.after(()=>app.close());
   assert.equal((await fetch("http://127.0.0.1:"+addr.port+"/api/roblox/participants")).status,503);
 });
+
+test("50 simultaneous unique Roblox usernames use a single batched API request",async()=>{
+  let calls=0;
+  const fake=async(_url,opts)=>{
+    calls++;
+    const names=JSON.parse(opts.body).usernames;
+    return {ok:true,json:async()=>({data:names.map((name,i)=>({id:1000+i,name}))})};
+  };
+  const lookup=createRobloxLookup({fetchImpl:fake,batchDelayMs:15});
+  const names=Array.from({length:50},(_,i)=>"Player"+String(i).padStart(2,"0"));
+  const profiles=await Promise.all(names.map(name=>lookup.lookup(name)));
+  assert.equal(calls,1);
+  assert.equal(profiles.length,50);
+  assert.equal(new Set(profiles.map(p=>p.id)).size,50);
+});
+test("Command also allows an optional @ before Roblox username",()=>{
+  assert.deepEqual(parseRaceJoin("entrar @Nando_2026"),{
+    mode:"roblox",username:"Nando_2026",content:"entrar Nando_2026"
+  });
+});

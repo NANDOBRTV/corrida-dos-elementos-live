@@ -5,7 +5,7 @@ export function validRobloxUsername(value){
 }
 export function parseRaceJoin(text){
   if(typeof text!=="string"||text.length>60)return null;
-  const match=/^\s*entrar(?:\s+([A-Za-z0-9_]{3,20}))?\s*$/i.exec(text);
+  const match=/^\s*entrar(?:\s+@?([A-Za-z0-9_]{3,20}))?\s*$/i.exec(text);
   if(!match)return null;
   if(!match[1])return {mode:"demo",username:null,content:"entrar"};
   if(!validRobloxUsername(match[1]))return null;

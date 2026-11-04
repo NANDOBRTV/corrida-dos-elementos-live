@@ -1,3 +1,9 @@
+### Versão 3.0.1 — até 50 consultas agrupadas e pista Roblox Studio
+
+A consulta pública pelo nome Roblox agora aceita até 50 nomes distintos por lote, com limite de chamadas para evitar saturação da API. Permite `entrar @NomeRoblox` além de `entrar NomeRoblox`. O módulo Roblox Studio inclui terreno original com Gelo/Floresta e 600 studs de cenário reutilizável. **A versão Roblox Studio ainda não foi executada em um servidor Roblox real**.
+
+---
+
 ## Versão 3.0 — entrada por usuário Roblox
 
 A partir do comentário `entrar NomeRoblox`, o backend consulta a API oficial de nomes e associa o ID numérico da conta à inscrição atual ou à próxima fila. O ranking exibe o nome de usuário encontrado, sem confundir com o apelido de exibição. Há cache, limite de requisições e proteção contra duas inscrições do mesmo personagem na mesma rodada. O comando legado `entrar` continua válido para simulação.

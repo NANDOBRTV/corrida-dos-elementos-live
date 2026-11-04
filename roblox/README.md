@@ -27,3 +27,5 @@ Sem Roblox Studio e uma experiência configurada, a parte de avatares 3D oficiai
 - Não habilite o endpoint Roblox em produção sem `ROBLOX_BRIDGE_KEY` longa e aleatória.
 - O serviço não usa itens Roblox fora dos serviços Roblox. Consulte as licenças antes de publicar.
 - Se quiser garantir que a pessoa é dona do avatar, utilize autorização Roblox adequada em vez de confiar apenas em um comentário do TikTok.
+
+O script server também gera uma pista 3D leve, com **Gelo e Floresta**, árvores de blocos e apenas 600 studs de cenário reutilizável para o percurso de 5.000, seguindo a ideia da versão WebGL. Os modelos reais são criados exclusivamente dentro do Roblox; a animação avançada ainda precisa ser validada no Studio.

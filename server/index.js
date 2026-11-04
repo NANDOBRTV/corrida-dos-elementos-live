@@ -73,6 +73,7 @@ export async function createApp(opts={}){
   let revision=0,savedRevision=validateSavedState(loaded)?0:-1;
   let inFlight=null,lastPersistSuccess=null,lastPersistError=null;
   const eventHistory=new Map();
+  const instanceId=randomBytes(8).toString("hex");
   const stats={startedAt:new Date().toISOString(),ticks:0,snapshots:0,giftsProcessed:0,giftBoosts:0};
   const processedGifts=createGiftDeduplicator();
   const liveDiagnostics=createLiveDiagnostics();
@@ -83,7 +84,7 @@ export async function createApp(opts={}){
     return {storage:storage.enabled?"postgres":"memory",
       storageHealthy:storage.enabled&&!lastPersistError,
       tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected,
-      liveEventsMode:realLiveEnabled?"enabled":"staged"};
+      liveEventsMode:realLiveEnabled?"enabled":"staged",instanceId};
   }
   function notify(){
     const message="event: race\ndata: "+JSON.stringify({state,serverTime:now(),...publicMeta()})+"\n\n";
@@ -151,7 +152,7 @@ export async function createApp(opts={}){
     const path=url.pathname;
     if(req.method==="GET"&&path==="/health"){
       sendJson(res,200,{ok:true,service:"corrida-dos-elementos-live",role:"race-engine",
-        uptimeSeconds:Math.round(process.uptime()),round:state.round,phase:state.phase,
+        uptimeSeconds:Math.round(process.uptime()),instanceId,round:state.round,phase:state.phase,
         recovery,
         storage:storage.enabled?"postgres":"memory",storageHealthy:storage.enabled&&!lastPersistError,
         giftsProcessed:stats.giftsProcessed,giftBoosts:stats.giftBoosts,
@@ -295,7 +296,15 @@ export async function createApp(opts={}){
   },50);
   heartbeat.unref?.();
   // Outgoing SSE comments don't keep Render Free services awake. Paid plan is needed for true always-on.
-  const ssePing=setInterval(()=>{for(const res of subscribers){try{res.write(": health\n\n");}catch{subscribers.delete(res);}}},20000);
+  const ssePing=setInterval(()=>{
+    // A heartbeat lets spectators detect half-open connections and server restarts.
+    const heartbeat="event: heartbeat\\ndata: "+JSON.stringify({instanceId,serverTime:now()})+"\\n\\n";
+    for(const res of subscribers){
+      if(res.destroyed){subscribers.delete(res);continue;}
+      try{if(!res.write(heartbeat)){subscribers.delete(res);res.end();}}
+      catch{subscribers.delete(res);res.destroy();}
+    }
+  },20000);
   ssePing.unref?.();
   return {
     state:()=>state,

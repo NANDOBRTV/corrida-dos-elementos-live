@@ -48,6 +48,7 @@ state.paused=Boolean(state.paused);
 let selectedPreviewMap="";
 let world=null,avatars=null,displayedMap="",lastFrame=performance.now(),lastPaint=0,lastSave=0,last3dFrame=0,lastPerfReport=0,shownRound=state.round;
 let renderError=false;
+let showcaseBoostRound=0;
 
 try {
   world=createWorld(canvas,{quality:graphics});
@@ -174,6 +175,13 @@ function onFrame(now) {
   const delta=Math.min(Math.max(now-lastFrame,0),120);
   lastFrame=now;
   if(!document.hidden && !remoteMode)tick(state,delta);
+  // Showcase-only ability demonstration. No operator requests or database writes.
+  if(showcase&&state.phase==="RUNNING"&&state.raceMs>=2200&&
+    showcaseBoostRound!==state.round&&state.active.length){
+    showcaseBoostRound=state.round;
+    const best=rank(state.active)[0];
+    if(best)turbo(state,best.id);
+  }
   if(shownRound!==state.round){
     shownRound=state.round;
     if(showcase&&state.phase==="LOBBY"){

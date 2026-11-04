@@ -73,6 +73,22 @@ function queueNames(rows) {
 }
 function renderHud() {
   const m=biome(state.mapId);
+  document.body.dataset.phase=state.phase.toLowerCase();
+  const leading=rank(state.active);
+  const leadProgress=leading.length?Math.max(0,Number(leading[0].progress)||0):0;
+  byId("liveTimer").textContent=toTime(state.raceMs);
+  byId("liveRemaining").textContent=Math.max(0,Math.ceil(TRACK_LENGTH-leadProgress))+" m até a chegada";
+  byId("liveRaceCount").textContent=state.active.length+"/50 corredores";
+  byId("liveMiniMapName").textContent=m.emoji+" "+m.name;
+  byId("liveMapDot").style.bottom=Math.min(100,leadProgress/TRACK_LENGTH*100)+"%";
+  byId("liveWeatherTag").textContent=m.id==="ice"?"❄️ NEVE NA PISTA":"🌿 TRILHA DA FLORESTA";
+  const boost=state.phase==="RUNNING"
+    ?state.active.find(r=>r.turboUntil>state.raceMs&&r.status==="running"):null;
+  const sprint=byId("liveSprintCard");
+  sprint.hidden=!boost;
+  if(boost)byId("liveSprintName").textContent=boost.name;
+  byId("liveChatMessages").innerHTML=(state.messages||[]).slice(0,3)
+    .map(event=>"<p>"+escapeHTML(event.text)+"</p>").join("")||"<p>Aguardando participantes...</p>";
   byId("mapName").textContent=m.name; // The biome ribbon already includes the emoji.
   byId("roundNumber").textContent="#"+String(state.round).padStart(3,"0");
   byId("playerCount").textContent=String(state.active.length);
@@ -94,7 +110,7 @@ function renderHud() {
       '<div class="podium-row"><strong>'+["🥇","🥈","🥉"][i]+" "+escapeHTML(r.name)+'</strong><span>'+(r.finished?(r.finishTime/1000).toFixed(2)+"s":"Sem concluir")+"</span></div>"
     ).join(""):'<p class="empty-ranking">Sem participantes nesta rodada.</p>';
   }
-  const sorted=rank(state.active);
+  const sorted=leading;
   const ranking=byId("rankingRows");
   if(sorted.length===0)ranking.innerHTML='<p class="empty-ranking">Aguardando inscritos na rodada atual...</p>';
   else ranking.innerHTML=sorted.slice(0,5).map((r,i)=>{
@@ -102,7 +118,7 @@ function renderHud() {
     return '<div class="rank-row"><span class="rank-pos">'+String(i+1).padStart(2,"0")+
       '</span><span class="rank-avatar" style="background:'+r.color+'"></span><span class="rank-name">'+escapeHTML(r.name)+
       '</span><span class="rank-progress"><span style="width:'+pct+'%;background:'+r.color+
-      '"></span></span><span class="rank-percent">'+pct+'%</span></div>';
+      '"></span></span><span class="rank-percent">'+pct+'%</span><span class="rank-meters">'+Math.floor(r.progress||0)+'m</span></div>';
   }).join("");
   const leaders=seasonTop(state,3);
   const leadersPanel=byId("seasonLeaders");

@@ -1,0 +1,21 @@
+# Este blueprint documenta a implantação do jogo no Render.
+# Plano gratuito = testes, NÃO operação 24h garantida. Para sempre ligado,
+# altere o plano de compute para Starter (pago) pelo Dashboard.
+services:
+  - type: web
+    name: corrida-dos-elementos-live
+    runtime: node
+    region: ohio
+    plan: free
+    branch: main
+    buildCommand: npm install --omit=dev && npm run check && npm test
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ADMIN_KEY
+        generateValue: true
+      # Opcional: adicione DATABASE_URL pelo Dashboard usando um Postgres durável.
+      # Nunca coloque credenciais em render.yaml ou no GitHub.

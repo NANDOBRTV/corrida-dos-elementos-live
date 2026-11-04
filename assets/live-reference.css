@@ -197,3 +197,18 @@ body[data-view="live"] .results-overlay{inset:28% 5% 22%;max-width:390px;margin:
   body[data-view="live"] .live-minimap-road{height:72px}
   body[data-view="live"] .live-chat-messages{max-height:95px}
 }
+
+/* During warm-up/countdown the video uses a clean start panel, not racing data. */
+body[data-view="live"][data-phase="lobby"] .ranking-panel,
+body[data-view="live"][data-phase="lobby"] .live-timer-card,
+body[data-view="live"][data-phase="lobby"] .live-minimap,
+body[data-view="live"][data-phase="lobby"] .live-map-weather,
+body[data-view="live"][data-phase="countdown"] .ranking-panel,
+body[data-view="live"][data-phase="countdown"] .live-timer-card,
+body[data-view="live"][data-phase="countdown"] .live-minimap,
+body[data-view="live"][data-phase="countdown"] .live-map-weather{display:none!important}
+body[data-view="live"][data-phase="lobby"] .call-to-action,
+body[data-view="live"][data-phase="countdown"] .call-to-action{
+  top:150px;left:50%;max-width:260px;width:76%;
+  background:#10202ded;border:1px solid #e9f8ffff;color:#fff;
+}

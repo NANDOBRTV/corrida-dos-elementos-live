@@ -129,3 +129,6 @@ body[data-view="live"] .network-status{padding:6px 9px}
 
 .quality-apply{display:block;width:100%;margin-top:9px;background:#244b35;border-color:#699260;color:#eaffd0}
 body[data-view="live"] .quality-apply{display:none}
+
+.call-to-action.prelaunch{background:linear-gradient(100deg,#aee0d2,#d4f5dc);color:#163c2e}
+.call-to-action.prelaunch strong{letter-spacing:1px}

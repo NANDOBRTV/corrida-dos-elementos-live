@@ -54,3 +54,13 @@ Manter a identidade própria **Corrida dos Elementos LIVE**, com apenas **❄️
 - Os corpos, veículos e acessórios compartilham o InstancedMesh WebGL para reduzir draw calls.
 - O benchmark físico abre no Android e agora amostra a primeira e a segunda metades de cada bioma. Registra FPS e P95 fixo/Auto; testes de Chromium são funcionais, não medição física do Redmi.
 - Sem conexão real TikTok, sem iniciar LIVE ou contratar hospedagem paga.
+
+## Versão 2.7 — pista de 5.000 metros em Gelo e Floresta
+
+- Percurso físico e ranking autoritativos de **5.000 m**, com chegada definitiva apenas no metro 5.000; limite de duração da corrida de **25 minutos**, encerrando antes se todos concluírem.
+- O mapa não cria 5 km de geometria: renderiza somente **600 metros**, como duas seções de 300 m reutilizadas e deslocadas em blocos conforme a câmera acompanha os corredores.
+- Obstáculos repetem um padrão determinístico por bloco de 300 m e são cacheados; a detecção verifica apenas obstáculos próximos aos jogadores em vez de percorrer a lista completa a cada atualização.
+- Corridas antigas de **150 m e 300 m** permanecem válidas; os snapshots persistidos não têm a distância modificada no meio de uma rodada.
+- Mini-mapa, porcentagem do ranking, cronômetro e posição da chegada seguem a distância real do snapshot.
+- Benchmark mede o início e a região final dos 5 km no celular físico, com 50 corredores fictícios, comparando perfil fixo vs adaptativo e P95.
+- **Sem transmissão TikTok real**, sem gastos adicionais ou promessas de desempenho não medido. A redução de custos de desenho deve ser confirmada por novo benchmark no Redmi 13C.

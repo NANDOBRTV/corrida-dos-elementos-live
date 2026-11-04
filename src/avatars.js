@@ -174,7 +174,7 @@ export function createAvatars(scene,{quality="balanced"}={}) {
       item.lastX+=Math.min(1,dt*7)*(wanted-item.lastX);
       item.group.position.x=item.lastX;
       const visualZ=visualProgress(r,i);
-      if(item.lastZ-visualZ>25)item.lastZ=visualZ; // Snap after a new round.
+      if(Math.abs(item.lastZ-visualZ)>25)item.lastZ=visualZ; // Snap after reconnect or benchmark segment jump.
       item.lastZ+=Math.min(1,dt*8)*(visualZ-item.lastZ);
       item.group.position.z=item.lastZ;
       item.label.visible=labeled.has(r.id);

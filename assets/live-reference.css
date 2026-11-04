@@ -218,7 +218,7 @@ body[data-view="live"][data-phase="countdown"] .call-to-action{
   background:#10202ded;border:1px solid #e9f8ffff;color:#fff;
 }
 
-/* The actual course is straight, 300 m and five lanes; legacy rounds show 150 m. */
+/* The official course is straight, 5,000m and five lanes; legacy 150/300m rounds retain their finish. */
 body[data-view="live"] .live-minimap .live-mini-finish,
 body[data-view="live"] .live-minimap .live-mini-start{
   color:#f8fdfe;font:900 8px/1 "DM Sans",sans-serif;letter-spacing:.15px

@@ -45,8 +45,10 @@ test("Dez rodadas com cinquenta corredores alternam Gelo e Floresta",()=>{
     assert.equal(game.active.length,50);
     assert.equal(register(game,"player-50","Extra","entrar").ok,false);
     advance(game);advance(game);
+    // Finish-location fast-forward keeps this deterministic 10-round test fast.
+    for(const r of game.active)r.progress=TRACK_LENGTH-3;
     let steps=0;
-    while(game.phase==="RUNNING"&&steps++<1000)tick(game,100);
+    while(game.phase==="RUNNING"&&steps++<150)tick(game,100);
     assert.equal(game.phase,"RESULTS");
     assert.equal(game.results.length,50);
     assert.equal(rank(game.active)[0].progress,TRACK_LENGTH);

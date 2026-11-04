@@ -1,3 +1,15 @@
+## Versão 2.7 — corrida de 5 km otimizada
+
+A pista oficial agora tem **5.000 metros** nos dois biomas (❄️ Gelo e 🌲 Floresta). A prova pode durar até **25 minutos**; encerra antes se todos os corredores chegarem. O sistema de classificação, filas e presentes fictícios continua igual.
+
+**Streaming 3D:** o celular mantém apenas **600 m de terreno e obstáculos renderizados** em dois trechos reutilizáveis de 300 m. O cenário avança de forma contínua, sem renderizar os 5.000 m completos. A única faixa de chegada permanece no metro 5.000.
+
+**Compatibilidade:** corridas de 150 m ou 300 m que foram salvas anteriormente mantêm a distância original até terminar. Só a próxima rodada começa nos 5.000 m; o PostgreSQL mantém inscrições, ranking, resultados e histórico.
+
+Benchmark em `/benchmark.html`: 50 corredores sintéticos, testa o início e a região final dos 5 km. A versão no Redmi 13C ainda precisa ser medida; testes automatizados não garantem FPS físico. TikTok real continua desativado.
+
+---
+
 # 🏁 Corrida dos Elementos LIVE
 
 Projeto independente de **corrida automática 3D em estilo voxel**, pensado para testes no navegador e futura integração com uma LIVE no TikTok. Repositório **separado** de LivePulse Batalha e do Floot.

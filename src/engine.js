@@ -1,4 +1,4 @@
-import { TRACK_LENGTH, LEGACY_TRACK_LENGTH, PHASE_TIMES, BIOME_ORDER, mapForRound, RUNNER_COLORS, obstaclesFor, LANES, LEGACY_BIOME_IDS } from "./config.js";
+import { TRACK_LENGTH, PREVIOUS_TRACK_LENGTH, LEGACY_TRACK_LENGTH, LONG_RACE_TIMEOUT, STREAM_TILE_LENGTH, PHASE_TIMES, BIOME_ORDER, mapForRound, RUNNER_COLORS, obstaclesFor, LANES, LEGACY_BIOME_IDS } from "./config.js";
 import {recordCompletedRace} from "./history.js";
 
 export const FIXED_STEP = 50;
@@ -109,7 +109,12 @@ export function turbo(state,id) {
   return true;
 }
 export function raceLength(state){
-  return state?.trackLength===TRACK_LENGTH?TRACK_LENGTH:LEGACY_TRACK_LENGTH;
+  return [TRACK_LENGTH,PREVIOUS_TRACK_LENGTH,LEGACY_TRACK_LENGTH].includes(state?.trackLength)
+    ?state.trackLength:LEGACY_TRACK_LENGTH;
+}
+export function phaseDuration(state){
+  return state?.phase==="RUNNING"&&raceLength(state)===TRACK_LENGTH
+    ?LONG_RACE_TIMEOUT:PHASE_TIMES[state?.phase]||0;
 }
 function stepRunners(state,ms) {
   state.raceMs+=ms;
@@ -122,8 +127,13 @@ function stepRunners(state,ms) {
     const boosted=r.turboUntil>state.raceMs;
     const speed=r.baseSpeed*(slowed?.46:1)*(boosted?1.75:1);
     // Each obstacle has an independent deterministic outcome. Rendering FPS cannot change it.
-    for(const h of hazards) {
-      if(r.passed.includes(h.index)||h.lane!==r.lane)continue;
+    // Hazards are ordered by distance. Only inspect the nearby tile, not all
+    // ~400 obstacles 50 runners × 20 ticks/second for a 5km race.
+    const firstIndex=Math.max(0,Math.floor(r.progress/STREAM_TILE_LENGTH)*24-1);
+    for(let i=firstIndex;i<hazards.length;i++) {
+      const h=hazards[i];
+      if(h.z>r.progress+speed*seconds+.15)break;
+      if(h.z<r.progress-.2||r.passed.includes(h.index)||h.lane!==r.lane)continue;
       if(r.progress<=h.z && r.progress+speed*seconds>=h.z-.15) {
         r.passed.push(h.index);
         const dice=randomFrom(hash(r.id+"|"+state.seed+"|"+h.index))();
@@ -147,7 +157,7 @@ function updateStep(state,ms) {
   const everyoneFinished=state.phase==="RUNNING"&&state.active.length>0&&state.active.every(r=>r.status==="finished");
   // No entrants? Don't leave the demo in a pointless 85-second empty race.
   const emptyRace=state.phase==="RUNNING"&&state.active.length===0&&state.phaseMs>=1500;
-  if(everyoneFinished||emptyRace||state.phaseMs>=PHASE_TIMES[state.phase])advance(state);
+  if(everyoneFinished||emptyRace||state.phaseMs>=phaseDuration(state))advance(state);
 }
 export function tick(state,deltaMs) {
   if(state.paused)return;
@@ -158,7 +168,7 @@ export function tick(state,deltaMs) {
   }
 }
 export function countdown(state) {
-  return Math.max(0,Math.ceil((PHASE_TIMES[state.phase]-state.phaseMs)/1000));
+  return Math.max(0,Math.ceil((phaseDuration(state)-state.phaseMs)/1000));
 }
 // Preserve race progression and participants if a pre-2.3 snapshot was saved
 // in one of the retired maps. Only the current map is remapped; historic results
@@ -168,8 +178,8 @@ export function migrateSavedState(v) {
   const current=BIOME_ORDER.includes(v.mapId);
   const retired=LEGACY_BIOME_IDS.includes(v.mapId);
   if(!current&&!retired)return v; // Unknown biome remains invalid, no silent reset.
-  // New records explicitly declare 300m. Snapshots from previous releases lack
-  // trackLength and must finish the current 150m round unchanged.
+  // New records explicitly declare 5000m. v2.6 snapshots retain their 300m
+  // finish, and older snapshots without trackLength retain the 150m finish.
   const needsDistance=v.trackLength===undefined;
   if(!retired&&!needsDistance)return v;
   return {
@@ -181,7 +191,7 @@ export function migrateSavedState(v) {
 export function validateSavedState(v) {
   if(!v||v.version!==1||!Number.isSafeInteger(v.round)||v.round<1||
      !BIOME_ORDER.includes(v.mapId)||!PHASE_TIMES[v.phase]||
-     (v.trackLength!==undefined&&v.trackLength!==TRACK_LENGTH&&v.trackLength!==LEGACY_TRACK_LENGTH)||
+     (v.trackLength!==undefined&&![TRACK_LENGTH,PREVIOUS_TRACK_LENGTH,LEGACY_TRACK_LENGTH].includes(v.trackLength))||
      !Array.isArray(v.active)||!Array.isArray(v.next)||!Array.isArray(v.results)||
      v.active.length>50||v.next.length>50)return false;
   return true;

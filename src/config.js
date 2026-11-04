@@ -1,5 +1,8 @@
 // Configurações públicas do jogo. Nenhuma credencial TikTok é armazenada aqui.
-export const TRACK_LENGTH = 300;
+export const TRACK_LENGTH = 5000;
+export const PREVIOUS_TRACK_LENGTH = 300;
+export const STREAM_TILE_LENGTH = 300;
+export const LONG_RACE_TIMEOUT = 1_500_000; // 25 min cap for the 5km course.
 export const LEGACY_TRACK_LENGTH = 150;
 export const LANES = 5;
 export const LANE_WIDTH = 1.85;
@@ -17,13 +20,25 @@ export function mapForRound(round) {
 }
 export function biome(id) { return BIOMES[id] || BIOMES.forest; }
 export function laneX(index) { return (index - 2) * LANE_WIDTH; }
+// One deterministic hazard pattern per 300m tile. Cache the arrays so
+// the 50-runner fixed-step server does not rebuild ~400 objects every tick.
+const hazardsCache=new Map();
 export function obstaclesFor(id,length=TRACK_LENGTH) {
+  const safeLength=[LEGACY_TRACK_LENGTH,PREVIOUS_TRACK_LENGTH,STREAM_TILE_LENGTH*2,TRACK_LENGTH].includes(length)
+    ?length:TRACK_LENGTH;
+  const key=id+"/"+safeLength;
+  if(hazardsCache.has(key))return hazardsCache.get(key);
   const result=[];
-  const safeLength=Number.isFinite(length)?Math.max(150,Math.min(300,length)):TRACK_LENGTH;
   const count=Math.floor(safeLength/12.5);
-  for (let i=0;i<count;i++) result.push({
-    index:i, z:14+i*11.15, lane:(i*3+2)%LANES, kind: id==="ice"?"ice":"log"
-  });
-  return result;
+  for(let i=0;i<count;i++){
+    const local=i%24;
+    const z=Math.floor(i/24)*STREAM_TILE_LENGTH+14+local*11.15;
+    if(z>=safeLength)continue;
+    result.push(Object.freeze({
+      index:i,z,lane:(local*3+2)%LANES,kind:id==="ice"?"ice":"log"
+    }));
+  }
+  hazardsCache.set(key,Object.freeze(result));
+  return hazardsCache.get(key);
 }
 export const RUNNER_COLORS = ["#c9f86e","#65d9fa","#ffd47d","#ea98ff","#ff9389","#6be6c9","#f9b0dc","#f2f7fa","#a2b5ff","#d6a97c"];

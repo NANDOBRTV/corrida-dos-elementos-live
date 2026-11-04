@@ -5,6 +5,7 @@ import {dirname,join,extname,resolve,sep} from "node:path";
 import {timingSafeEqual,randomBytes} from "node:crypto";
 import {createState,addDemo,register,rank,advance,tick,turbo,validateSavedState} from "../src/engine.js";
 import {openStorage} from "./storage.js";
+import {startTikTokBridge} from "./tiktok.js";
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const mime={".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",
@@ -63,6 +64,8 @@ export async function createApp(opts={}){
   const eventHistory=new Map();
   const stats={startedAt:new Date().toISOString(),ticks:0,snapshots:0};
   let closed=false;
+  let bridge=null;
+  let bridgeStatus={enabled:false,connected:false};
   function notify(){
     const message="event: race\ndata: "+JSON.stringify({state,serverTime:now()})+"\n\n";
     for(const client of subscribers){
@@ -88,12 +91,12 @@ export async function createApp(opts={}){
     if(req.method==="GET"&&path==="/health"){
       sendJson(res,200,{ok:true,service:"corrida-dos-elementos-live",role:"race-engine",
         uptimeSeconds:Math.round(process.uptime()),round:state.round,phase:state.phase,
-        storage:storage.enabled?"postgres":"memory",tiktokConnected:false});
+        storage:storage.enabled?"postgres":"memory",tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected});
       return;
     }
     if(req.method==="GET"&&path==="/api/state"){
       sendJson(res,200,{ok:true,mode:"server",state,serverTime:now(),
-        persistence:storage.enabled?"postgres":"memory",tiktokConnected:false});
+        persistence:storage.enabled?"postgres":"memory",tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected});
       return;
     }
     if(req.method==="GET"&&path==="/api/stream"){
@@ -189,6 +192,21 @@ export async function createApp(opts={}){
     async listen(port=Number(process.env.PORT)||3000){
       await new Promise((resolve,reject)=>{server.once("error",reject);server.listen(port,"0.0.0.0",resolve);});
       const address=server.address();console.log("[server] corrida-dos-elementos-live http://0.0.0.0:"+address.port);
+      if(!opts.disableTikTok){
+        bridge=startTikTokBridge({
+          username:process.env.TIKTOK_USERNAME,
+          onStatus:info=>{bridgeStatus=info;},
+          onChat:({userId,displayName,content,eventId})=>{
+            if(eventId&&eventHistory.has(eventId))return;
+            const outcome=mutation(()=>register(state,userId,displayName,content));
+            if(outcome.ok&&eventId){
+              eventHistory.set(eventId,now());
+              if(eventHistory.size>2000)eventHistory.delete(eventHistory.keys().next().value);
+            }
+          }
+        });
+        bridgeStatus=bridge.status();
+      }
       return address;
     },
     async close(){
@@ -196,6 +214,7 @@ export async function createApp(opts={}){
       clearInterval(heartbeat);clearInterval(ssePing);
       for(const client of subscribers){try{client.end();}catch{}}
       subscribers.clear();
+      if(bridge)await bridge.close();
       await persist();await storage.close();
       await new Promise(resolve=>server.close(()=>resolve()));
     },

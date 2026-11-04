@@ -55,7 +55,7 @@ export function createAvatars(scene,{quality="balanced"}={}) {
     ctx.fillStyle=accent;ctx.fillRect(0,3,10,57);
     ctx.fillStyle=accent;ctx.fillRect(11,3,245,3);
     ctx.font="bold 31px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillStyle="#ffffff";
-    ctx.fillText(key,128,31,240);
+    ctx.fillText(text.slice(0,14),128,31,240);
     const tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;
     textureCache.set(key,{texture:tex,refs:1});return tex;
   }

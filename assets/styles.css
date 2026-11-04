@@ -81,3 +81,8 @@ input:focus,select:focus{border-color:var(--lime);box-shadow:0 0 0 2px #bdfa6c30
 @media(max-width:900px){.app-shell{display:block;padding:14px 9px 28px}.broadcast{max-width:550px}.operator{position:static;max-height:none;max-width:550px;margin:14px auto 0}.arena{height:min(56vh,610px);min-height:350px}.rank-name{width:88px}.masthead{margin-bottom:12px}}
 @media(max-width:420px){h1{font-size:23px}.brand-mark{width:40px;height:40px}.stat{padding:8px 5px}.stat small{font-size:8px}.stat strong{font-size:18px}.arena{min-height:330px}.race-chip{font-size:10px}.state-pill{font-size:13px}.rank-name{width:84px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
+.network-status{background:#183b2c;border:1px solid #426e4d;color:#c8fa8c;font-weight:900;text-align:center;padding:8px 12px;font-size:10px;letter-spacing:1px;border-radius:8px;margin:-4px 0 10px}
+.network-status[hidden],.preview-map-box[hidden]{display:none}
+.connection-note{font-size:11px;color:#bbedbd;border-left:3px solid #c2f26b;background:#1d3d2b;padding:9px 10px;margin-bottom:12px}
+#serverPanel{margin-bottom:16px}

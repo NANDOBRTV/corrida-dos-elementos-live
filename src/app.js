@@ -14,6 +14,9 @@ import {connectionMessage} from "./connection.js";
 const STORAGE_KEY="elemental-race-browser-v1";
 const byId=id=>document.getElementById(id);
 document.body.dataset.view=getViewMode(window.location.search);
+const showcase=document.body.dataset.view==="live"&&
+  new URLSearchParams(window.location.search).get("showcase")==="1";
+document.body.dataset.showcase=showcase?"on":"off";
 const canvas=byId("raceCanvas");
 const notice=byId("joinResponse");
 const graphics=qualityFromUrl(window.location.search,{
@@ -29,13 +32,18 @@ const performanceMonitor=createFrameMonitor({targetFps:graphicsProfile.targetFps
 const debugOverlay=new URLSearchParams(window.location.search).get("debug")==="1";
 byId("perfOverlay").hidden=!debugOverlay;
 let state;
-let remoteMode=window.location.hostname.toLowerCase().endsWith(".onrender.com"),remote=null;
+let remoteMode=!showcase&&window.location.hostname.toLowerCase().endsWith(".onrender.com"),remote=null;
 try {
-  const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null");
+  const saved=showcase?null:JSON.parse(localStorage.getItem(STORAGE_KEY)||"null");
   const migrated=migrateSavedState(saved);
   state=validateSavedState(migrated)?migrated:createState();
 } catch { state=createState(); }
-if(!remoteMode&&state.round===1&&state.active.length===0&&state.next.length===0&&state.phase==="LOBBY")addDemo(state,10);
+if(showcase){
+  const names=["Luna","Bia","Nina","Raio","Theo","Mika","Sol","Zara","Ravi","Lua",
+    "Kai","Pip","Ari","Max","Mel","Nox","Ivo","Eva","Léo","Cris"];
+  for(let i=0;i<50;i++)register(state,"preview-"+i,names[i%names.length]+" "+(Math.floor(i/names.length)+1),"entrar");
+  advance(state);advance(state); // Just the visual demo, never the authoritative Render motor.
+} else if(!remoteMode&&state.round===1&&state.active.length===0&&state.next.length===0&&state.phase==="LOBBY")addDemo(state,10);
 state.paused=Boolean(state.paused);
 let selectedPreviewMap="";
 let world=null,avatars=null,displayedMap="",lastFrame=performance.now(),lastPaint=0,lastSave=0,last3dFrame=0,lastPerfReport=0,shownRound=state.round;
@@ -56,7 +64,7 @@ function escapeHTML(v) {
   return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 function persist() {
-  if(remoteMode)return;
+  if(remoteMode||showcase)return;
   try { localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); }catch(err){console.warn("localStorage unavailable",err);}
 }
 function feedback(message,ok=true) {
@@ -168,6 +176,10 @@ function onFrame(now) {
   if(!document.hidden && !remoteMode)tick(state,delta);
   if(shownRound!==state.round){
     shownRound=state.round;
+    if(showcase&&state.phase==="LOBBY"){
+      for(let i=0;i<50;i++)register(state,"preview-"+i,"Corredor "+String(i+1).padStart(2,"0"),"entrar");
+      advance(state);advance(state);
+    }
     selectedPreviewMap="";
     byId("mapPreview").value="";
     feedback("Rodada "+state.round+" iniciada: "+biome(state.mapId).name+". Inscrições anteriores encerradas.");
@@ -409,7 +421,18 @@ if(remoteMode){
   byId("remoteStatus").textContent="Aguardando estado oficial — sem simulação local";
 }
 requestAnimationFrame(onFrame);
-void connectRemote({
+if(showcase){
+  byId("remoteMode").hidden=false;
+  byId("remoteMode").textContent="● PRÉVIA VISUAL LOCAL · 50 CORREDORES FICTÍCIOS";
+  byId("tiktokStatus").hidden=false;
+  byId("tiktokStatus").textContent="● SEM CONEXÃO COM O TIKTOK";
+  byId("streamTag").textContent="● PRÉVIA";
+  byId("joinCta").classList.add("prelaunch");
+  byId("joinCtaTop").textContent="APENAS DEMONSTRAÇÃO VISUAL";
+  byId("joinCtaTitle").textContent="50 CORREDORES FICTÍCIOS";
+  byId("joinCtaBottom").textContent="SEM CHAT OU PRESENTES REAIS";
+}
+if(!showcase)void connectRemote({
   onState(next,meta={}){
     remoteMode=true;
     const current=migrateSavedState(next);

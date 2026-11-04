@@ -12,6 +12,7 @@ const query=new URLSearchParams(location.search);
 const qa=/(^localhost$|^127\.0\.0\.1$)/.test(location.hostname)&&query.get("qa")==="1";
 const trialMs=qa?900:14000;
 const warmupMs=qa?120:1800;
+const totalStages=BIOME_ORDER.length*2;
 const rendererProfile="balanced"; // Same 3D objects, lighting and initial pixel density for both trials.
 let world=null,avatars=null,controller=null,wakeLock=null,results=[],running=false;
 const canvas=$("testCanvas");
@@ -28,8 +29,8 @@ function setMessage(title,details=""){
 function stepInfo(mapId,mode,index,percentage,fps){
   $("sceneMap").textContent=biome(mapId).emoji+" "+biome(mapId).name;
   $("sceneMode").textContent=mode==="fixed"?"100% FIXO":"AUTO ADAPTATIVO";
-  $("progressLabel").textContent=(index+1)+"/10 etapas";
-  $("testProgress").style.width=Math.min(100,Math.max(0,(index+percentage)/10*100)).toFixed(1)+"%";
+  $("progressLabel").textContent=(index+1)+"/"+totalStages+" etapas";
+  $("testProgress").style.width=Math.min(100,Math.max(0,(index+percentage)/totalStages*100)).toFixed(1)+"%";
   $("currentFps").textContent=fps>0?fps.toFixed(1)+" FPS":"— FPS";
 }
 function doTrial(mapId,mode,index,signal){
@@ -104,7 +105,7 @@ function showReport(){
   const summary=benchmarkSummary(results);
   const pct=summary.deltaPercent;
   $("interpretation").textContent=interpretAdaptiveResult(results).conclusion;
-  $("summaryText").textContent=summary.maps+"/5 mapas · "+summary.fixedFps+
+  $("summaryText").textContent=summary.maps+"/"+BIOME_ORDER.length+" mapas · "+summary.fixedFps+
     " FPS fixo / "+summary.adaptiveFps+" FPS Auto"+
     (pct===null?"":(" · "+(pct>0?"+":"")+pct+"%"));
   $("benchmarkRows").replaceChildren();
@@ -163,14 +164,14 @@ async function begin(){
       if(controller.signal.aborted)throw Error("Teste interrompido.");
       const {mapId,mode}=plans[i];
       setMessage(biome(mapId).name+" · "+(mode==="fixed"?"qualidade fixa":"qualidade automática"),
-        "Etapa "+(i+1)+" de 10 · 50 corredores simulados · não envolve a LIVE ou a corrida oficial.");
+        "Etapa "+(i+1)+" de "+totalStages+" · 50 corredores simulados · não envolve a LIVE ou a corrida oficial.");
       const sample=await doTrial(mapId,mode,i,controller.signal);
       let entry=results.find(x=>x.mapId===mapId);
       if(!entry){entry={mapId,name:biome(mapId).name};results.push(entry);}
       entry[mode]=sample;
     }
     $("testProgress").style.width="100%";
-    $("progressLabel").textContent="10/10 etapas";
+    $("progressLabel").textContent=totalStages+"/"+totalStages+" etapas";
     showReport();
     setMessage("Teste concluído no seu aparelho","Role até o relatório e toque em COPIAR RESULTADO para enviar a comparação no ChatGPT.");
   }catch(error){

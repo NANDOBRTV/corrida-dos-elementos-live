@@ -191,12 +191,12 @@ test("adaptive WebGL resolution preserves scene geometry in all five biomes",asy
         const before={color:world.scene.background.getHex(),
           objects:world.scene.children.length,
           meshes:0,ratio:world.renderer.getPixelRatio()};
-        world.scene.traverse(x=>{if(x.isMesh||x.isInstancedMesh)before.meshes++;});
+        world.scene.traverse(x=>{if(x.isInstancedMesh)before.meshes+=x.count;else if(x.isMesh)before.meshes++;});
         world.setRenderScale(.76);
         const after={color:world.scene.background.getHex(),
           objects:world.scene.children.length,meshes:0,
           ratio:world.renderer.getPixelRatio(),scale:world.getRenderScale()};
-        world.scene.traverse(x=>{if(x.isMesh||x.isInstancedMesh)after.meshes++;});
+        world.scene.traverse(x=>{if(x.isInstancedMesh)after.meshes+=x.count;else if(x.isMesh)after.meshes++;});
         results.push({id,before,after});
         world.setRenderScale(1);
       }

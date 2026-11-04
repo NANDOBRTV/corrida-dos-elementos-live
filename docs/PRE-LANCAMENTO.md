@@ -153,3 +153,12 @@ Como medir corretamente:
 **Interpretação:** uma diferença positiva indica melhoria observada naquela sessão; uma diferença negativa mostra regressão. Se os dois modos baterem no limite de atualização da tela, é normal a diferença ser próxima de zero. O benchmark mede quadros desenhados no navegador; não mede FPS de codificação do TikTok, consumo de bateria ou performance do jogo em segundo plano. A qualidade adaptativa também pode levar alguns segundos para responder à queda. A medição não substitui observação visual das animações no aparelho.
 
 O Github Actions usa somente um teste acelerado em localhost para verificar se o benchmark funciona; **o resultado dessa simulação não deve ser apresentado como FPS real do Redmi**. O jogo continua em pré-lançamento, sem eventos TikTok reais.
+
+
+## Versão 2.2 — interpretação honesta do benchmark no aparelho
+
+Se o modo Auto termina cada ensaio a 100% e a média de escala também é de 100%, **a resolução não precisou ser reduzida**. Nesse caso a diferença entre os FPS de testes fixos e automáticos pode ser apenas variação natural de medição, temperatura, agendamento do navegador ou ordem dos ensaios. Não se pode chamar essa variação de melhoria causada pela qualidade adaptativa.
+
+O comparador agora informa explicitamente quantos biomas tiveram redução de resolução e mostra o número médio de chamadas de desenho WebGL e triângulos de cada bioma. Isso permite investigar mapas mais exigentes, como Gelo, sem remover árvores ou cristais com base somente no FPS.
+
+Uma única sessão é observacional, não um experimento conclusivo. Para obter confiança, faça mais de uma sessão no mesmo celular em condições semelhantes; se o desempenho já superar a meta de 45 FPS no perfil Equilibrado, talvez não haja nada a reduzir. Não modifica o motor, as corridas, a conta TikTok ou o PostgreSQL.

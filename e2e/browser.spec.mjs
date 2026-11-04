@@ -256,6 +256,9 @@ test("on-device benchmark completes all five biomes without TikTok, admin or hor
   await expect(page.locator("#results")).toBeVisible();
   await expect(page.locator("#benchmarkRows .result-row")).toHaveCount(5);
   await expect(page.locator("#reportText")).toHaveValue(/Mapas testados: 5/);
+  await expect(page.locator("#interpretation")).toContainText(/Auto (manteve 100%|reduziu a resolução)/);
+  await expect(page.locator("#reportText")).toHaveValue(/Interpretação:/);
+  await expect(page.locator("#reportText")).toHaveValue(/draw calls médios:/);
   await expect(page.locator("#reportText")).toHaveValue(/FLORESTA/);
   await expect(page.locator("#reportText")).toHaveValue(/INFERNO/);
   await expect(page.locator("#startTest")).toBeEnabled();

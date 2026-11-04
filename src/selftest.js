@@ -74,7 +74,9 @@ export const CASES=[
   }],
   ["Chegada determina ranking e pódio",()=>{
     const s=start(raceWithPlayers(10));
-    for(let i=0;i<850&&s.phase==="RUNNING";i++)tick(s,100);
+    // Fast-forward near the 5km finish; keep this unit test short.
+    for(const r of s.active)r.progress=TRACK_LENGTH-5;
+    for(let i=0;i<150&&s.phase==="RUNNING";i++)tick(s,100);
     check(s.phase==="RESULTS"&&s.results.length===10);
     check(s.results.every((r,i)=>r.position===i+1));
     check(s.results[0].finishTime<=s.results[1].finishTime);

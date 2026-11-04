@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#081b14">
-  <meta name="description" content="Benchmark local dos cinco mapas 3D do Corrida dos Elementos LIVE, sem TikTok e sem PC">
+  <meta name="description" content="Benchmark local dos dois mapas 3D (Gelo e Floresta) do Corrida dos Elementos LIVE, sem TikTok e sem PC">
   <title>Benchmark de FPS | Corrida dos Elementos</title>
   <link rel="stylesheet" href="./assets/benchmark.css">
   <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js"}}</script>
@@ -15,18 +15,18 @@
     <header class="header">
       <div class="eyebrow">CORRIDA DOS ELEMENTOS • LABORATÓRIO LOCAL</div>
       <h1>Teste de FPS no seu celular</h1>
-      <p>Compare os cinco cenários 3D com <strong>50 corredores fictícios</strong>, usando qualidade fixa e automática. Tudo roda no navegador; nenhuma LIVE do TikTok será iniciada.</p>
+      <p>Compare os dois cenários 3D (Gelo e Floresta) com <strong>50 corredores fictícios</strong>, usando qualidade fixa e automática. Tudo roda no navegador; nenhuma LIVE do TikTok será iniciada.</p>
     </header>
     <section class="status-card">
       <div class="label">ESTADO DO TESTE</div>
       <h2 id="testStatus" role="status">Pronto para começar</h2>
-      <p id="testDetails">Abra no próprio celular para medir o desempenho real daquele aparelho. O teste completo dura cerca de 2 minutos e meio.</p>
+      <p id="testDetails">Abra no próprio celular para medir o desempenho real daquele aparelho. O teste completo dura cerca de 1 minuto.</p>
       <div class="bar"><div id="testProgress" class="fill" style="width:0%"></div></div>
-      <div class="statline"><span id="progressLabel">0/10 etapas</span><span id="currentFps">— FPS</span></div>
+      <div class="statline"><span id="progressLabel">0/4 etapas</span><span id="currentFps">— FPS</span></div>
     </section>
     <div class="scene">
       <canvas id="testCanvas" aria-label="Cenário voxel 3D do benchmark"></canvas>
-      <div class="scene-label"><span id="sceneMap">🌲 FLORESTA</span><span id="sceneMode">AGUARDANDO</span></div>
+      <div class="scene-label"><span id="sceneMap">❄️ GELO</span><span id="sceneMode">AGUARDANDO</span></div>
     </div>
     <div class="actions">
       <button type="button" class="primary" id="startTest">▶ INICIAR COMPARAÇÃO NO CELULAR</button>

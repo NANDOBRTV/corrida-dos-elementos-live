@@ -5,7 +5,7 @@ import {join} from "node:path";
 
 const root="e2e-artifacts";
 const ADMIN="integration-test-only-not-for-real-render";
-const maps=["forest","desert","volcano","ice","hell"];
+const maps=["ice","forest"];
 async function reset(request){
   const response=await request.post("/api/admin/action",{
     headers:{"x-admin-key":ADMIN},
@@ -39,7 +39,7 @@ async function start(page,query="?view=operator&quality=low"){
 }
 test.beforeAll(async()=>{await mkdir(root,{recursive:true});});
 
-test("five actual 3D biome screenshots differ in Android portrait",async({page,request})=>{
+test("both 3D biome screenshots differ in Android portrait",async({page,request})=>{
   await reset(request);
   const errors=await start(page);
   const hashes=new Set();
@@ -53,7 +53,7 @@ test("five actual 3D biome screenshots differ in Android portrait",async({page,r
     expect(screenshot.length).toBeGreaterThan(1000);
     hashes.add(createHash("sha256").update(screenshot).digest("hex"));
   }
-  expect(hashes.size,"Biomes should render as visually distinct environments").toBe(5);
+  expect(hashes.size,"Biomes should render as visually distinct environments").toBe(2);
   expect(errors).toEqual([]);
   await page.locator("#mapPreview").selectOption("");
   await expect(page.locator("#arenaSub")).not.toContainText("PRÉVIA VISUAL");
@@ -178,7 +178,7 @@ test("adaptive WebGL resolution preserves scene geometry in all five biomes",asy
   const result=await page.evaluate(async()=>{
     const {createWorld}=await import("/src/world.js");
     const {createAdaptiveQuality}=await import("/src/adaptive.js");
-    const ids=["forest","desert","volcano","ice","hell"];
+    const ids=["ice","forest"];
     const sampleCanvas=document.createElement("canvas");
     sampleCanvas.style.cssText="position:absolute;left:-9999px;top:0;width:320px;height:420px";
     document.body.appendChild(sampleCanvas);
@@ -213,7 +213,7 @@ test("adaptive WebGL resolution preserves scene geometry in all five biomes",asy
   });
   expect(result.autoStep.reason).toBe("down");
   expect(result.autoStep.scale).toBe(.88);
-  expect(result.results).toHaveLength(5);
+  expect(result.results).toHaveLength(2);
   for(const entry of result.results){
     expect(entry.before.meshes).toBeGreaterThan(40);
     expect(entry.after.meshes).toBe(entry.before.meshes);
@@ -237,7 +237,7 @@ test("automatic graphics mode explains its live resolution and fixed low remains
 });
 
 
-test("on-device benchmark completes all five biomes without TikTok, admin or horizontal overflow",async({page,request})=>{
+test("on-device benchmark completes Gelo and Floresta without TikTok, admin or horizontal overflow",async({page,request})=>{
   const errors=[];
   page.on("pageerror",e=>errors.push(e.message));
   await page.goto("/benchmark.html?qa=1",{waitUntil:"domcontentloaded"});
@@ -254,14 +254,63 @@ test("on-device benchmark completes all five biomes without TikTok, admin or hor
   await page.locator("#startTest").click();
   await expect(page.locator("#testStatus")).toContainText("Teste concluído",{timeout:75_000});
   await expect(page.locator("#results")).toBeVisible();
-  await expect(page.locator("#benchmarkRows .result-row")).toHaveCount(5);
-  await expect(page.locator("#reportText")).toHaveValue(/Mapas testados: 5/);
+  await expect(page.locator("#benchmarkRows .result-row")).toHaveCount(2);
+  await expect(page.locator("#reportText")).toHaveValue(/Mapas testados: 2/);
   await expect(page.locator("#interpretation")).toContainText(/Auto (manteve 100%|reduziu a resolução)/);
   await expect(page.locator("#reportText")).toHaveValue(/Interpretação:/);
   await expect(page.locator("#reportText")).toHaveValue(/draw calls médios:/);
   await expect(page.locator("#reportText")).toHaveValue(/FLORESTA/);
-  await expect(page.locator("#reportText")).toHaveValue(/INFERNO/);
+  await expect(page.locator("#reportText")).toHaveValue(/GELO/);
   await expect(page.locator("#startTest")).toBeEnabled();
   await page.screenshot({path:join(root,"benchmark-local-390x844.png"),fullPage:true});
   expect(errors).toEqual([]);
+});
+
+
+test("v2.3 batches fifty animated runners without losing colors or movement",async({page,request})=>{
+  await reset(request);
+  await start(page,"?view=operator&quality=balanced");
+  const result=await page.evaluate(async()=>{
+    const THREE=await import("three");
+    const {createAvatars}=await import("/src/avatars.js");
+    const {createState,register,advance}=await import("/src/engine.js");
+    const state=createState(42719);
+    for(let i=0;i<50;i++)register(state,"runner-"+i,"Runner "+i,"entrar");
+    advance(state);advance(state);
+    state.active.forEach((r,i)=>{r.progress=20+i*.02;r.status="running";});
+    const scene=new THREE.Scene();
+    const avatars=createAvatars(scene,{quality:"balanced"});
+    avatars.sync(state.active);
+    avatars.animate(state.active,"RUNNING",.016,1000);
+    const batch=scene.getObjectByName("runner-voxel-batch");
+    const first=new THREE.Matrix4(),second=new THREE.Matrix4();
+    const color=new THREE.Color();
+    batch.getMatrixAt(0,first);
+    batch.getColorAt(0,color);
+    // Instance colors are stored as Float32; exact double equality is too strict.
+    const expectedColor=new THREE.Color(state.active[0].color);
+    const colorDelta=Math.max(
+      Math.abs(color.r-expectedColor.r),
+      Math.abs(color.g-expectedColor.g),
+      Math.abs(color.b-expectedColor.b)
+    );
+    const colorsPreserved=colorDelta<1e-5;
+    const originalCount=batch.count;
+    avatars.animate(state.active,"RUNNING",.016,1100);
+    batch.getMatrixAt(0,second);
+    const articulated=!first.equals(second);
+    const groupCount=scene.children.filter(x=>x.isGroup).length;
+    avatars.sync(state.active.slice(0,49));
+    avatars.animate(state.active.slice(0,49),"RUNNING",.016,1150);
+    const afterRemoval=scene.getObjectByName("runner-voxel-batch").count;
+    avatars.clear();
+    return {originalCount,groupCount,colorsPreserved,colorDelta,articulated,afterRemoval,
+      cleaned:scene.getObjectByName("runner-voxel-batch")===undefined};
+  });
+  expect(result.originalCount).toBe(450); // 9 articulated cubes per runner.
+  expect(result.groupCount).toBe(50);
+  expect(result.colorsPreserved,"GPU color delta "+result.colorDelta).toBe(true);
+  expect(result.articulated).toBe(true);
+  expect(result.afterRemoval).toBe(441);
+  expect(result.cleaned).toBe(true);
 });

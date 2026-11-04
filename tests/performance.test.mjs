@@ -33,7 +33,7 @@ test("Agendador de frames desacopla 30 FPS do motor da corrida",()=>{
   assert.equal(shouldRender(17,0,30),false);
   assert.equal(shouldRender(40,0,0),true);
 });
-test("Dez rodadas com cinquenta corredores atravessam os cinco biomas",()=>{
+test("Dez rodadas com cinquenta corredores alternam Gelo e Floresta",()=>{
   const game=createState(123);
   for(let round=1;round<=10;round++){
     assert.equal(game.phase,"LOBBY");
@@ -50,7 +50,7 @@ test("Dez rodadas com cinquenta corredores atravessam os cinco biomas",()=>{
     assert.equal(game.phase,"RESULTS");
     assert.equal(game.results.length,50);
     assert.equal(rank(game.active)[0].progress,TRACK_LENGTH);
-    assert.equal(game.history[0].mapId,BIOME_ORDER[(round-1)%5]);
+    assert.equal(game.history[0].mapId,BIOME_ORDER[(round-1)%BIOME_ORDER.length]);
     assert.equal(game.history[0].round,round);
     assert.ok(game.history.length<=12);
     assert.ok(game.seasonLeaders.length<=100);
@@ -58,7 +58,7 @@ test("Dez rodadas com cinquenta corredores atravessam os cinco biomas",()=>{
     assert.equal(game.active.length,0,"Ninguém entra automaticamente na próxima rodada");
   }
   assert.equal(game.round,11);
-  assert.equal(game.mapId,"forest");
+  assert.equal(game.mapId,"ice");
   assert.equal(game.history.length,10);
 });
 test("Render em pré-lançamento não conecta o chat real por padrão",async()=>{

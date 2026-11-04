@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#091a14">
-  <meta name="description" content="Corrida dos Elementos LIVE: corrida automática voxel em cinco biomas. Simulador de comentários entrar para testes no navegador.">
+  <meta name="description" content="Corrida dos Elementos LIVE: corrida automática voxel em dois biomas: Gelo e Floresta. Simulador de comentários entrar para testes no navegador.">
   <title>Corrida dos Elementos LIVE</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -38,7 +38,7 @@
         <div class="stat"><small>TEMPO</small><strong id="phaseTime">20s</strong></div>
       </section>
 
-      <div class="biome-route" id="biomeRoute" aria-label="Sequência dos cinco mapas"></div>
+      <div class="biome-route" id="biomeRoute" aria-label="Alternância entre Gelo e Floresta"></div>
 
       <section class="arena" aria-label="Pista 3D da corrida">
         <canvas id="raceCanvas" aria-label="Cenário 3D com corredores voxel animados"></canvas>
@@ -76,7 +76,7 @@
       </section>
       <div class="notice-line"><span class="notice-icon">◉</span><span id="latestEvent">Aguardando participantes...</span></div>
       <div class="gift-feed" id="giftFeed" aria-label="Presentes recentes" hidden></div>
-      <div class="next-line"><span id="nextMapText">PRÓXIMA: 🏜️ DESERTO</span><strong id="nextQueueCount">0 NA FILA</strong></div>
+      <div class="next-line"><span id="nextMapText">PRÓXIMA: 🌲 FLORESTA</span><strong id="nextQueueCount">0 NA FILA</strong></div>
 
       <div class="call-to-action" id="joinCta"><small id="joinCtaTop">PARTICIPE DA CORRIDA</small><strong id="joinCtaTitle">DIGITE <span>ENTRAR</span> NO CHAT</strong><small id="joinCtaBottom">UMA INSCRIÇÃO POR CORRIDA • SEM REINSCRIÇÃO AUTOMÁTICA</small></div>
       <p class="demo-disclaimer" id="modeDisclaimer">Versão de demonstração no navegador. Não recebe comentários ou presentes reais do TikTok e não oferece operação 24 horas.</p>
@@ -129,17 +129,14 @@
         <div id="performanceReport" class="performance-report" role="status">Medindo FPS neste aparelho...</div>
         <a class="performance-link" href="?view=live&quality=low&debug=1">Abrir tela LIVE com diagnóstico de FPS</a>
         <a class="performance-link" href="./benchmark.html">📊 TESTAR FPS REAL NO CELULAR — 5 BIOMAS</a>
-        <p>Ao selecionar Auto, o jogo reduz ou recupera suavemente a resolução interna em tempo real sem recarregar ou remover os cinco cenários. Os outros perfis ficam fixos.</p>
+        <p>Ao selecionar Auto, o jogo reduz ou recupera suavemente a resolução interna em tempo real sem recarregar ou remover os dois cenários. Os outros perfis ficam fixos.</p>
       </div>
       <div class="preview-map-box">
         <label for="mapPreview">VISUALIZAR CENÁRIO 3D</label>
         <select id="mapPreview">
           <option value="">Mapa oficial da rodada</option>
-          <option value="forest">🌲 Floresta</option>
-          <option value="desert">🏜️ Deserto</option>
-          <option value="volcano">🌋 Vulcão</option>
           <option value="ice">❄️ Gelo</option>
-          <option value="hell">🔥 Inferno</option>
+          <option value="forest">🌲 Floresta</option>
         </select>
         <p>A prévia visual não altera a rodada, as inscrições nem os resultados.</p>
       </div>

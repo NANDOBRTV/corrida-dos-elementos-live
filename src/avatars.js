@@ -7,11 +7,36 @@ export function createAvatars(scene,{quality="balanced"}={}) {
   const meshes=new Map();
   const geometry=new THREE.BoxGeometry(1,1,1);
   const textureCache=new Map();
-  const materials=new Map();
-  function sharedMaterial(color){
-    const key=String(color);
-    if(!materials.has(key))materials.set(key,new THREE.MeshStandardMaterial({color,roughness:.72}));
-    return materials.get(key);
+  // One GPU batch for every articulated runner voxel. Individual groups remain
+  // responsible for animation, so transforms, colors, poses and name sprites stay intact.
+  const voxelMaterial=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.72});
+  let voxelBatch=null;
+  let batchedParts=[];
+  function flushVoxelBatch(){
+    if(!voxelBatch)return;
+    // Update only moving runner hierarchies, not every static map object.
+    for(const item of meshes.values())item.group.updateWorldMatrix(true,true);
+    for(let i=0;i<batchedParts.length;i++)
+      voxelBatch.setMatrixAt(i,batchedParts[i].node.matrixWorld);
+    voxelBatch.instanceMatrix.needsUpdate=true;
+  }
+  function rebuildVoxelBatch(){
+    if(voxelBatch){
+      scene.remove(voxelBatch);
+      voxelBatch.dispose(); // Releases instance buffers, not shared cube geometry.
+      voxelBatch=null;
+    }
+    batchedParts=[...meshes.values()].flatMap(item=>item.parts);
+    if(!batchedParts.length)return;
+    voxelBatch=new THREE.InstancedMesh(geometry,voxelMaterial,batchedParts.length);
+    voxelBatch.name="runner-voxel-batch";
+    voxelBatch.castShadow=true;
+    voxelBatch.frustumCulled=false;
+    for(let i=0;i<batchedParts.length;i++)
+      voxelBatch.setColorAt(i,new THREE.Color(batchedParts[i].color));
+    if(voxelBatch.instanceColor)voxelBatch.instanceColor.needsUpdate=true;
+    scene.add(voxelBatch);
+    flushVoxelBatch();
   }
   function visualProgress(r,index){
     // Only visual: a ten-row starting grid does not alter racing physics.
@@ -32,27 +57,30 @@ export function createAvatars(scene,{quality="balanced"}={}) {
     const tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;
     textureCache.set(key,{texture:tex,refs:1});return tex;
   }
-  function cube(parent,pos,scale,color) {
-    const mesh=new THREE.Mesh(geometry,sharedMaterial(color));mesh.position.set(...pos);mesh.scale.set(...scale);
-    mesh.castShadow=true;parent.add(mesh);return mesh;
+  function cube(parent,pos,scale,color,parts) {
+    // Animation anchors are lightweight; the visible cubes are GPU instances.
+    const node=new THREE.Object3D();node.position.set(...pos);node.scale.set(...scale);
+    parent.add(node);parts.push({node,color});return node;
   }
   function build(r,index) {
+    const parts=[];
+    const part=(parent,pos,scale,color)=>cube(parent,pos,scale,color,parts);
     const group=new THREE.Group();
     group.position.set(laneX(r.lane),.76,visualProgress(r,index));
     const body=new THREE.Group();group.add(body);
-    cube(body,[0,.78,0],[.72,1,.55],r.color);
-    cube(body,[0,1.57,0],[.76,.76,.7],0xf0c59e);
+    part(body,[0,.78,0],[.72,1,.55],r.color);
+    part(body,[0,1.57,0],[.76,.76,.7],0xf0c59e);
     if(!simple){
-      cube(body,[0,2.02,0],[.83,.18,.75],r.color);
-      cube(body,[-.17,1.62,-.37],[.095,.11,.04],0x22373d);
-      cube(body,[.17,1.62,-.37],[.095,.11,.04],0x22373d);
+      part(body,[0,2.02,0],[.83,.18,.75],r.color);
+      part(body,[-.17,1.62,-.37],[.095,.11,.04],0x22373d);
+      part(body,[.17,1.62,-.37],[.095,.11,.04],0x22373d);
     }
     const arms=[],legs=[];
     for(const side of [-1,1]){
       const arm=new THREE.Group();arm.position.set(side*.54,1.2,0);body.add(arm);
-      cube(arm,[0,-.34,0],[.23,.69,.35],0xe6ad84);arms.push(arm);
+      part(arm,[0,-.34,0],[.23,.69,.35],0xe6ad84);arms.push(arm);
       const leg=new THREE.Group();leg.position.set(side*.23,.32,0);body.add(leg);
-      cube(leg,[0,-.25,0],[.3,.52,.42],0x273b44);legs.push(leg);
+      part(leg,[0,-.25,0],[.3,.52,.42],0x273b44);legs.push(leg);
     }
     const label=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTexture(r.name),depthWrite:false,transparent:true}));
     label.position.set(0,2.95,0);label.scale.set(1.75,.44,1);label.visible=false;group.add(label);
@@ -61,12 +89,14 @@ export function createAvatars(scene,{quality="balanced"}={}) {
       shadow.rotation.x=-Math.PI/2;shadow.position.y=-.70;group.add(shadow);
     }
     scene.add(group);
-    return {group,body,arms,legs,lastX:laneX(r.lane),lastZ:visualProgress(r,index),label,labelKey:r.name.slice(0,14)};
+    return {group,body,arms,legs,parts,lastX:laneX(r.lane),lastZ:visualProgress(r,index),label,labelKey:r.name.slice(0,14)};
   }
   function sync(runners) {
     const ids=new Set(runners.map(r=>r.id));
+    let changed=false;
     for(const [id,item] of meshes){
       if(!ids.has(id)){
+        changed=true;
         scene.remove(item.group);
         item.group.traverse(obj=>{
           if(obj.isSprite)obj.material.dispose();
@@ -81,8 +111,12 @@ export function createAvatars(scene,{quality="balanced"}={}) {
     }
     for(let i=0;i<runners.length;i++){
       const r=runners[i];
-      if(!meshes.has(r.id))meshes.set(r.id,build(r,i));
+      if(!meshes.has(r.id)){
+        meshes.set(r.id,build(r,i));
+        changed=true;
+      }
     }
+    if(changed)rebuildVoxelBatch();
   }
   function animate(runners,phase,dt,now) {
     // Full names remain readable in the ranking; only leaders get floating labels.
@@ -109,13 +143,13 @@ export function createAvatars(scene,{quality="balanced"}={}) {
         item.legs[s].rotation.x=-swing;
       }
     }
+    flushVoxelBatch();
   }
   function clear(){
     sync([]);
     for(const entry of textureCache.values())entry.texture.dispose();
     textureCache.clear();
-    for(const mat of materials.values())mat.dispose();
-    materials.clear();
+    voxelMaterial.dispose();
     geometry.dispose();
   }
   return {sync,animate,clear};

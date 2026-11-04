@@ -1,10 +1,23 @@
+## Versão 2.3 — Escopo definitivo de mapas
+
+- **Somente dois mapas:** ❄️ Gelo e 🌲 Floresta, em rodízio.
+- Os antigos Deserto, Vulcão e Inferno deixam de existir como opções de cenário; o código desses cenários foi removido do WebGL.
+- A migração de snapshots antigos preserva rodada, inscrições, filas, pódios e histórico; converte somente o mapa atual caso tenha sido retirado.
+- O benchmark no Android testa Gelo e Floresta em quatro etapas, com 50 participantes simulados e modo Fixo/Auto.
+- A otimização dos corredores com instancing reduz o número de objetos gráficos individuais. Medir FPS depois do deploy no Redmi 13C; não afirmar ganho antes da medição.
+- O modo TikTok real continua desativado. Nenhuma LIVE real foi iniciada.
+
+As notas das versões anteriores neste documento registram a evolução do projeto; eventuais menções a cinco mapas são históricas e não descrevem a configuração atual.
+
+---
+
 # Plano de conclusão — Corrida dos Elementos LIVE
 
 **Estado: pré-lançamento. Não testar com audiência ou presentes reais antes da finalização do jogo.**
 
 ## Já implementado
 - [x] Motor no Node.js, filas, ranking e vencedores salvos no PostgreSQL
-- [x] Cinco biomas voxel 3D com rotação automática
+- [x] Gelo e Floresta voxel 3D com rotação automática (dois mapas definitivos na versão 2.3)
 - [x] Tela limpa 9:16 e painel administrativo protegido
 - [x] Simulação de entradas e presentes, com diagnósticos autenticados
 - [x] Perfis gráficos automáticos para Android (v1.6)
@@ -12,7 +25,7 @@
 - [x] Conector TikTok real explicitamente desligado no pré-lançamento (v1.6)
 
 ## Ainda faltam antes da LIVE real
-- [ ] Conferir os cinco biomas no navegador do celular com screenshots
+- [ ] Conferir Gelo e Floresta no navegador do celular com screenshots
 - [ ] Revisar FPS e clareza das animações com até 50 corredores
 - [ ] Corrigir problemas de WebGL e interface encontrados nos testes locais
 - [ ] Testar recuperação do Postgres após reinício real do servidor
@@ -45,7 +58,7 @@ O Render Free não é garantia de 24h: suspende por inatividade. Esta versão n�
 
 Antes de testar em uma LIVE, a versão 1.7 acrescenta um workflow do GitHub Actions chamado **QA visual Android — sem LIVE real**. Ele inicia um servidor Node.js local de teste, com banco em memória e eventos TikTok explicitamente desativados. Um Chromium headless com WebGL por software verifica:
 
-- Se todos os cinco biomas carregam em WebGL e produzem imagens distintas, sem erros JavaScript.
+- Se ambos os biomas carregam em WebGL e produzem imagens distintas, sem erros JavaScript.
 - Se a tela limpa fica sem painel administrativo, mostra aviso de pré-lançamento e não apresenta rolagem horizontal em 320, 390, 430 e 768 pixels.
 - Se cinquenta corredores simulados aparecem no estado autoritativo e se o ranking da tela recebe atualizações do servidor.
 - Se o endpoint do servidor continua com a conexão TikTok real desativada.
@@ -139,15 +152,15 @@ A página **/benchmark.html** permite validar quanto o FPS melhora com o modo ad
 
 Endereço público previsto: https://corrida-dos-elementos-live.onrender.com/benchmark.html
 
-O teste cria uma cena local e independente com os 50 corredores fictícios e percorre Floresta, Deserto, Vulcão, Gelo e Inferno. Para cada bioma ele mede dois ensaios: resolução fixa de 100% e resolução adaptativa. O perfil gráfico inicial e os objetos/iluminação são iguais nas duas condições. A ordem de execução alterna entre os mapas para diminuir o efeito da temperatura do aparelho sobre o resultado.
+O teste cria uma cena local e independente com os 50 corredores fictícios e percorre Gelo e Floresta. Para cada bioma ele mede dois ensaios: resolução fixa de 100% e resolução adaptativa. O perfil gráfico inicial e os objetos/iluminação são iguais nas duas condições. A ordem de execução alterna entre os mapas para diminuir o efeito da temperatura do aparelho sobre o resultado.
 
-O processo completo tem 10 etapas de aproximadamente 14 segundos cada (mais preparação), com relatório local por mapa. Mostra média de FPS, comparação percentual e resolução adaptativa final. **Não envia medições automaticamente**: o usuário pode copiar o relatório ou compartilhar por ação explícita do navegador.
+O processo completo tem 4 etapas de aproximadamente 14 segundos cada (mais preparação), com relatório local por mapa. Mostra média de FPS, comparação percentual e resolução adaptativa final. **Não envia medições automaticamente**: o usuário pode copiar o relatório ou compartilhar por ação explícita do navegador.
 
 Como medir corretamente:
 1. Abra o endereço no Chrome do Redmi 13C com conexão estável.
 2. Mantenha a tela visível durante todo o teste, sem trocar para outros aplicativos.
 3. Faça o teste com bateria suficiente e sem modo de economia de energia; aguarde o aparelho esfriar se estiver quente.
-4. Clique em INICIAR COMPARAÇÃO NO CELULAR e deixe as 10 etapas concluírem.
+4. Clique em INICIAR COMPARAÇÃO NO CELULAR e deixe as 4 etapas concluírem.
 5. Use COPIAR RESULTADO e cole no ChatGPT, ou compartilhe o texto.
 
 **Interpretação:** uma diferença positiva indica melhoria observada naquela sessão; uma diferença negativa mostra regressão. Se os dois modos baterem no limite de atualização da tela, é normal a diferença ser próxima de zero. O benchmark mede quadros desenhados no navegador; não mede FPS de codificação do TikTok, consumo de bateria ou performance do jogo em segundo plano. A qualidade adaptativa também pode levar alguns segundos para responder à queda. A medição não substitui observação visual das animações no aparelho.

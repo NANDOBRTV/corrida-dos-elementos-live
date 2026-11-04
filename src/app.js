@@ -1,5 +1,5 @@
 import { BIOMES, BIOME_ORDER, TRACK_LENGTH, mapForRound, biome } from "./config.js";
-import { createState, addDemo, register, rank, tick, countdown, advance, turbo, validateSavedState } from "./engine.js";
+import { createState, addDemo, register, rank, tick, countdown, advance, turbo, validateSavedState, migrateSavedState } from "./engine.js";
 import { createWorld } from "./world.js";
 import { createAvatars } from "./avatars.js";
 import { connectRemote } from "./remote.js";
@@ -32,7 +32,8 @@ let state;
 let remoteMode=window.location.hostname.toLowerCase().endsWith(".onrender.com"),remote=null;
 try {
   const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null");
-  state=validateSavedState(saved)?saved:createState();
+  const migrated=migrateSavedState(saved);
+  state=validateSavedState(migrated)?migrated:createState();
 } catch { state=createState(); }
 if(!remoteMode&&state.round===1&&state.active.length===0&&state.next.length===0&&state.phase==="LOBBY")addDemo(state,10);
 state.paused=Boolean(state.paused);
@@ -395,8 +396,9 @@ requestAnimationFrame(onFrame);
 void connectRemote({
   onState(next,meta={}){
     remoteMode=true;
-    if(!validateSavedState(next)){console.warn("Snapshot remoto inválido");return;}
-    state=next;
+    const current=migrateSavedState(next);
+    if(!validateSavedState(current)){console.warn("Snapshot remoto inválido");return;}
+    state=current;
     byId("remoteMode").hidden=false;
     byId("remoteMode").textContent="● RENDER ONLINE · MOTOR NO SERVIDOR";
     byId("serverPanel").hidden=false;

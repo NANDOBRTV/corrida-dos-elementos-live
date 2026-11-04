@@ -27,6 +27,7 @@
         <div class="demo-tag"><span class="pulse"></span> DEMO</div>
       </header>
 
+      <div id="remoteMode" class="network-status" hidden>● VERIFICANDO SERVIDOR</div>
       <section class="score-strip" aria-label="Informações da rodada">
         <div class="stat"><small>MAPA</small><strong id="mapName">🌲 FLORESTA</strong></div>
         <div class="stat"><small>RODADA</small><strong id="roundNumber">#001</strong></div>
@@ -64,7 +65,7 @@
       <div class="next-line"><span id="nextMapText">PRÓXIMA: 🏜️ DESERTO</span><strong id="nextQueueCount">0 NA FILA</strong></div>
 
       <div class="call-to-action"><small>PARTICIPE DA CORRIDA</small><strong>DIGITE <span>ENTRAR</span> NO CHAT</strong><small>UMA INSCRIÇÃO POR CORRIDA • SEM REINSCRIÇÃO AUTOMÁTICA</small></div>
-      <p class="demo-disclaimer">Versão de demonstração no navegador. Não recebe comentários ou presentes reais do TikTok e não oferece operação 24 horas.</p>
+      <p class="demo-disclaimer" id="modeDisclaimer">Versão de demonstração no navegador. Não recebe comentários ou presentes reais do TikTok e não oferece operação 24 horas.</p>
     </main>
 
     <aside class="operator" id="operatorPanel">
@@ -72,7 +73,13 @@
         <div><span class="mini-label">LABORATÓRIO DE TESTES</span><h2>PAINEL DO OPERADOR</h2></div>
         <span class="operator-chip">SIMULAÇÃO</span>
       </div>
-      <p class="operator-help">Os comandos abaixo são fictícios e locais a este navegador. Esta página estática não tem autenticação administrativa.</p>
+      <p class="operator-help">Simulação de inscrições. No Render, todos os controles exigem ADMIN_KEY configurado somente nas variáveis de ambiente do servidor. No GitHub Pages, os testes continuam locais.</p>
+      <div id="remoteStatus" class="connection-note">Identificando o modo de execução...</div>
+      <div id="serverPanel" class="preview-map-box" hidden>
+        <label for="adminKey">TOKEN ADMINISTRATIVO DO RENDER</label>
+        <input type="password" id="adminKey" autocomplete="off" spellcheck="false" placeholder="Cole o ADMIN_KEY do Render" maxlength="200">
+        <p>O token é usado apenas nas requisições HTTPS, não é salvo no GitHub, nem no armazenamento do navegador.</p>
+      </div>
 
       <form class="join-form" id="joinForm">
         <label>ID fictício estável<input id="userId" maxlength="128" autocomplete="off" placeholder="teste-01" value="teste-01" required></label>

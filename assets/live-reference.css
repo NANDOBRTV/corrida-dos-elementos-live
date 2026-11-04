@@ -1,0 +1,214 @@
+/* v2.4 — Tela 9:16 com pista protagonista, seguindo a referência enviada.
+   O painel do operador continua com seu layout e funcionalidades anteriores. */
+.live-timer-card,.live-minimap,.live-sprint-card,.live-map-weather,
+.live-chat-messages,.live-power-rail{display:none}
+.live-sprint-card[hidden]{display:none!important}
+
+body[data-view="live"]{margin:0;background:#a5cbd9;overflow:hidden}
+body[data-view="live"] .app-shell{
+  position:relative;width:100%;max-width:100%;height:100vh;height:100dvh;
+  margin:0;padding:0;display:block;overflow:hidden
+}
+body[data-view="live"] .broadcast{
+  position:relative;width:100%;max-width:100%;height:100%;overflow:hidden
+}
+body[data-view="live"] .arena{
+  position:absolute;inset:0;width:100%;height:100%;min-height:0;
+  margin:0;border-radius:0;box-shadow:none;z-index:0
+}
+body[data-view="live"] .arena canvas{width:100%;height:100%;touch-action:none}
+body[data-view="live"] .arena:after{
+  background:linear-gradient(180deg,#0c26313f 0%,transparent 23%,transparent 58%,#0718204d 100%);
+  pointer-events:none
+}
+body[data-view="live"] .masthead{
+  position:absolute;z-index:8;top:max(8px,env(safe-area-inset-top));
+  left:10px;right:10px;margin:0;gap:5px;align-items:center;
+  pointer-events:none;color:#f8fffe;text-shadow:0 2px 4px #102c3570
+}
+body[data-view="live"] .identity{gap:6px;min-width:0;max-width:calc(100% - 82px)}
+body[data-view="live"] .brand-mark{width:28px;height:28px;font-size:17px;border:1px solid #c0f3d8c4;box-shadow:0 2px 12px #12252b77;flex-shrink:0}
+body[data-view="live"] .mini-label{font-size:7px;letter-spacing:.35px;color:#e7fffb}
+body[data-view="live"] h1{font-size:15px;line-height:.96;letter-spacing:.15px;margin:2px 0 0;text-shadow:0 2px 4px #0008}
+body[data-view="live"] .demo-tag{font-size:9px;padding:5px 8px;background:#ed5266;border-color:#ffb2b9;color:white;border-radius:6px;white-space:nowrap;flex-shrink:0}
+body[data-view="live"] .pulse{background:#fff}
+body[data-view="live"] .score-strip,
+body[data-view="live"] .season-panel,
+body[data-view="live"] .notice-line,
+body[data-view="live"] .arena-bottom,
+body[data-view="live"] .mode-switch,
+body[data-view="live"] .demo-disclaimer{display:none!important}
+body[data-view="live"] .network-status{
+  position:absolute;z-index:8;padding:4px 7px;margin:0;background:#142733ae;
+  border:1px solid #e9fcf166;border-radius:6px;color:#effff2;
+  max-width:calc(100% - 24px);font-size:8px;letter-spacing:.1px;
+}
+body[data-view="live"] #remoteMode{top:52px;left:10px}
+body[data-view="live"] #tiktokStatus{top:75px;left:10px;color:#e1f9f2}
+body[data-view="live"] #dbStatus{display:none!important}
+body[data-view="live"] #connectionNotice{position:absolute;z-index:14;top:112px;left:10px;right:10px;box-shadow:0 4px 12px #142a36a4}
+body[data-view="live"] .biome-route{
+  position:absolute;top:101px;left:10px;z-index:7;
+  padding:0;margin:0;max-width:62%;gap:4px;overflow:hidden
+}
+body[data-view="live"] .biome-route span{
+  padding:4px 6px;font-size:8px;letter-spacing:.1px;color:#e6f4ee;
+  background:#102835b6;border:1px solid #d8e7f160;border-radius:5px
+}
+body[data-view="live"] .biome-route span.active{background:#f3d890;color:#18313b;border-color:#ffe8ae}
+body[data-view="live"] .arena-top{
+  left:10px;right:auto;top:130px;z-index:7;display:flex;flex-direction:column;gap:5px;
+  align-items:start;max-width:47%
+}
+body[data-view="live"] .state-pill{background:#092533bb;padding:5px 7px;font-size:10px;color:#f1ffcc;border:1px solid #efffd86f}
+body[data-view="live"] .race-chip{font-size:8px;padding:4px 7px;border:1px solid #bff5e365;background:#112732a8}
+body[data-view="live"] .ranking-panel{
+  position:absolute;z-index:7;top:194px;left:10px;width:min(46%,182px);
+  max-height:192px;overflow:hidden;margin:0;padding:10px 9px 6px;
+  border:1px solid #dae3e575;border-radius:10px;background:#131d2abc;
+  color:#f4fff8;box-shadow:0 3px 16px #05131c34;backdrop-filter:blur(3px)
+}
+body[data-view="live"] .panel-heading{margin-bottom:5px;align-items:center}
+body[data-view="live"] .panel-heading h2{font:900 10px/1.2 "DM Sans",sans-serif;letter-spacing:.4px;color:#ffdd70}
+body[data-view="live"] #rankingSubtitle{display:none}
+body[data-view="live"] .rank-row{padding:4px 0;gap:4px;min-height:25px}
+body[data-view="live"] .rank-pos{font-size:13px;width:16px;color:#f7d85b}
+body[data-view="live"] .rank-avatar{width:16px;height:16px;border-radius:50%;border-width:1px}
+body[data-view="live"] .rank-name{min-width:0;flex:1;width:auto;font-size:9px;font-weight:800}
+body[data-view="live"] .rank-progress,body[data-view="live"] .rank-percent{display:none}
+body[data-view="live"] .rank-meters{display:block;flex-shrink:0;color:#ffe5a0;font-size:9px;font-weight:800;font-variant-numeric:tabular-nums}
+.rank-meters{display:none}
+body[data-view="live"] .live-timer-card,
+body[data-view="live"] .live-minimap,
+body[data-view="live"] .live-map-weather,
+body[data-view="live"] .live-chat-messages,
+body[data-view="live"] .live-power-rail{display:flex}
+body[data-view="live"] .live-timer-card{
+  position:absolute;top:156px;right:10px;width:min(37%,132px);z-index:7;
+  flex-direction:column;align-items:center;gap:1px;text-align:center;padding:9px 6px;
+  color:#fff;background:#14202dd1;border:1px solid #dde8f28a;border-radius:11px;
+  box-shadow:0 4px 16px #03182055
+}
+body[data-view="live"] .live-timer-card strong{font:bold 30px/1 "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums}
+body[data-view="live"] .live-timer-card span{font-weight:900;font-size:10px;color:#f2fff2}
+body[data-view="live"] .live-timer-card small{font-size:9px;color:#cfedfb;font-weight:800}
+body[data-view="live"] .live-minimap{
+  position:absolute;z-index:7;top:261px;right:11px;width:min(31%,104px);
+  height:132px;border:1px solid #d3e9f296;background:#172c40bc;border-radius:11px;
+  flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  box-shadow:0 4px 12px #001a2a66
+}
+body[data-view="live"] .live-minimap-road{
+  position:relative;width:38px;height:100px;border-left:4px solid #aec8d7;
+  border-right:4px solid #aec8d7;border-radius:38% 45% 25% 35%;
+  background:linear-gradient(90deg,#506a7a,#8faabd,#536b79);
+  transform:rotate(-7deg);box-shadow:inset 0 0 0 1px #ffffff3b
+}
+body[data-view="live"] .live-minimap-road:after{
+  content:"";position:absolute;left:50%;top:5%;height:90%;
+  border-left:2px dashed #d7e8f9b2;transform:translateX(-50%)
+}
+body[data-view="live"] #liveMapDot{
+  position:absolute;left:50%;bottom:0;z-index:2;transform:translate(-50%,50%);
+  width:11px;height:11px;border:2px solid white;border-radius:50%;background:#ff854f;
+  box-shadow:0 0 7px #ff724f;transition:bottom .25s linear
+}
+body[data-view="live"] .live-minimap small{font-size:9px;font-weight:900;color:white}
+body[data-view="live"] .live-map-weather{
+  position:absolute;z-index:5;right:10px;top:404px;
+  background:#0b304c97;border:1px solid #d4eeff78;border-radius:5px;padding:4px 8px;
+  font-size:9px;font-weight:800;color:white;pointer-events:none
+}
+body[data-view="live"] .live-sprint-card:not([hidden]){
+  display:flex;position:absolute;z-index:8;top:195px;left:50%;
+  transform:translateX(-50%);width:115px;min-height:86px;
+  flex-direction:column;align-items:center;gap:2px;
+  padding:9px 6px;background:#111e29e6;color:white;
+  border:2px solid #73e9ed;border-radius:13px;
+  box-shadow:0 5px 24px #092a4f60
+}
+body[data-view="live"] .live-sprint-emoji{font-size:28px}
+body[data-view="live"] .live-sprint-card strong{font-size:11px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-view="live"] .live-sprint-card small{font-size:10px;font-weight:900;color:#80f0ff}
+body[data-view="live"] .live-chat-messages{
+  position:absolute;left:9px;bottom:max(52px,env(safe-area-inset-bottom));z-index:7;
+  width:min(58%,230px);max-height:142px;overflow:hidden;
+  flex-direction:column;gap:4px;pointer-events:none;
+  padding:7px 8px;color:white;text-shadow:0 1px 4px #021624e0;
+  background:linear-gradient(90deg,#132a3988,transparent);
+  border-radius:7px;
+}
+body[data-view="live"] .live-chat-title{font-size:9px;font-weight:900;color:#e1faed}
+body[data-view="live"] #liveChatMessages{display:flex;flex-direction:column;gap:4px}
+body[data-view="live"] #liveChatMessages p{margin:0;font-size:10px;line-height:1.4;font-weight:700;overflow-wrap:anywhere}
+body[data-view="live"] #liveChatMessages p:before{content:"◉";margin-right:5px;color:#ffee95}
+body[data-view="live"] .live-power-rail{
+  position:absolute;z-index:7;right:10px;bottom:max(58px,env(safe-area-inset-bottom));width:105px;
+  gap:6px;flex-direction:column;align-items:flex-end;pointer-events:none;
+}
+body[data-view="live"] .live-power-rail div{
+  color:white;display:flex;gap:5px;align-items:center;justify-content:end;
+  font-size:17px;text-shadow:0 2px 5px #051624
+}
+body[data-view="live"] .live-power-rail span{
+  font-size:9px;font-weight:900;background:#10212bc9;border-radius:4px;padding:3px 5px
+}
+body[data-view="live"] .next-line{
+  position:absolute;z-index:7;bottom:max(10px,env(safe-area-inset-bottom));
+  left:9px;right:9px;margin:0;padding:6px 8px;font-size:9px;color:#f4fff9;
+  background:#081c2ba8;border-radius:5px;gap:5px;letter-spacing:.1px
+}
+body[data-view="live"] .next-line strong{color:#fff0ad}
+body[data-view="live"] .gift-feed{
+  position:absolute;z-index:8;right:10px;bottom:216px;max-width:48%;
+  gap:4px;margin:0;pointer-events:none
+}
+body[data-view="live"] .gift-entry{font-size:9px;padding:5px}
+body[data-view="live"] .call-to-action{
+  position:absolute;z-index:7;top:145px;left:50%;transform:translateX(-50%);
+  width:min(66%,240px);padding:7px 9px;
+  background:#0b1c29db;color:#fff;border:1px solid #faf9eabf;
+  border-radius:8px;box-shadow:0 6px 18px #1627397c;
+  gap:1px;pointer-events:none
+}
+body[data-view="live"] .call-to-action small{font-size:8px;letter-spacing:.2px}
+body[data-view="live"] .call-to-action strong{
+  color:#ffedba;font-size:clamp(14px,4vw,18px);line-height:1.1
+}
+body[data-view="live"][data-phase="running"] .call-to-action,
+body[data-view="live"][data-phase="results"] .call-to-action{display:none!important}
+body[data-view="live"][data-phase="lobby"] .ranking-panel{top:235px}
+body[data-view="live"] .perf-overlay{top:435px;z-index:12;right:10px;max-width:43%;font-size:9px}
+body[data-view="live"] .countdown{font-size:clamp(90px,28vw,155px);color:#fff;text-shadow:0 6px 14px #182d4199}
+body[data-view="live"] .results-overlay{inset:28% 5% 22%;max-width:390px;margin:auto;background:#102532e8;border-color:#e8efc8b0}
+@media (max-width:359px){
+  body[data-view="live"] .live-timer-card{top:146px;right:6px;padding:7px 4px}
+  body[data-view="live"] .live-minimap{right:6px;top:244px}
+  body[data-view="live"] .ranking-panel{left:6px;top:188px;width:45%;padding:7px}
+  body[data-view="live"][data-phase="lobby"] .ranking-panel{top:225px}
+  body[data-view="live"] .live-map-weather{right:6px;top:387px}
+  body[data-view="live"] .live-power-rail{right:6px}
+}
+@media (max-height:680px){
+  body[data-view="live"] .live-map-weather{display:none}
+  body[data-view="live"] .ranking-panel{max-height:145px}
+  body[data-view="live"] .rank-row{padding:2px 0}
+  body[data-view="live"] .live-minimap{height:100px;top:250px}
+  body[data-view="live"] .live-minimap-road{height:72px}
+  body[data-view="live"] .live-chat-messages{max-height:95px}
+}
+
+/* During warm-up/countdown the video uses a clean start panel, not racing data. */
+body[data-view="live"][data-phase="lobby"] .ranking-panel,
+body[data-view="live"][data-phase="lobby"] .live-timer-card,
+body[data-view="live"][data-phase="lobby"] .live-minimap,
+body[data-view="live"][data-phase="lobby"] .live-map-weather,
+body[data-view="live"][data-phase="countdown"] .ranking-panel,
+body[data-view="live"][data-phase="countdown"] .live-timer-card,
+body[data-view="live"][data-phase="countdown"] .live-minimap,
+body[data-view="live"][data-phase="countdown"] .live-map-weather{display:none!important}
+body[data-view="live"][data-phase="lobby"] .call-to-action,
+body[data-view="live"][data-phase="countdown"] .call-to-action{
+  top:150px;left:50%;max-width:260px;width:76%;
+  background:#10202ded;border:1px solid #e9f8ffff;color:#fff;
+}

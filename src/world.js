@@ -9,7 +9,8 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   const sceneDetail=i=>profile.sceneStep===1||i%4<2;
   const scene=new THREE.Scene();
   const camera=new THREE.PerspectiveCamera(58,1,.1,210);
-  camera.position.set(10.8,11.5,-15);
+  // Third-person chase perspective for the vertical race format.
+  camera.position.set(0,7.3,-17);
   const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:"low-power"});
   const baselinePixelRatio=Math.min(window.devicePixelRatio||1,profile.pixelRatio);
   let renderScale=1;
@@ -20,6 +21,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   scene.add(root);
   const materials=new Map();
   let mapId="";
+  let weather=null,focusRing=null;
   const cameraTarget=new THREE.Vector3(0,1,10);
   const positionTarget=new THREE.Vector3();
   const lookTarget=new THREE.Vector3();
@@ -132,15 +134,60 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       root.add(instance);
     }
   }
+  function setupAtmosphere(id){
+    // Low-cost animated snowflakes on Ice; soft drifting leaves on Forest.
+    const count=profile.sceneStep>1?55:105;
+    const positions=new Float32Array(count*3);
+    for(let i=0;i<count;i++){
+      const seed=((i*97+13)%131)/131;
+      positions[i*3]=(seed-.5)*29;
+      positions[i*3+1]=((i*67)%109)/109*15+.3;
+      positions[i*3+2]=((i*47)%127)/127*65-16;
+    }
+    const geometry=new THREE.BufferGeometry();
+    geometry.setAttribute("position",new THREE.BufferAttribute(positions,3));
+    weather=new THREE.Points(geometry,new THREE.PointsMaterial({
+      color:id==="ice"?0xf6ffff:0xd6f2a1,
+      size:id==="ice"?.19:.13,transparent:true,opacity:id==="ice"?.87:.62,
+      depthWrite:false,sizeAttenuation:true
+    }));
+    weather.name="biome-weather-particles";
+    weather.frustumCulled=false;
+    root.add(weather);
+    focusRing=new THREE.Mesh(new THREE.RingGeometry(.70,1.02,32),
+      new THREE.MeshBasicMaterial({color:0xff7f45,transparent:true,opacity:.8,
+        depthWrite:false,side:THREE.DoubleSide}));
+    focusRing.name="leader-focus-ring";
+    focusRing.rotation.x=-Math.PI/2;
+    focusRing.visible=false;
+    root.add(focusRing);
+  }
+  function animateAtmosphere(dt,z){
+    if(!weather)return;
+    const arr=weather.geometry.attributes.position.array;
+    for(let i=0;i<arr.length;i+=3){
+      arr[i+1]-=Math.min(.2,dt)*(mapId==="ice"?1.9:.65);
+      if(arr[i+1]<.25)arr[i+1]+=14.5;
+      arr[i]+=(mapId==="ice"?.07:.19)*dt;
+      if(arr[i]>15)arr[i]-=30;
+    }
+    weather.geometry.attributes.position.needsUpdate=true;
+    // Drift follows the race without rebuilding or reallocating geometry.
+    weather.position.z=Math.max(0,Math.min(TRACK_LENGTH,z));
+  }
   function clearMap() {
     while(root.children.length){
       const child=root.children[0];root.remove(child);
       child.traverse(obj=>{
         if(obj.isSprite){ if(obj.material?.map)obj.material.map.dispose();obj.material?.dispose(); }
         if(obj.isInstancedMesh&&typeof obj.dispose==="function")obj.dispose();
+        if(obj.isPoints||obj.name==="leader-focus-ring"){
+          obj.geometry?.dispose();obj.material?.dispose();
+        }
       });
     }
     for(const mat of materials.values())mat.dispose();materials.clear();
+    weather=null;focusRing=null;
     // Remove old biome lighting but preserve runner meshes mounted directly in the scene.
     for(const child of [...scene.children])if(child.isLight)scene.remove(child);
   }
@@ -164,12 +211,13 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     for(const x of [-3.7,-1.85,0,1.85,3.7]) for(let z=5;z<TRACK_LENGTH;z+=7.5){
       block(root,x,.086,z,.08,.02,2.2,0xece5c3);
     }
-    arch(0,0xc6fb65);
+    // Clear start line for the close-up chase camera. Finish arch remains.
     arch(TRACK_LENGTH,0xffe7a4);
-    block(root,0,.09,0,11.5,.03,1.2,0xc9f66b);
+    block(root,0,.09,0,11.5,.03,.65,settings.id==="ice"?0xf5faff:0xe2f2d4);
     block(root,0,.09,TRACK_LENGTH,11.5,.03,1.2,0xffecc3);
     scenery(settings.id);obstacleMesh(settings.id);
-    label("LARGADA",0,7.2,0);label("CHEGADA",0,7.2,TRACK_LENGTH);
+    setupAtmosphere(settings.id);
+    label("CHEGADA",0,7.2,TRACK_LENGTH);
     batchStaticScenery();
   }
   function setRenderScale(value) {
@@ -187,14 +235,28 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     camera.aspect=w/h;camera.fov=w<h?64:57;camera.updateProjectionMatrix();
   }
   function render(race,dt) {
-    const progress=Math.max(0,...race.active.map(r=>r.progress));
-    const z=Math.min(TRACK_LENGTH+5,progress);
-    const alpha=1-Math.exp(-2.8*Math.min(dt,.2));
-    positionTarget.set(10.9,11.7,Math.max(-15,z-16));
-    lookTarget.set(0,1.3,Math.min(TRACK_LENGTH,z+7.6));
+    const active=Array.isArray(race.active)?race.active:[];
+    // Follow the middle of the pack, so racers stay visible ahead of the camera.
+    const distances=active.map(r=>Math.max(0,Number(r.progress)||0)).sort((a,b)=>a-b);
+    const middle=distances.length?distances[Math.floor(distances.length*.45)]:0;
+    const z=Math.min(TRACK_LENGTH,middle);
+    const alpha=1-Math.exp(-2.9*Math.min(dt,.2));
+    positionTarget.set(0,7.4,Math.max(-17,z-17));
+    lookTarget.set(0,1.7,Math.min(TRACK_LENGTH+10,z+18));
     camera.position.lerp(positionTarget,alpha);
     cameraTarget.lerp(lookTarget,alpha);
     camera.lookAt(cameraTarget);
+    animateAtmosphere(dt,z);
+    if(focusRing){
+      const leader=active.reduce((best,r)=>!best||r.progress>best.progress?r:best,null);
+      focusRing.visible=Boolean(leader);
+      if(leader){
+        const index=active.indexOf(leader);
+        const stagger=Math.max(0,1-Math.max(0,leader.progress)/30);
+        focusRing.position.set(laneX(leader.lane),.12,
+          Math.max(0,leader.progress-Math.floor(index/5)*1.48*stagger));
+      }
+    }
     renderer.render(scene,camera);
   }
   function dispose(){

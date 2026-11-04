@@ -314,3 +314,54 @@ test("v2.3 batches fifty animated runners without losing colors or movement",asy
   expect(result.afterRemoval).toBe(441);
   expect(result.cleaned).toBe(true);
 });
+
+
+test("reference-inspired 9:16 LIVE HUD overlays race image with ranking and timer",async({page,request})=>{
+  await reset(request);
+  await action(request,"advance");
+  await action(request,"advance");
+  await start(page,"?view=live&quality=low");
+  await expect(page.locator("#liveTimer")).toBeVisible();
+  await expect(page.locator("#liveRemaining")).toContainText("m até a chegada");
+  await expect(page.locator(".live-minimap")).toBeVisible();
+  await expect(page.locator(".live-chat-messages")).toBeVisible();
+  await expect(page.locator(".ranking-panel")).toBeVisible();
+  await expect(page.locator("#liveMiniMapName")).toContainText(/GELO|FLORESTA/);
+  const positions=await page.evaluate(()=>{
+    const arena=document.querySelector(".arena").getBoundingClientRect();
+    const ranking=document.querySelector(".ranking-panel").getBoundingClientRect();
+    const timer=document.querySelector(".live-timer-card").getBoundingClientRect();
+    return {arenaHeight:arena.height,arenaTop:arena.top,
+      viewportHeight:innerHeight,rankingTop:ranking.top,rankingBottom:ranking.bottom,
+      timerTop:timer.top,timerBottom:timer.bottom,
+      horizontalOverflow:document.documentElement.scrollWidth-innerWidth};
+  });
+  expect(positions.arenaHeight).toBeGreaterThanOrEqual(positions.viewportHeight-2);
+  expect(positions.arenaTop).toBe(0);
+  expect(positions.rankingBottom).toBeLessThan(positions.viewportHeight);
+  expect(positions.timerBottom).toBeLessThan(positions.viewportHeight);
+  expect(positions.horizontalOverflow).toBeLessThanOrEqual(1);
+  await page.screenshot({path:join(root,"reference-hud-live-390x844.png"),fullPage:true});
+  await reset(request);
+});
+
+test("50-runner showcase is explicitly fictional and independent of the real Render motor",async({page,request})=>{
+  const before=await (await request.get("/api/state")).json();
+  const errors=[];page.on("pageerror",error=>errors.push(error.message));
+  await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
+  await expect(page.locator("#playerCount")).toHaveText("50",{timeout:25_000});
+  await expect(page.locator("#phaseName")).toContainText("CORRIDA EM ANDAMENTO");
+  await expect(page.locator("#remoteMode")).toContainText("PRÉVIA VISUAL LOCAL");
+  await expect(page.locator("#tiktokStatus")).toContainText("SEM CONEXÃO COM O TIKTOK");
+  await expect(page.locator(".ranking-panel")).toBeVisible();
+  await expect(page.locator(".rank-row")).toHaveCount(5);
+  await expect(page.locator("#liveTimer")).toBeVisible();
+  await expect(page.locator("#raceCanvas")).toBeVisible();
+  await page.waitForTimeout(1500);
+  await page.screenshot({path:join(root,"reference-50-runners-showcase.png"),fullPage:true});
+  const after=await (await request.get("/api/state")).json();
+  expect(after.state.active.length).toBe(before.state.active.length);
+  expect(after.state.round).toBe(before.state.round);
+  expect(after.liveEventsMode).toBe("staged");
+  expect(errors).toEqual([]);
+});

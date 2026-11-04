@@ -1,12 +1,12 @@
 {
   "name": "corrida-dos-elementos-live",
   "private": true,
-  "version": "1.8.0",
+  "version": "1.9.0",
   "type": "module",
   "description": "Jogo de corrida automática voxel 3D para demonstração no navegador e GitHub Pages",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check src/app.js && node --check src/world.js && node --check src/avatars.js && node --check src/engine.js && node --check src/config.js && node --check src/selftest.js && node --check src/remote.js && node --check server/index.js && node --check server/storage.js && node --check server/tiktok.js && node --check src/gifts.js && node --check server/privacy.js && node --check server/telemetry.js && node --check src/history.js && node --check src/view.js && node --check src/performance.js && node --check src/metrics.js",
+    "check": "node --check src/app.js && node --check src/world.js && node --check src/avatars.js && node --check src/engine.js && node --check src/config.js && node --check src/selftest.js && node --check src/remote.js && node --check server/index.js && node --check server/storage.js && node --check server/tiktok.js && node --check src/gifts.js && node --check server/privacy.js && node --check server/telemetry.js && node --check src/history.js && node --check src/view.js && node --check src/performance.js && node --check src/metrics.js && node --check src/connection.js",
     "start": "node server/index.js",
     "test:browser": "playwright test"
   },

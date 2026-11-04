@@ -93,3 +93,16 @@ Ao terminar uma corrida, os resultados confirmados alimentam automaticamente um 
 Snapshots anteriores à versão 1.5, sem a estrutura de campeões, continuam aceitos; as novas estatísticas começam a partir da próxima corrida finalizada.
 
 **Limites:** o Render Free pode suspender por inatividade; o banco gratuito expira e a infraestrutura ainda não produz nem transmite vídeo para o TikTok.
+
+## ⚙️ Pré-lançamento e desempenho (v1.6)
+
+**Não haverá testes com uma LIVE real do TikTok até que o jogo esteja concluído.** O nome da conta já pode ficar configurado no Render, mas TIKTOK_LIVE_MODE permanece desativado. Apenas simulações locais ou autenticadas estão liberadas.
+
+O cenário 3D agora agrupa blocos do terreno em malhas instanciadas, reduzindo o número de chamadas de desenho. Na tela do operador é possível selecionar Auto, Leve (30 FPS e sem sombras), Equilibrado (45 FPS) ou Alto (60 FPS). A tela de transmissão aceita parâmetro de qualidade, como:
+
+- https://corrida-dos-elementos-live.onrender.com/?view=live&quality=low
+
+A qualidade visual não altera física, fila nem classificação. O Redmi 13C e outros aparelhos modestos podem usar o perfil Leve.
+
+Confira o plano de conclusão e a lista das pendências antes do lançamento: [docs/PRE-LANCAMENTO.md](docs/PRE-LANCAMENTO.md).
+

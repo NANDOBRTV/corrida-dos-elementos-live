@@ -12,7 +12,9 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   const camera=new THREE.PerspectiveCamera(58,1,.1,210);
   camera.position.set(10.8,11.5,-15);
   const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:"low-power"});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,profile.pixelRatio));
+  const baselinePixelRatio=Math.min(window.devicePixelRatio||1,profile.pixelRatio);
+  let renderScale=1;
+  renderer.setPixelRatio(baselinePixelRatio);
   renderer.shadowMap.enabled=profile.shadows;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   const root=new THREE.Group();
@@ -226,6 +228,15 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     label("LARGADA",0,7.2,0);label("CHEGADA",0,7.2,TRACK_LENGTH);
     batchStaticScenery();
   }
+  function setRenderScale(value) {
+    const next=Math.max(.65,Math.min(1,Number(value)||1));
+    if(Math.abs(next-renderScale)<.001)return renderer.getPixelRatio();
+    renderScale=next;
+    renderer.setPixelRatio(baselinePixelRatio*renderScale);
+    resize(); // Keeps the existing CSS canvas size and camera perspective.
+    return renderer.getPixelRatio();
+  }
+  function getRenderScale(){return renderScale;}
   function resize() {
     const w=Math.max(1,canvas.clientWidth),h=Math.max(1,canvas.clientHeight);
     renderer.setSize(w,h,false);
@@ -245,5 +256,5 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   function dispose(){
     clearMap();boxGeometry.dispose();octahedronGeometry.dispose();sphereGeometry.dispose();renderer.dispose();
   }
-  return { scene, renderer, setMap, resize, render, dispose, quality:profile.name };
+  return { scene, renderer, setMap, resize, render, dispose, quality:profile.name, setRenderScale,getRenderScale };
 }

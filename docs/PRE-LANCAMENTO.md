@@ -131,3 +131,25 @@ Na tela com debug, a sobreposição mostra FPS e porcentagem da resolução atua
 https://corrida-dos-elementos-live.onrender.com/?view=live&debug=1
 
 **Nota:** a redução de resolução pode suavizar a nitidez, mas mantém a composição do cenário e a iluminação. Não garante 30 FPS em todo celular. Ainda são necessários testes no aparelho físico e não há LIVE do TikTok durante o pré-lançamento.
+
+
+## Versão 2.1 — benchmark comparativo no próprio Android
+
+A página **/benchmark.html** permite validar quanto o FPS melhora com o modo adaptativo **no aparelho físico em que a página for aberta**, sem PC, sem conta TikTok, sem gastar presentes e sem acessar o PostgreSQL.
+
+Endereço público previsto: https://corrida-dos-elementos-live.onrender.com/benchmark.html
+
+O teste cria uma cena local e independente com os 50 corredores fictícios e percorre Floresta, Deserto, Vulcão, Gelo e Inferno. Para cada bioma ele mede dois ensaios: resolução fixa de 100% e resolução adaptativa. O perfil gráfico inicial e os objetos/iluminação são iguais nas duas condições. A ordem de execução alterna entre os mapas para diminuir o efeito da temperatura do aparelho sobre o resultado.
+
+O processo completo tem 10 etapas de aproximadamente 14 segundos cada (mais preparação), com relatório local por mapa. Mostra média de FPS, comparação percentual e resolução adaptativa final. **Não envia medições automaticamente**: o usuário pode copiar o relatório ou compartilhar por ação explícita do navegador.
+
+Como medir corretamente:
+1. Abra o endereço no Chrome do Redmi 13C com conexão estável.
+2. Mantenha a tela visível durante todo o teste, sem trocar para outros aplicativos.
+3. Faça o teste com bateria suficiente e sem modo de economia de energia; aguarde o aparelho esfriar se estiver quente.
+4. Clique em INICIAR COMPARAÇÃO NO CELULAR e deixe as 10 etapas concluírem.
+5. Use COPIAR RESULTADO e cole no ChatGPT, ou compartilhe o texto.
+
+**Interpretação:** uma diferença positiva indica melhoria observada naquela sessão; uma diferença negativa mostra regressão. Se os dois modos baterem no limite de atualização da tela, é normal a diferença ser próxima de zero. O benchmark mede quadros desenhados no navegador; não mede FPS de codificação do TikTok, consumo de bateria ou performance do jogo em segundo plano. A qualidade adaptativa também pode levar alguns segundos para responder à queda. A medição não substitui observação visual das animações no aparelho.
+
+O Github Actions usa somente um teste acelerado em localhost para verificar se o benchmark funciona; **o resultado dessa simulação não deve ser apresentado como FPS real do Redmi**. O jogo continua em pré-lançamento, sem eventos TikTok reais.

@@ -197,7 +197,7 @@ if(remoteMode){
 }
 requestAnimationFrame(onFrame);
 void connectRemote({
-  onState(next){
+  onState(next,meta={}){
     remoteMode=true;
     if(!validateSavedState(next)){console.warn("Snapshot remoto inválido");return;}
     state=next;

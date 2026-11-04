@@ -11,7 +11,7 @@ test("TikTok CHAT aceita somente entrar isolado",()=>{
   assert.equal(normalized.source,"tiktok");
 });
 test("Ignora outros comentários",()=>{
-  for(const content of ["!entrar","quero entrar","entrando","entrar agora"]){
+  for(const content of ["!entrar","quero entrar","entrando","entrar dois nomes"]){
     assert.equal(normalizeTikTokChat({content,user:{id:"123"}}),null);
   }
 });
@@ -53,4 +53,10 @@ test("TikTok LIVE 2.5: aceita fallback uniqueId sem inventar perfil",()=>{
 });
 test("TikTok LIVE 2.5: ignora outros comentários no campo comment",()=>{
   assert.equal(normalizeTikTokChat({comment:"curti",user:{userId:"123"}}),null);
+});
+
+test("Comando Roblox informado no chat é reconhecido, mas não comprova posse da conta",()=>{
+  const v=normalizeTikTokChat({comment:" entrar NomeTeste_123 ",user:{userId:"55",nickname:"Visitante"}});
+  assert.equal(v.robloxUsername,"NomeTeste_123");
+  assert.equal(v.content,"entrar NomeTeste_123");
 });

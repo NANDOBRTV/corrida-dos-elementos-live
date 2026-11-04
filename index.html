@@ -82,6 +82,9 @@
         <label for="adminKey">TOKEN ADMINISTRATIVO DO RENDER</label>
         <input type="password" id="adminKey" autocomplete="off" spellcheck="false" placeholder="Cole o ADMIN_KEY do Render" maxlength="200">
         <p>O token é usado apenas nas requisições HTTPS, não é salvo no GitHub, nem no armazenamento do navegador.</p>
+        <button id="refreshDiagnostics" type="button" class="soft-button diagnostic-trigger">📡 VERIFICAR CHAT E PRESENTES REAIS</button>
+        <pre id="diagnosticReport" class="diagnostic-report" aria-live="polite" role="status" hidden></pre>
+        <p>Diagnóstico privado: contadores desde a última inicialização do servidor. Eventos de teste são separados dos reais.</p>
       </div>
 
       <form class="join-form" id="joinForm">

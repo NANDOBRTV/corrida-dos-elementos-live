@@ -1,3 +1,9 @@
+### Revisão visual v2.9.1
+
+Após comparar capturas reais de Chromium 390×844 com o vídeo de referência, a câmera foi afastada e elevada para enquadrar mais corredores e mais pista de neve. As árvores agora têm folhagem verde-escura com camadas brancas de neve, e a nevasca usa partículas maiores em uma única malha de pontos. Painéis de ranking/tempo/minimapa ficaram mais proporcionais à referência. Motor, obstáculos, física e duração da pista permanecem inalterados.
+
+---
+
 ## Versão 2.9 — referência visual de corrida com avatares humanoides blocados
 
 A partir do vídeo fornecido pelo proprietário do projeto, a pista de Gelo ganhou uma apresentação mais próxima de uma corrida de avatares estilo Roblox: **personagens originais humanoides R6-like com roupa de corpo inteiro, cabelos, bonés, cachecóis, mochilas e cores variadas**, câmera mais baixa e próxima por trás dos corredores, asfalto cinza, bordas de neve, placares escuros e ícones de kart/moto/jetpack. Os acessórios continuam cosméticos, não há compra nem bônus de velocidade. As formas são processadas em malha instanciada para preservar o desempenho de 50 corredores no Android.

@@ -11,7 +11,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   const finishGroup=new THREE.Group();finishGroup.name="absolute-finish-line";scene.add(finishGroup);
   const camera=new THREE.PerspectiveCamera(58,1,.1,360);
   // Third-person chase perspective for the vertical race format.
-  camera.position.set(0,5.9,-12.5);
+  camera.position.set(0,12.2,-24);
   const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:"low-power"});
   const baselinePixelRatio=Math.min(window.devicePixelRatio||1,profile.pixelRatio);
   let renderScale=1;
@@ -66,9 +66,15 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   function pine(x,z,size=1,snow=false) {
     const t=new THREE.Group();t.position.set(x,0,z);t.scale.setScalar(size);root.add(t);
     block(t,0,1,0,.58,2,.58,0x69503a);
-    block(t,0,2.4,0,2.2,1.8,2.2,snow?0xe4f8ff:0x2e8551);
-    block(t,0,3.5,0,1.55,1.3,1.55,snow?0xb7e6ed:0x37a665);
-    block(t,0,4.4,0,.88,.95,.88,snow?0xf3ffff:0x53bb71);
+    block(t,0,2.4,0,2.2,1.8,2.2,snow?0x34584b:0x2e8551);
+    block(t,0,3.5,0,1.55,1.3,1.55,snow?0x426b56:0x37a665);
+    block(t,0,4.4,0,.88,.95,.88,snow?0x567766:0x53bb71);
+    if(snow){
+      // White snow caps + dark evergreen branches like the supplied winter race.
+      block(t,0,3.34,0,2.32,.22,2.32,0xeaf2fb);
+      block(t,0,4.23,0,1.70,.18,1.70,0xf4f7fc);
+      block(t,0,4.88,0,.99,.17,.99,0xffffff);
+    }
   }
   function crystal(x,z,size=1,color=0x95eaff) {
     const m=new THREE.Mesh(octahedronGeometry,material(color,.18));
@@ -152,7 +158,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   }
   function setupAtmosphere(id){
     // Low-cost animated snowflakes on Ice; soft drifting leaves on Forest.
-    const count=profile.sceneStep>1?55:105;
+    const count=profile.sceneStep>1?95:170;
     const positions=new Float32Array(count*3);
     for(let i=0;i<count;i++){
       const seed=((i*97+13)%131)/131;
@@ -164,7 +170,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     geometry.setAttribute("position",new THREE.BufferAttribute(positions,3));
     weather=new THREE.Points(geometry,new THREE.PointsMaterial({
       color:id==="ice"?0xf6ffff:0xd6f2a1,
-      size:id==="ice"?.19:.13,transparent:true,opacity:id==="ice"?.87:.62,
+      size:id==="ice"?.30:.13,transparent:true,opacity:id==="ice"?.93:.62,
       depthWrite:false,sizeAttenuation:true
     }));
     weather.name="biome-weather-particles";
@@ -322,8 +328,8 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       if(root.position.z!==nextBase)root.position.z=nextBase;
     }
     const alpha=1-Math.exp(-2.9*Math.min(dt,.2));
-    positionTarget.set(0,5.9,Math.max(-12.5,z-12.5));
-    lookTarget.set(0,1.8,Math.min(currentLength+10,z+18));
+    positionTarget.set(0,12.2,Math.max(-24,z-24));
+    lookTarget.set(0,1.4,Math.min(currentLength+10,z+12));
     // Network recovery and benchmark jumps can move several kilometers.
     // Avoid rendering an empty transient frame between streamed tiles.
     if(Math.abs(camera.position.z-positionTarget.z)>160){

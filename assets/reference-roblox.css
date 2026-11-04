@@ -40,3 +40,34 @@ body[data-view="live"] .live-map-weather{background:#233a4bba}
   body[data-view="live"] .ranking-panel{max-height:145px}
   body[data-view="live"] .live-chat-messages{max-height:95px}
 }
+
+/* v2.9.1: match video proportions; more track, less oversized HUD. */
+body[data-view="live"] .arena-top{top:116px}
+body[data-view="live"] .ranking-panel{
+  top:165px;width:min(40%,156px);max-height:188px;
+  padding:9px 8px 6px;
+}
+body[data-view="live"][data-phase="lobby"] .ranking-panel{top:210px}
+body[data-view="live"] .panel-heading h2{font-size:9px}
+body[data-view="live"] .rank-pos{font-size:12px}
+body[data-view="live"] .rank-name{font-size:9px}
+body[data-view="live"] .rank-meters{font-size:9px}
+body[data-view="live"] .live-timer-card{
+  top:142px;right:9px;width:min(29%,110px);padding:7px 5px;
+}
+body[data-view="live"] .live-timer-card strong{font-size:27px}
+body[data-view="live"] .live-timer-card span{font-size:9px}
+body[data-view="live"] .live-minimap{top:230px;right:9px;width:min(28%,100px)}
+body[data-view="live"] .live-map-weather{top:378px;right:9px}
+body[data-view="live"] .live-chat-messages{max-height:190px}
+body[data-view="live"] .live-sprint-card{top:205px}
+@media(max-width:359px){
+  body[data-view="live"] .ranking-panel{top:163px;width:42%;padding:7px 6px}
+  body[data-view="live"] .live-timer-card{top:140px;right:5px}
+  body[data-view="live"] .live-minimap{top:223px;right:5px}
+}
+@media(max-height:680px){
+  body[data-view="live"] .ranking-panel{max-height:150px}
+  body[data-view="live"] .live-minimap{top:222px;height:104px}
+  body[data-view="live"] .live-chat-messages{max-height:110px}
+}

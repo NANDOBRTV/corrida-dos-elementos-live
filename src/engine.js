@@ -1,4 +1,5 @@
 import { TRACK_LENGTH, PHASE_TIMES, BIOME_ORDER, mapForRound, RUNNER_COLORS, obstaclesFor, LANES } from "./config.js";
+import {recordCompletedRace} from "./history.js";
 
 export const FIXED_STEP = 50;
 export function hash(text) {
@@ -14,7 +15,7 @@ export function joinCommand(content) { return typeof content==="string" && conte
 export function createState(seed=127492) {
   return {
     version:1, round:1, mapId:"forest", phase:"LOBBY", phaseMs:0, raceMs:0,
-    accumulator:0, seed:seed>>>0, active:[], next:[], results:[], paused:false,
+    accumulator:0, seed:seed>>>0, active:[], next:[], results:[], history:[], seasonLeaders:[], paused:false,
     messages:[{ text:"Ambiente de demonstração iniciado. Digite entrar.", at:0 }]
   };
 }
@@ -77,6 +78,7 @@ function enterPhase(state,nextPhase) {
       id:r.id,name:r.name,position:index+1,progress:r.progress,
       finished:r.finishTime!==null,finishTime:r.finishTime
     }));
+    recordCompletedRace(state);
     announce(state,"Corrida encerrada. Confira o pódio!");
   }
 }

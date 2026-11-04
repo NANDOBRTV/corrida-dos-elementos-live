@@ -97,3 +97,32 @@ input:focus,select:focus{border-color:var(--lime);box-shadow:0 0 0 2px #bdfa6c30
 .diagnostic-trigger{width:100%;margin-top:12px;background:#224937;border-color:#8ecb8f}
 .diagnostic-report{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;margin:10px 0 0;padding:12px;border-radius:9px;border:1px solid #42694b;background:#071a13;color:#e2f9e8;font-size:11px;line-height:1.65;font-family:ui-monospace,SFMono-Regular,monospace}
 .diagnostic-report[hidden]{display:none}
+
+
+/* v1.5 — Modo dedicado à transmissão: sem painel de controle sobre o vídeo. */
+.mode-switch{display:flex;gap:8px;justify-content:space-between;padding:10px 2px 2px;flex-wrap:wrap}
+.mode-switch a{flex:1;min-width:160px;text-align:center;text-decoration:none;background:#294936;border:1px solid #517653;border-radius:8px;padding:10px 8px;color:#dafcbd;font-size:10px;font-weight:900;letter-spacing:.45px}
+.season-panel{margin-top:10px;background:linear-gradient(110deg,#12291e,#203e27);border:1px solid #405c34;border-radius:12px;padding:11px 13px}
+.season-panel h2{font-size:20px}
+.season-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #ffffff15;font-size:11px}
+.season-row:last-child{border:0}
+.season-row strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.season-row span{flex-shrink:0;color:#c4f76b;font-size:10px}
+.season-empty{display:block;padding:10px 0;font-size:11px;color:#a5beae}
+.recent-champion{padding:8px 0 2px;color:#dcf5a0;font-size:11px;overflow-wrap:anywhere}
+.recent-champion[hidden]{display:none}
+body[data-view="live"] .app-shell{display:block;width:min(560px,100%);padding:8px 8px 15px}
+body[data-view="live"] .broadcast{max-width:100%;margin:auto}
+body[data-view="live"] .operator,
+body[data-view="live"] .mode-switch,
+body[data-view="live"] .demo-disclaimer{display:none!important}
+body[data-view="live"] .arena{height:clamp(280px,43svh,565px);min-height:280px}
+body[data-view="live"] .masthead{margin-bottom:10px}
+body[data-view="live"] .ranking-panel{padding:10px 12px 8px}
+body[data-view="live"] .rank-row{padding:7px 0}
+body[data-view="live"] .season-panel{padding:8px 12px}
+body[data-view="live"] .season-row{padding:4px 0}
+body[data-view="live"] .notice-line{padding:9px 10px}
+body[data-view="live"] .call-to-action{padding:10px 7px}
+body[data-view="live"] .call-to-action strong{font-size:clamp(29px,8vw,38px)}
+body[data-view="live"] .network-status{padding:6px 9px}

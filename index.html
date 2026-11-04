@@ -58,11 +58,20 @@
         <div class="canvas-error" id="canvasError" hidden>Seu navegador não conseguiu iniciar o WebGL. Ative a aceleração de hardware e atualize a página.</div>
       </section>
 
+      <nav class="mode-switch" aria-label="Modo de visualização">
+        <a href="?view=live">📺 TELA LIMPA PARA TRANSMISSÃO</a>
+        <a href="?view=operator">⚙ PAINEL DE TESTES</a>
+      </nav>
       <section class="ranking-panel" aria-label="Ranking da corrida">
         <div class="panel-heading"><h2>🏆 CLASSIFICAÇÃO AO VIVO</h2><span id="rankingSubtitle">TOP 5</span></div>
         <div class="ranking-body" id="rankingRows"></div>
       </section>
 
+      <section class="season-panel" aria-label="Campeões da temporada">
+        <div class="panel-heading"><h2>👑 CAMPEÕES DA TEMPORADA</h2><span>VITÓRIAS</span></div>
+        <div id="seasonLeaders" class="season-rows"><span class="season-empty">Aguardando primeira corrida concluída...</span></div>
+        <div class="recent-champion" id="recentChampion" hidden></div>
+      </section>
       <div class="notice-line"><span class="notice-icon">◉</span><span id="latestEvent">Aguardando participantes...</span></div>
       <div class="gift-feed" id="giftFeed" aria-label="Presentes recentes" hidden></div>
       <div class="next-line"><span id="nextMapText">PRÓXIMA: 🏜️ DESERTO</span><strong id="nextQueueCount">0 NA FILA</strong></div>

@@ -68,3 +68,28 @@ Os testes são executáveis também pelo GitHub Actions. Para rodar com Node 22,
 5. Avaliar infraestrutura para operação contínua após testes reais.
 
 **Nunca coloque chaves, senhas ou tokens TikTok em um repositório público.**
+
+## 📺 Modo de transmissão vertical (versão 1.5)
+
+Existem **duas visualizações independentes** do mesmo jogo no Render:
+
+- **Tela LIVE limpa (sem painel do operador):** https://corrida-dos-elementos-live.onrender.com/?view=live
+- **Controles e diagnóstico:** https://corrida-dos-elementos-live.onrender.com/?view=operator
+
+No modo LIVE, o painel que solicita ADMIN_KEY, botões de simulação e diagnósticos ficam ocultos da apresentação. A arena recebe o estado oficial do servidor por SSE. O link pode ser usado como fonte de navegador em um programa de transmissão, desde que a conta TikTok disponha de um método de envio de vídeo autorizado. **Abrir a URL não inicia uma LIVE nem gera fluxo RTMP.**
+
+A tela de operador mantém todos os controles e oferece um botão para abrir a tela limpa.
+
+### 🏆 Campeões da temporada
+
+Ao terminar uma corrida, os resultados confirmados alimentam automaticamente um **Top 3 por vitórias**, com desempate por pódios, provas concluídas e melhor tempo. Também aparece o vencedor mais recente.
+
+- Vitórias são contabilizadas somente para corredores que efetivamente cruzaram a chegada.
+- Cada resultado é gravado uma única vez por rodada; repetições não duplicam vitórias.
+- O histórico contém até 12 rodadas recentes, e o ranking agregado contém até 100 participantes.
+- Os registros ficam no snapshot do jogo na tabela PostgreSQL elemental_game_state, quando a persistência estiver habilitada.
+- A página revela nomes públicos dos participantes, mas os identificadores TikTok são pseudonimizados.
+
+Snapshots anteriores à versão 1.5, sem a estrutura de campeões, continuam aceitos; as novas estatísticas começam a partir da próxima corrida finalizada.
+
+**Limites:** o Render Free pode suspender por inatividade; o banco gratuito expira e a infraestrutura ainda não produz nem transmite vídeo para o TikTok.

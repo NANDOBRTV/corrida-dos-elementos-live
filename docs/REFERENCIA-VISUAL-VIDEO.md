@@ -44,3 +44,13 @@ Manter a identidade própria **Corrida dos Elementos LIVE**, com apenas **❄️
 - Mini-mapa verdadeiro da pista atual: linha reta com cinco raias, 0 a 150 metros, líder e dois perseguidores. Os pontos usam a posição oficial da corrida.
 - Respeita a tela 9:16 a 320 e 390 px e conserva os dois biomas Gelo e Floresta.
 - Esta fase **não** inclui kart, moto ou mochila a jato jogáveis, não ativa comunicação real TikTok e não garante FPS específico em aparelho físico. É necessária uma nova medição no Redmi 13C.
+
+## Versão 2.6 — pista ampliada e protótipos 3D de veículos
+
+- A pista oficial foi ampliada de **150 m para 300 m**, em Gelo e Floresta.
+- O motor continua com máximo de 85 segundos por corrida; obstáculos foram distribuídos ao longo da nova extensão e a chegada/câmera/ranking/mini-mapa acompanham a distância real.
+- Um snapshot de corrida de 150 m iniciado antes do deploy mantém a linha antiga até encerrar. A rodada seguinte começa com 300 m; participantes, fila, pódio e histórico são preservados no PostgreSQL.
+- Personagens têm aparência determinística pelo ID, com variações de roupa e **protótipos voxel de kart e moto**. Nesta etapa eles são apenas cosméticos: não há direção manual, escolha de veículo na conta nem bônus de velocidade.
+- Os corpos, veículos e acessórios compartilham o InstancedMesh WebGL para reduzir draw calls.
+- O benchmark físico abre no Android e agora amostra a primeira e a segunda metades de cada bioma. Registra FPS e P95 fixo/Auto; testes de Chromium são funcionais, não medição física do Redmi.
+- Sem conexão real TikTok, sem iniciar LIVE ou contratar hospedagem paga.

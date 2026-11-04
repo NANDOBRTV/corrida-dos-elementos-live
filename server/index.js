@@ -265,7 +265,7 @@ export async function createApp(opts={}){
     if(req.method!=="GET"&&req.method!=="HEAD"){sendJson(res,405,{ok:false,error:"Método indisponível"});return;}
     const target=safeRoute(req.url||"/");
     const pathname=new URL(req.url||"/","http://localhost").pathname;
-    const publicFile=pathname==="/"||pathname==="/index.html"||pathname==="/tests.html"||
+    const publicFile=pathname==="/"||pathname==="/index.html"||pathname==="/tests.html"||pathname==="/benchmark.html"||
       /^\/(?:src|assets|tests)\/[a-zA-Z0-9_.\/-]+$/.test(pathname);
     if(!target||!publicFile||pathname.split("/").some(p=>p.startsWith("."))){
       sendJson(res,404,{ok:false,error:"Arquivo não encontrado"});return;

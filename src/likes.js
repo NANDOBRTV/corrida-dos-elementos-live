@@ -8,7 +8,12 @@ export function createLikeBuffer({intervalMs=LIKE_FLUSH_MS,maxSeen=3000,ttlMs=12
       if(!like||!Number.isSafeInteger(like.count)||like.count<1||like.count>100000)return false;
       const key=typeof like.eventId==="string"&&like.eventId?like.eventId:null;
       if(key){
-        for(const [id,at] of seen)if(time-at>ttlMs)seen.delete(id);
+        // Map preserves insertion order: prune oldest entries in amortized O(1), not O(N) per like.
+        while(seen.size){
+          const [id,at]=seen.entries().next().value;
+          if(time-at<=ttlMs)break;
+          seen.delete(id);
+        }
         if(seen.has(key))return false;
         seen.set(key,time);
         while(seen.size>maxSeen)seen.delete(seen.keys().next().value);

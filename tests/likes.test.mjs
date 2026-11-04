@@ -66,3 +66,17 @@ test("Admin can simulate likes separately without implying real TikTok likes",as
   assert.equal(report.diagnostics.events.simulatedLikes,10);
   assert.equal(report.diagnostics.events.likeCountObserved,0);
 });
+
+test("High-volume packet bursts remain bounded and never multiply 5km race events",()=>{
+  const buffer=createLikeBuffer({maxSeen:20,ttlMs:500});
+  for(let i=0;i<1500;i++)assert.equal(buffer.accept({count:1,eventId:"evt-"+i},1000+i),true);
+  assert.equal(buffer.accept({count:1,eventId:"evt-1499"},2500),false);
+  const batch=buffer.drain(4000);
+  assert.equal(batch.count,1500);
+  assert.equal(batch.events,1500);
+  const state=createState(123);
+  applyLikeBatch(state,batch);
+  assert.equal(state.observedLikes,1500);
+  assert.equal(state.active.length,0);
+  assert.equal(state.trackLength,5000);
+});

@@ -1,3 +1,9 @@
+### Runbook operacional e critérios para concluir a LIVE
+
+Veja [docs/OPERACAO-PRE-LIVE.md](docs/OPERACAO-PRE-LIVE.md) para links, checklist de QA no Android, segurança, persistência, data de vencimento do PostgreSQL e requisitos de captura de vídeo. O conector real permanece desativado por padrão.
+
+---
+
 ## Versão 2.8.1 — simulação segura de curtidas
 
 O painel do operador agora inclui **♥ SIMULAR 10 CURTIDAS**, disponível localmente ou no Render mediante ADMIN_KEY. Todas essas curtidas são marcadas como [TESTE], contabilizadas separadamente das curtidas reais observadas e não interferem em velocidade, inscrição ou ranking. O diagnóstico do servidor mantém os dois contadores separados. Nenhuma LIVE real é iniciada.

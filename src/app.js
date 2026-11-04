@@ -61,7 +61,7 @@ function queueNames(rows) {
 }
 function renderHud() {
   const m=biome(state.mapId);
-  byId("mapName").textContent=m.emoji+" "+m.name;
+  byId("mapName").textContent=m.name; // The biome ribbon already includes the emoji.
   byId("roundNumber").textContent="#"+String(state.round).padStart(3,"0");
   byId("playerCount").textContent=String(state.active.length);
   byId("phaseTime").textContent=countdown(state)+"s";

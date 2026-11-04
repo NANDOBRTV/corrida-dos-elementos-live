@@ -62,12 +62,12 @@ function doTrial(mapId,mode,index,signal){
         scaleSum+=world.getRenderScale();scaleCount++;
       }
       last=now;
-      // Sample both halves of the 300m course using identical positions in
+      // Compare the starting zone with a late 5km streaming tile, using identical
       // fixed and adaptive trials, rather than only measuring the start area.
       if(!lateSection&&elapsed>=trialMs/2){
         lateSection=true;
         runners.active.forEach((r,i)=>{
-          r.progress=TRACK_LENGTH*.72+(i%10)*.55;
+          r.progress=TRACK_LENGTH*.91+(i%10)*.55;
         });
       }
       // Exactly the same 50 visible, animated runners for both comparison modes.

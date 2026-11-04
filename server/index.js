@@ -20,8 +20,9 @@ function sendJson(res,code,data,extra={}){
 function authorized(req,secret){
   if(!secret)return false;
   const candidate=req.headers["x-admin-key"];
-  if(typeof candidate!=="string"||candidate.length!==secret.length)return false;
-  return timingSafeEqual(Buffer.from(candidate),Buffer.from(secret));
+  if(typeof candidate!=="string")return false;
+  const supplied=Buffer.from(candidate);const expected=Buffer.from(secret);
+  return supplied.length===expected.length && timingSafeEqual(supplied,expected);
 }
 async function bodyJson(req){
   const chunks=[];let size=0;
@@ -124,7 +125,7 @@ export async function createApp(opts={}){
           eventHistory.set(eventId,now());
           if(eventHistory.size>2000)eventHistory.delete(eventHistory.keys().next().value);
         }
-        sendJson(res,result.ok?200:400,{ok:result.ok,registered:result.ok,result,state});
+        sendJson(res,result.ok?200:400,{ok:result.ok,registered:result.ok,result,state,error:result.ok?undefined:result.reason});
         return;
       }
       if(path==="/api/admin/action"){
@@ -148,8 +149,10 @@ export async function createApp(opts={}){
     if(path.startsWith("/api/")){sendJson(res,404,{ok:false,error:"Rota não encontrada"});return;}
     if(req.method!=="GET"&&req.method!=="HEAD"){sendJson(res,405,{ok:false,error:"Método indisponível"});return;}
     const target=safeRoute(req.url||"/");
-    if(!target||target.startsWith(join(root,"server")+sep)||target.includes("/.git/")||target.includes("/.github/")||
-       target===join(root,"package.json")||target===join(root,"render.yaml")||target.includes("/node_modules/")){
+    const pathname=new URL(req.url||"/","http://localhost").pathname;
+    const publicFile=pathname==="/"||pathname==="/index.html"||pathname==="/tests.html"||
+      /^\/(?:src|assets|tests)\/[a-zA-Z0-9_.\/-]+$/.test(pathname);
+    if(!target||!publicFile||pathname.split("/").some(p=>p.startsWith("."))){
       sendJson(res,404,{ok:false,error:"Arquivo não encontrado"});return;
     }
     try{

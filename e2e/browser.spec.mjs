@@ -422,13 +422,13 @@ test("v2.5 turbo visuals follow the official state and disappear after cooldown"
   expect(observed.uniqueBatch).toBe(true);
 });
 
-test("v2.6 mobile 300 m straight minimap tracks top three racers",async({page,request})=>{
+test("v2.7 mobile 5000 m straight minimap tracks top three racers",async({page,request})=>{
   await reset(request);
   const errors=[];page.on("pageerror",e=>errors.push(e.message));
   await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
   await expect(page.locator("#remoteMode")).toContainText("PRÉVIA VISUAL LOCAL",{timeout:25_000});
   await expect(page.locator("#liveMiniMapName")).toContainText("GELO");
-  await expect(page.locator(".live-mini-finish")).toContainText("300 m");
+  await expect(page.locator(".live-mini-finish")).toContainText("5000 m");
   await expect(page.locator(".live-mini-start")).toContainText("0 m");
   for(const id of ["#liveMapDot","#liveMapRival2","#liveMapRival3"])
     await expect(page.locator(id)).toBeVisible();
@@ -476,6 +476,58 @@ test("v2.6 300m courses render a real finish in both biomes and retain old 150m 
   expect(scene[2].labels).toContain(150);
   expect(scene[0].background).not.toBe(scene[1].background);
   await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
-  await expect(page.locator("#liveMiniFinish")).toHaveText("🏁 300 m");
+  await expect(page.locator("#liveMiniFinish")).toHaveText("🏁 5000 m");
   await expect(page.locator("#liveRemaining")).toContainText("m até a chegada");
+});
+
+
+test("v2.7 streams only a 600m scenery window over a real 5km course",async({page,request})=>{
+  await reset(request);
+  await start(page,"?view=operator&quality=low");
+  const measurements=await page.evaluate(async()=>{
+    const {createWorld}=await import("/src/world.js");
+    const c=document.createElement("canvas");
+    c.style.cssText="position:absolute;left:-9999px;top:0;width:280px;height:440px";
+    document.body.append(c);
+    const world=createWorld(c,{quality:"low"});
+    const race={phase:"RUNNING",raceMs:1000,active:[{id:"test",lane:2,progress:0,
+      color:"#65d9fa",turboUntil:0,status:"running"}]};
+    const data=[];
+    try{
+      for(const map of ["ice","forest"]){
+        world.setMap(map,5000);
+        world.resize();
+        const root=world.scene.children.find(x=>x.isGroup&&x.name!=="absolute-finish-line");
+        const finish=world.scene.getObjectByName("absolute-finish-line");
+        const labels=[];
+        finish.traverse(o=>{if(o.isSprite)labels.push(o.position.z)});
+        const initial=world.scene.children.length;
+        let count=0;
+        root.traverse(o=>{if(o.isInstancedMesh)count+=o.count;else if(o.isMesh)count++;});
+        const positions=[];
+        for(const z of [0,299,499,500,780,4900,4998]){
+          race.active[0].progress=z;
+          world.render(race,.016);
+          positions.push(root.position.z);
+          let afterCount=0;
+          root.traverse(o=>{if(o.isInstancedMesh)afterCount+=o.count;else if(o.isMesh)afterCount++;});
+          if(afterCount!==count)throw Error("GPU objects unexpectedly grow during 5km stream");
+          if(world.scene.children.length!==initial)throw Error("Scene nodes leaked while streaming");
+        }
+        data.push({map,labels,positions,count,finishObjects:finish.children.length});
+      }
+    }finally{world.dispose();c.remove();}
+    return data;
+  });
+  expect(measurements).toHaveLength(2);
+  for(const m of measurements){
+    expect(m.count).toBeGreaterThan(100);
+    expect(m.count).toBeLessThan(2500);
+    expect(m.labels).toContain(5000);
+    expect(m.finishObjects).toBeGreaterThan(1);
+    expect(m.positions[0]).toBe(0);
+    expect(m.positions[3]).toBe(300);
+    expect(m.positions[5]).toBeGreaterThanOrEqual(4500);
+    expect(m.positions[6]).toBeLessThanOrEqual(4800);
+  }
 });

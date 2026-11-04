@@ -96,3 +96,18 @@ O endpoint GET /api/admin/storage-check exige o mesmo token administrativo do re
 A ferramenta externa para consultar PostgreSQL pode estar bloqueada pela allowlist de rede; o novo endpoint foi projetado para executar a consulta pelo próprio servidor Render (na mesma rede do banco). Nunca abra o banco publicamente só para executar diagnósticos.
 
 **Render Free ainda suspende por inatividade** e o banco gratuito não é definitivo; nada nesta versão habilita atividade 24 horas no plano gratuito.
+
+
+## Versão 1.9 — conexão resistente a reinicializações do Render
+
+O servidor informa um ID temporário e aleatório por **processo** (não é identificador de pessoa). O navegador compara esse ID nas respostas de /api/state, /health e nos eventos SSE. Se o Render reiniciar e o ID mudar, o aplicativo identifica a nova instância e volta a receber o estado oficial sem criar uma corrida local paralela.
+
+O navegador monitora a idade da última atualização oficial. Uma falha de SSE aciona status **Reconectando**; se os dados ficarem antigos, mostra explicitamente **Conexão interrompida — estado não atualizado** em vez de afirmar falsamente que está online. Enquanto o SSE está indisponível, tenta buscar o estado por HTTP até a conexão voltar. A mesma informação aparece na tela 9:16, mesmo sem o painel do operador.
+
+Os testes automáticos verificam:
+- Interrupção da rede e recuperação posterior no Chromium, sem conectar ao TikTok.
+- Reconhecimento de dados obsoletos, fallback HTTP e mudança de instância do Render.
+- Doze espectadores conectados simultaneamente ao mesmo estado de corrida via SSE.
+- Recuperação da mesma inscrição após reinicialização simulada, com um ID de processo diferente.
+
+Limites: **a reconexão automática não impede o Render Free de suspender por inatividade**. Durante uma suspensão o motor não está executando corridas, e a tela avisa que está aguardando. Não há mecanismo de keep-alive artificial, cobrança de plano pago nem tentativa de transmissão TikTok. O PostgreSQL salva o estado e permite retomar, mas não recupera os segundos de motor que deixaram de ocorrer enquanto o serviço estava dormindo.

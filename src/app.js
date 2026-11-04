@@ -8,6 +8,7 @@ import {seasonTop,recentWinners} from "./history.js";
 import {getViewMode} from "./view.js";
 import {qualityFromUrl,QUALITY_SETTINGS,shouldRender} from "./performance.js";
 import {createFrameMonitor,gradePerformance} from "./metrics.js";
+import {connectionMessage} from "./connection.js";
 
 const STORAGE_KEY="elemental-race-browser-v1";
 const byId=id=>document.getElementById(id);
@@ -408,6 +409,24 @@ void connectRemote({
     }
     byId("modeDisclaimer").textContent="O Render compartilha a corrida entre espectadores. Leitura de chat TikTok e transmissão de vídeo são serviços diferentes. Funcionamento 24h exige hospedagem sem suspensão e armazenamento persistente.";
     renderHud();
+  },
+  onConnection(status){
+    if(!remoteMode)return;
+    byId("remoteMode").textContent=connectionMessage(status.phase);
+    document.body.dataset.connection=status.phase;
+    const warning=byId("connectionNotice");
+    const lost=["stale","reconnecting","connecting"].includes(status.phase);
+    warning.hidden=!lost;
+    warning.textContent=status.phase==="stale"
+      ?"⚠ O servidor não está respondendo. A imagem da corrida está congelada até a reconexão."
+      :status.phase==="reconnecting"
+        ?"Reconectando ao motor Render. A última rodada recebida está congelada."
+        :"Conectando ao Render. Aguardando estado oficial da corrida.";
+  },
+  onRestart(){
+    // A restarted Render instance has a new process ID. The latest official state
+    // is already received before this callback; do not reset or recreate the race.
+    feedback("O Render reiniciou. Estado oficial sincronizado novamente.");
   },
   onStatus(text){byId("remoteStatus").textContent=text;}
 }).then(client=>{

@@ -60,7 +60,9 @@ export async function createApp(opts={}){
   const secret=opts.adminKey??process.env.ADMIN_KEY??"";
   if(!secret)console.warn("[security] ADMIN_KEY ausente: todos os comandos admin bloqueados");
   const subscribers=new Set();
-  let lastTick=now(),lastBroadcast=0,lastSave=now(),saving=false,dirty=true;
+  let lastTick=now(),lastBroadcast=0,lastSave=now();
+  let revision=0,savedRevision=validateSavedState(loaded)?0:-1;
+  let inFlight=null,lastPersistSuccess=null,lastPersistError=null;
   const eventHistory=new Map();
   const stats={startedAt:new Date().toISOString(),ticks:0,snapshots:0};
   let closed=false;
@@ -74,15 +76,40 @@ export async function createApp(opts={}){
     }
     stats.snapshots++;lastBroadcast=now();
   }
-  async function persist(){
-    if(!storage.enabled||saving||!dirty)return;
-    saving=true;
-    try{await storage.save(state);dirty=false;}
-    catch(e){console.error("[storage] Falha ao salvar:",e.message);}
-    finally{saving=false;lastSave=now();}
+  // Serializes writes and captures an immutable snapshot before each PostgreSQL save.
+  // A shutdown flush waits for in-flight writes, then stores the most recent revision.
+  async function persist(force=false){
+    if(!storage.enabled)return true;
+    if(inFlight){
+      if(!force)return inFlight;
+      await inFlight;
+    }
+    if(savedRevision===revision)return true;
+    const targetRevision=revision;
+    const snapshot=structuredClone(state);
+    const task=Promise.resolve().then(()=>storage.save(snapshot)).then(()=>{
+      savedRevision=targetRevision;
+      lastPersistSuccess=new Date().toISOString();
+      lastPersistError=null;
+      return true;
+    }).catch(error=>{
+      lastPersistError=String(error?.message??error).slice(0,160);
+      console.error("[storage] Erro ao salvar snapshot:",lastPersistError);
+      return false;
+    }).finally(()=>{
+      if(inFlight===task)inFlight=null;
+      lastSave=now();
+    });
+    inFlight=task;
+    const ok=await task;
+    if(ok&&force&&savedRevision!==revision)return persist(true);
+    return ok;
   }
   function mutation(fn){
-    const result=fn();dirty=true;notify();return result;
+    const result=fn();
+    revision++;
+    notify();
+    return result;
   }
   async function handler(req,res){
     if(closed){sendJson(res,503,{ok:false,error:"Serviço encerrando"});return;}
@@ -91,7 +118,9 @@ export async function createApp(opts={}){
     if(req.method==="GET"&&path==="/health"){
       sendJson(res,200,{ok:true,service:"corrida-dos-elementos-live",role:"race-engine",
         uptimeSeconds:Math.round(process.uptime()),round:state.round,phase:state.phase,
-        storage:storage.enabled?"postgres":"memory",tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected});
+        storage:storage.enabled?"postgres":"memory",storageHealthy:storage.enabled&&!lastPersistError,
+        persistedAt:lastPersistSuccess,unflushedChanges:storage.enabled&&savedRevision!==revision,
+        tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected});
       return;
     }
     if(req.method==="GET"&&path==="/api/state"){
@@ -176,7 +205,7 @@ export async function createApp(opts={}){
     const current=now();
     if(!state.paused){
       tick(state,current-lastTick);
-      stats.ticks++;dirty=true;
+      stats.ticks++;revision++;
     }
     lastTick=current;
     if(current-lastBroadcast>=850)notify();
@@ -189,6 +218,7 @@ export async function createApp(opts={}){
   return {
     state:()=>state,
     stats,
+    flush:()=>persist(true),
     async listen(port=Number(process.env.PORT)||3000){
       await new Promise((resolve,reject)=>{server.once("error",reject);server.listen(port,"0.0.0.0",resolve);});
       const address=server.address();console.log("[server] corrida-dos-elementos-live http://0.0.0.0:"+address.port);
@@ -215,7 +245,9 @@ export async function createApp(opts={}){
       for(const client of subscribers){try{client.end();}catch{}}
       subscribers.clear();
       if(bridge)await bridge.close();
-      await persist();await storage.close();
+      const saved=await persist(true);
+      if(!saved&&storage.enabled)console.error("[storage] Encerramento sem persistência confirmada");
+      await storage.close();
       await new Promise(resolve=>server.close(()=>resolve()));
     },
     server

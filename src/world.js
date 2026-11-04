@@ -154,7 +154,8 @@ export function createWorld(canvas) {
       });
     }
     for(const mat of materials.values())mat.dispose();materials.clear();
-    scene.clear();scene.add(root);
+    // Remove old biome lighting but preserve runner meshes mounted directly in the scene.
+    for(const child of [...scene.children])if(child.isLight)scene.remove(child);
   }
   function setMap(id) {
     const settings=biome(id);

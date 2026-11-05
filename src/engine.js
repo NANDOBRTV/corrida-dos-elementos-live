@@ -2,6 +2,7 @@ import { TRACK_LENGTH, PREVIOUS_LONG_TRACK_LENGTH, PREVIOUS_TRACK_LENGTH, LEGACY
 import {recordCompletedRace} from "./history.js";
 import {parseRaceJoin,validRobloxUsername} from "./roblox-names.js";
 import {activeGiftObstacles} from "./gift-obstacles.js";
+import {startingGrid} from "./start-grid.js";
 
 export const FIXED_STEP = 50;
 export function hash(text) {
@@ -25,11 +26,20 @@ export function createState(seed=127492) {
 export function buildRunner(person,index,seed) {
   const rng=randomFrom(hash(person.id+"|"+seed));
   return {
-    id:person.id, name:person.name, ...(person.robloxUserId?{robloxUserId:person.robloxUserId,robloxUsername:person.robloxUsername}:{}), lane:index%LANES, progress:0,
+    id:person.id, name:person.name, ...(person.robloxUserId?{robloxUserId:person.robloxUserId,robloxUsername:person.robloxUsername}:{}), lane:1+index%3,gridPosition:index+1,progress:0,
     baseSpeed:5.05+rng()*1.65, speed:0, status:"waiting",
     vehicleKind:"foot",vehicleUntil:0,
     finishTime:null, slowUntil:0, turboUntil:0, passed:[], color:RUNNER_COLORS[index%RUNNER_COLORS.length]
   };
+}
+export function arrangeStartingGrid(state){
+  if(state.phase!=="LOBBY"&&state.phase!=="COUNTDOWN")return;
+  const byId=new Map(state.active.map(r=>[r.id,r]));
+  for(const place of startingGrid(state.active)){
+    const runner=byId.get(place.id);
+    runner.gridPosition=place.position;
+    runner.lane=place.lane;
+  }
 }
 function announce(state,message) {
   state.messages.unshift({text:message.slice(0,150),at:state.round});
@@ -55,7 +65,10 @@ export function register(state,userId,displayName,content,robloxProfile=null){
     return {ok:false,reason:"Esse personagem Roblox já foi escolhido nesta rodada."};
   if(target.length>=50)return {ok:false,reason:"Limite de 50 participantes nesta rodada."};
   const person={id,name,...identity};
-  if(current)target.push(buildRunner(person,target.length,state.seed));else target.push(person);
+  if(current){
+    target.push(buildRunner(person,target.length,state.seed));
+    arrangeStartingGrid(state);
+  }else target.push(person);
   const round=state.round+(current?0:1);
   announce(state,name+" confirmado na rodada "+round);
   return {ok:true,round,queue:current?"atual":"próxima",id,...identity};
@@ -79,7 +92,10 @@ export function rank(runners) {
 function enterPhase(state,nextPhase) {
   state.phase=nextPhase;
   state.phaseMs=0;
-  if(nextPhase==="COUNTDOWN")announce(state,"Inscrições da rodada "+state.round+" encerradas.");
+  if(nextPhase==="COUNTDOWN"){
+    arrangeStartingGrid(state);
+    announce(state,"Inscrições da rodada "+state.round+" encerradas.");
+  }
   if(nextPhase==="RUNNING"){
     state.raceMs=0;
     state.giftObstacles=[];state.giftObstacleSequence=0;
@@ -110,6 +126,7 @@ export function nextRound(state) {
   state.nextLaps=1;
   state.seed=(state.seed+7919)>>>0;
   state.active=pending.map((p,i)=>buildRunner(p,i,state.seed));
+  arrangeStartingGrid({...state,phase:"LOBBY",active:state.active});
   state.next=[];
   state.results=[];
   state.giftObstacles=[];state.giftObstacleSequence=0;

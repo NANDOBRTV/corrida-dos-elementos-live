@@ -2,7 +2,8 @@ import * as THREE from "three";
 import { TRACK_LENGTH, PREVIOUS_TRACK_LENGTH, STREAM_TILE_LENGTH, biome, laneX } from "./config.js";
 import {activeGiftObstacles,MAX_ACTIVE_GIFT_OBSTACLES} from "./gift-obstacles.js";
 import {QUALITY_SETTINGS} from "./performance.js";
-import {trackCenter,trackPoint,COURSE_MILESTONES} from "./track-path.js";
+import {trackCenter,trackPoint,trackBounds,COURSE_MILESTONES} from "./track-path.js";
+import {visualStartingDistance,gridTrackPoint} from "./start-grid.js";
 import {createCameraDirector} from "./camera-director.js";
 import {snowbankProfile,clearOfWTrack} from "./snow-clearance.js";
 
@@ -31,12 +32,17 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   const courseStart=new THREE.Group();
   courseStart.name="course-start";
   scene.add(courseStart);
+  const terrainGroup=new THREE.Group();
+  terrainGroup.name="winter-terrain";
+  scene.add(terrainGroup);
   const materials=new Map();
   let mapId="";
   let currentLength=TRACK_LENGTH;
   let renderedLength=PREVIOUS_TRACK_LENGTH;
   const streamingLength=STREAM_TILE_LENGTH*2;
   let weather=null,focusRing=null,boostTrails=null,giftObstacleMesh=null;
+  let cameraInitialized=false;
+  let visibleCloseup=null;
   let curvedCourse=false;
   let ribbons=[],curvedBatches=[],curvedSingles=[];
   const upAxis=new THREE.Vector3(0,1,0);
@@ -86,6 +92,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     parent.add(sprite);
   }
   function pine(x,z,size=1,snow=false) {
+    if(snow&&curvedCourse&&!clearOfWTrack(z,{x,width:5*size,depth:5*size}))return;
     const t=new THREE.Group();t.position.set(x,0,z);t.scale.setScalar(size);root.add(t);
     block(t,0,1,0,.58,2,.58,0x69503a);
     block(t,0,2.4,0,2.2,1.8,2.2,snow?0x34584b:0x2e8551);
@@ -99,6 +106,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     }
   }
   function crystal(x,z,size=1,color=0x95eaff) {
+    if(curvedCourse&&!clearOfWTrack(z,{x,width:4*size,depth:4*size}))return;
     const m=new THREE.Mesh(octahedronGeometry,material(color,.18));
     m.position.set(x,size*.9,z);m.scale.set(size*.72,size*1.25,size*.72);m.rotation.z=.18;
     root.add(m);
@@ -110,7 +118,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     block(parent,0,6.25,z,13,1.0,.85,c,.15);
   }
   function scenery(id) {
-    // Static winter scenery stays outside the drivable route.
+    // Static winter scenery stays outside EVERY arm of the drivable route.
     // Batching merges equal geometry/material meshes to preserve draw-call budget.
     const sections=Math.ceil(renderedLength/150);
     for(let section=0;section<sections;section++){
@@ -358,12 +366,10 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     for(let i=0;i<active.length&&count<150;i++){
       const r=active[i];
       if(r.status!=="running"||!(r.turboUntil>race.raceMs))continue;
-      const progress=Math.max(0,Number(r.progress)||0);
-      const stagger=Math.max(0,1-progress/30)*Math.floor(i/5)*1.48;
-      const z=progress-stagger;
+      const z=visualStartingDistance(r,i);
       trailColor.set(r.color||0x9dfaff);
       for(let j=0;j<3&&count<150;j++){
-        const v=curvedCourse?trackPoint(z-.85-j*.72,laneX(r.lane),.22+.08*(j%2)):
+        const v=curvedCourse?gridTrackPoint(z-.85-j*.72,laneX(r.lane),.22+.08*(j%2)):
           {x:laneX(r.lane),y:.22+.08*(j%2),z:z-.85-j*.72,heading:0};
         trailTransform.position.set(v.x-root.position.x,v.y,v.z-root.position.z);
         trailTransform.scale.set(.20-j*.035,.10,.75);
@@ -398,7 +404,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     weather.position.y=p.y;
   }
   function clearMap() {
-    for(const owner of [root,finishGroup,courseStart,courseMilestones])while(owner.children.length){
+    for(const owner of [root,finishGroup,courseStart,courseMilestones,terrainGroup])while(owner.children.length){
       const child=owner.children[0];owner.remove(child);
       child.traverse(obj=>{
         if(obj.isSprite){ if(obj.material?.map)obj.material.map.dispose();obj.material?.dispose(); }
@@ -422,7 +428,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     const targetLength=[150,PREVIOUS_TRACK_LENGTH,TRACK_LENGTH].includes(length)?length:TRACK_LENGTH;
     if(mapId===settings.id&&currentLength===targetLength)return;
     clearMap();mapId=settings.id;currentLength=targetLength;
-    director.reset();
+    director.reset();visibleCloseup=null;cameraInitialized=false;
     curvedCourse=targetLength===TRACK_LENGTH;
     // A 400m lap fits in memory as one complete circuit; legacy races
     // also reuse the same 400m circuit without loading repeated geometry.
@@ -437,29 +443,29 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     sun.shadow.camera.left=-24;sun.shadow.camera.right=24;sun.shadow.camera.top=35;sun.shadow.camera.bottom=-35;
     scene.add(sun);
     if(curvedCourse){
-      // Snowy terrain and rock ridges stay outside the tarmac; the road
-      // is one 400m closed circuit and needs no new geometry per lap.
+      // Previous 125m snow slabs overlapped OTHER arms of the W road. Use
+      // ONE static snow field whose top is below the lowest asphalt point.
+      // This guarantees no white ground can project through the road.
+      const bounds=trackBounds(2);
+      const terrain=block(terrainGroup,
+        (bounds.minX+bounds.maxX)/2,-1.4,(bounds.minZ+bounds.maxZ)/2,
+        bounds.maxX-bounds.minX+240,2,bounds.maxZ-bounds.minZ+240,
+        settings.ground);
+      terrain.name="winter-terrain-floor";
+      terrain.castShadow=false;
+      // Decorative peaks are allowed only after a footprint-distance test
+      // against the ENTIRE closed course, including its tight return bends.
       for(let dz=30;dz<renderedLength;dz+=60){
-        block(root,0,-2.4,dz,125,4.6,80,settings.ground);
         for(const side of [-1,1]){
           const bump=((dz*7+(side+2)*13)%5);
-          // Angular terrain forms ridges rather than giant rectangular walls,
-          // so 50 characters and the U-turn remain visible on phone screens.
-          const ridge=side*(38+bump*4);
-          rock(root,ridge,dz,6+bump*1.2,
-            settings.id==="ice"?0xe3edf7:0x698e74);
-          rock(root,side*(64+bump*4),dz+13,9+bump*1.7,
-            settings.id==="ice"?0xd6e4f3:0x77987a);
-          if(dz%120===30){
-            const x=side*(94+bump*5);
-            rock(root,x,dz-8,17+bump*2.5,
-              settings.id==="ice"?0xd4dce8:0x678470);
-            // White angled snowcap on the far skyline, never over the road.
-            const peak=new THREE.Mesh(octahedronGeometry,
-              material(settings.id==="ice"?0xf5f8fc:0xa7c7a5));
-            peak.position.set(x,14+bump*2,dz-8);
-            peak.scale.set(9+bump,4+bump*.5,9+bump);
-            root.add(peak);
+          for(const [offset,shift,size] of [
+            [38+bump*4,0,6+bump*1.2],
+            [64+bump*4,13,9+bump*1.7],
+            [94+bump*5,-8,17+bump*2.5]
+          ]){
+            const x=side*offset,z=dz+shift;
+            if(clearOfWTrack(z,{x,width:size*2.4,depth:size*2.4}))
+              rock(root,x,z,size,settings.id==="ice"?0xdce7f2:0x698e74);
           }
         }
       }
@@ -557,11 +563,32 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       center.y+height,center.z-forwardZ*backDistance);
     lookTarget.set(center.x+forwardX*forwardDistance,
       center.y+1.5,center.z+forwardZ*forwardDistance);
-    // After each close-up, wait 0–10 random seconds before featuring another runner.
-    // Reuse the same camera and scene; no new 3D assets or draw calls.
+    // Countdown + the first seconds of the race are shot FROM IN FRONT of
+    // the starting grid, looking back at the first three leaders and the rows
+    // of three behind them. Blend into the moving chase camera afterwards.
+    const opening=race.phase==="LOBBY"||race.phase==="COUNTDOWN"?1:
+      race.phase==="RUNNING"&&z<65
+        ?Math.min(1,Math.max(0,(6500-(Number(race.raceMs)||0))/1800))
+        :0;
+    if(opening>0){
+      const first=curvedCourse?trackCenter(Math.max(0,Math.min(z,35))):{x:0,y:0,z,heading:0};
+      const forwardX=Math.sin(first.heading),forwardZ=Math.cos(first.heading);
+      const gridDepth=Math.ceil(active.length/3)*2.65;
+      const frontDistance=27+Math.min(15,gridDepth*.28);
+      const frontHeight=14+Math.min(14,gridDepth*.3);
+      closePosition.set(first.x+forwardX*frontDistance,first.y+frontHeight,
+        first.z+forwardZ*frontDistance);
+      closeLook.set(first.x-forwardX*Math.min(19,gridDepth*.42),
+        first.y+1.4,first.z-forwardZ*Math.min(19,gridDepth*.42));
+      positionTarget.lerp(closePosition,opening);
+      lookTarget.lerp(closeLook,opening);
+    }
+    // Close-ups only take control after the opening shot, and keep the
+    // existing randomized 0–10-second interval between selections.
     const focus=director.update(race);
-    if(focus&&focus.blend>0){
-      const point=curvedCourse?trackPoint(focus.progress,laneX(focus.lane)):
+    visibleCloseup=opening<.01?focus:null;
+    if(visibleCloseup&&visibleCloseup.blend>0){
+      const point=curvedCourse?trackPoint(visibleCloseup.progress,laneX(visibleCloseup.lane)):
         {x:laneX(focus.lane),y:0,z:focus.progress,heading:0};
       const fx=Math.sin(point.heading),fz=Math.cos(point.heading);
       const sideX=Math.cos(point.heading),sideZ=-Math.sin(point.heading);
@@ -569,12 +596,13 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       closePosition.set(point.x+fx*5.8+sideX*2.0,
         point.y+3.65,point.z+fz*5.8+sideZ*2.0);
       closeLook.set(point.x,point.y+1.8,point.z);
-      positionTarget.lerp(closePosition,focus.blend);
-      lookTarget.lerp(closeLook,focus.blend);
+      positionTarget.lerp(closePosition,visibleCloseup.blend);
+      lookTarget.lerp(closeLook,visibleCloseup.blend);
     }
     // Network recovery and benchmark jumps can move several kilometers.
     // Avoid rendering an empty transient frame between streamed tiles.
-    if(camera.position.distanceTo(positionTarget)>170){
+    if(!cameraInitialized||camera.position.distanceTo(positionTarget)>170){
+      cameraInitialized=true;
       camera.position.copy(positionTarget);
       cameraTarget.copy(lookTarget);
     }else{
@@ -590,9 +618,8 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       focusRing.visible=Boolean(leader);
       if(leader){
         const index=active.indexOf(leader);
-        const stagger=Math.max(0,1-Math.max(0,leader.progress)/30);
-        const finish= Math.max(0,leader.progress-Math.floor(index/5)*1.48*stagger);
-        const ring=curvedCourse?trackPoint(finish,laneX(leader.lane),.12):
+        const finish= visualStartingDistance(leader,index);
+        const ring=curvedCourse?gridTrackPoint(finish,laneX(leader.lane),.12):
           {x:laneX(leader.lane),y:.12,z:finish};
         focusRing.position.set(ring.x-root.position.x,ring.y,ring.z-root.position.z);
       }
@@ -602,6 +629,6 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   function dispose(){
     clearMap();boxGeometry.dispose();octahedronGeometry.dispose();renderer.dispose();
   }
-  return { scene, renderer, camera, getCameraFocus:()=>director.current(),
+  return { scene, renderer, camera, getCameraFocus:()=>visibleCloseup,
     setMap, resize, render, dispose, quality:profile.name, setRenderScale,getRenderScale };
 }

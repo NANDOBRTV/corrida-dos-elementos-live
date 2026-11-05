@@ -1,3 +1,11 @@
+## Versão 4.0.2 — largada frontal, grade 3×N e pista sem neve
+
+A câmera da largada fica **em frente aos participantes**, mostrando seus rostos durante o lobby, a contagem regressiva e os primeiros segundos da corrida. Depois se desloca suavemente para a câmera tradicional, preservando os closes aleatórios de 0 a 10s. A primeira fileira reúne o 1º, 2º e 3º classificados, lado a lado; a segunda recebe 4º a 6º e assim por diante, em até 17 linhas para 50 participantes. Os lugares são visuais, sem alterar as distâncias oficiais ou oferecer vantagem de velocidade.
+
+No mapa de Gelo, retiramos os largos blocos brancos de terreno que podiam atravessar outros braços do circuito W. Uma única base nevada fica inteiramente **abaixo** do asfalto; pinheiros, cristais e rochas visíveis são colocados apenas se não alcançarem nenhuma parte da pista. O asfalto continua escuro, com a neve preservada ao redor.
+
+---
+
 ## Versão 4.0.1 — pista limpa no mapa de Gelo
 
 O asfalto do circuito W de 400 metros agora é **cinza-escuro e completamente livre de neve**. As montanhas, árvores e margens da estrada continuam nevadas; os bancos de neve só são colocados depois de verificar o afastamento mínimo de 2,4 m da borda do asfalto e de todas as curvas que passam próximas. Os flocos de neve sobre a câmera/pista foram retirados apenas do cenário de Gelo, mantendo as folhas ambientes na Floresta. A pista nativa opcional do Roblox Studio também recebe o asfalto mais escuro. Não há alteração nos presentes, obstáculos acionados por presentes, duração de voltas ou câmera.

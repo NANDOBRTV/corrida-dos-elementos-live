@@ -40,3 +40,14 @@ test("Ice snowfall never drifts over the road, forest leaves remain unaffected",
   assert.ok(source.includes('clearOfWTrack(base+z,icePatch)'));
   assert.ok(source.includes('weather.name="biome-weather-particles"'));
 });
+
+test("The snowy ground floor is placed below the lowest point of the W asphalt",async()=>{
+  const {readFile}=await import("node:fs/promises");
+  const world=await readFile(new URL("../src/world.js",import.meta.url),"utf8");
+  assert.ok(world.includes('terrain.name="winter-terrain-floor"'));
+  assert.ok(world.includes('(bounds.minX+bounds.maxX)/2,-1.4'));
+  assert.ok(world.includes('terrainGroup'));
+  assert.ok(!world.includes('block(root,0,-2.4,dz,125,4.6,80,settings.ground)'));
+  assert.ok(world.includes('clearOfWTrack(z,{x,width:size*2.4,depth:size*2.4})'));
+  assert.ok(world.includes('clearOfWTrack(z,{x,width:5*size,depth:5*size})'));
+});

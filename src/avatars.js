@@ -2,7 +2,7 @@ import * as THREE from "three";
 import {laneX} from "./config.js";
 import {rank} from "./engine.js";
 import {appearanceForRunner} from "./cosmetics.js";
-import {trackPoint} from "./track-path.js";
+import {gridTrackPoint,visualStartingDistance} from "./start-grid.js";
 
 export function createAvatars(scene,{quality="balanced"}={}) {
   const simple=quality==="low";
@@ -41,10 +41,7 @@ export function createAvatars(scene,{quality="balanced"}={}) {
     flushVoxelBatch();
   }
   function visualProgress(r,index){
-    // Only visual: a ten-row starting grid does not alter racing physics.
-    const row=Math.floor(index/5);
-    const taper=Math.max(0,1-Math.max(0,r.progress)/30);
-    return r.progress-row*1.48*taper;
+    return visualStartingDistance(r,index);
   }
   function labelTexture(text,accent="#c9f86e") {
     const key=text.slice(0,14)+"|"+accent;
@@ -86,7 +83,7 @@ export function createAvatars(scene,{quality="balanced"}={}) {
     const pack=[0x393f70,0x7d4a39,0x225f65,0x5b3965,0x345a37][style];
     const group=new THREE.Group();
     group.name="blocky-runner-"+index;
-    const initial=trackPoint(visualProgress(r,index),laneX(r.lane),.76);
+    const initial=gridTrackPoint(visualProgress(r,index),laneX(r.lane),.76);
     group.position.set(initial.x,initial.y,initial.z);
     group.rotation.y=initial.heading;
     const body=new THREE.Group();group.add(body);
@@ -247,7 +244,7 @@ export function createAvatars(scene,{quality="balanced"}={}) {
       const visualZ=visualProgress(r,i);
       if(Math.abs(item.lastZ-visualZ)>25)item.lastZ=visualZ; // Snap after reconnect or benchmark segment jump.
       item.lastZ+=Math.min(1,dt*8)*(visualZ-item.lastZ);
-      const route=trackPoint(item.lastZ,item.lastX,.76);
+      const route=gridTrackPoint(item.lastZ,item.lastX,.76);
       item.group.position.set(route.x,route.y,route.z);
       item.group.rotation.y=route.heading;
       item.label.visible=labeled.has(r.id);

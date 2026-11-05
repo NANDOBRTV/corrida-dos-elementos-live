@@ -1,4 +1,6 @@
-// Efficient, original low-poly automotive renderer for Studio V5.
+// Optimized premium procedural body renderer for Studio V5.
+import {isHeroCar} from "./vehicles.js";
+import {createHeroCarGeometries,roofLadderParts,heroSignatureParts} from "./studio-hero-cars.js";
 // This is NOT a set of licensed/manufacturer CAD models. Realistic vehicle
 // proportions and smooth curved panels replace the former rectangular boxes.
 // Geometry/materials are reused in InstancedMeshes, even with 100 drivers.
@@ -160,6 +162,8 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
     lampMaterial,tailMaterial,bootMaterial
   ];
   const body=new Map(),windows=new Map();
+  const heroBody=new Map(),heroWindows=new Map(),heroRoofs=new Map();
+  const allHeroShapes=createHeroCarGeometries(THREE);
   const counts=new Map();
   const batch=(name,geometry,mat,max=capacity)=>{
     ownedGeometries.push(geometry);
@@ -172,6 +176,22 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
     windows.set(profile,batch("studio-real-glass-"+profile,
       glassGeometry(THREE,profile),glassMaterial));
   }
+  for(const [id,shape] of allHeroShapes){
+    heroBody.set(id,batch("studio-hero-body-"+id,
+      shape.body,shellMaterial));
+    heroWindows.set(id,batch("studio-hero-windows-"+id,
+      shape.glass,glassMaterial));
+    heroRoofs.set(id,batch("studio-hero-roof-"+id,
+      shape.roof,shellMaterial));
+  }
+  const detailMaterial=new THREE.MeshStandardMaterial({
+    color:0xffffff,metalness:.62,roughness:.32
+  });
+  ownedMaterials.push(detailMaterial);
+  const heroTrim=batch("studio-hero-model-body-trim",
+    new THREE.BoxGeometry(1,1,1),detailMaterial,capacity*58);
+  const heroRound=batch("studio-fusca-rounded-wheel-fenders",
+    new THREE.SphereGeometry(.5,12,10),shellMaterial,capacity*4);
   const tireGeometry=new THREE.CylinderGeometry(.5,.5,1,14,1);
   tireGeometry.rotateZ(Math.PI/2);
   const rimGeometry=new THREE.CylinderGeometry(.5,.5,1,12,1);
@@ -195,7 +215,7 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
   const riderGloves=batch("studio-motorcycle-rider-gloves-and-boots",
     new THREE.SphereGeometry(.5,8,6),bootMaterial,capacity*4);
   const headlights=batch("studio-real-front-headlamps",
-    new THREE.SphereGeometry(.5,8,6),lampMaterial,capacity*2);
+    new THREE.SphereGeometry(.5,8,6),lampMaterial,capacity*4);
   const taillights=batch("studio-real-rear-taillamps",
     new THREE.SphereGeometry(.5,8,6),tailMaterial,capacity*2);
   const local=new THREE.Matrix4(),combined=new THREE.Matrix4();
@@ -204,6 +224,8 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
   const start=new THREE.Vector3(),end=new THREE.Vector3(),
     diff=new THREE.Vector3(),up=new THREE.Vector3(0,1,0);
   let renderedCars=0,renderedMotorcycles=0,totalWheels=0,totalRiders=0;
+  let heroModels=0,ladderRungs=0,heroDetailParts=0;
+  const heroIds=new Set();
   function push(mesh,root,x,y,z,sx,sy,sz,color=null,pitch=0){
     const slot=counts.get(mesh);
     if(slot>=mesh.instanceMatrix.count)return;
@@ -230,9 +252,70 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
     limbs.setMatrixAt(slot,combined);limbs.setColorAt(slot,color);
     counts.set(limbs,slot+1);
   }
+  const CHROME=new THREE.Color(0xc3ccd4);
+  const DARK=new THREE.Color(0x192531);
+  const BLACK=new THREE.Color(0x141b25);
+  function addHeroDetails(vehicle,root,paint){
+    const w=vehicle.width,l=vehicle.length,id=vehicle.id;
+    heroModels++;heroIds.add(id);
+    const parts=heroSignatureParts(id,w,l);
+    for(const part of parts){
+      const color=part.mat==="chrome"?CHROME:
+        part.mat==="paint"?paint:DARK;
+      push(heroTrim,root,...part.p,...part.s,color);
+      heroDetailParts++;
+    }
+    // All Uno instances (regardless of player color) have a visible
+    // polished metal roof ladder: 2 rails, 12 rungs, 4 mounts.
+    const ladder=roofLadderParts(id);
+    for(const part of ladder){
+      push(heroTrim,root,...part.p,...part.s,CHROME,part.tilt);
+      heroDetailParts++;
+      if(part.name.startsWith("rung-"))ladderRungs++;
+    }
+    if(id==="car-fusca"){
+      // Pronounced rounded wheel arches and curved front/rear wings.
+      for(const side of [-1,1])for(const z of [-l*.31,l*.31]){
+        push(heroRound,root,side*w*.44,.46,z,
+          .48,.50,.70,paint);
+        heroDetailParts++;
+      }
+      // The rear-engined Fusca has two dark rear ventilation strips.
+      for(let z=-l*.45;z<=-l*.38;z+=.075){
+        push(heroTrim,root,0,.78,z,w*.28,.026,.033,BLACK);
+        heroDetailParts++;
+      }
+    }else if(id==="car-opala"){
+      // Double round headlamps and longer bright rear chrome bumper.
+      for(const side of [-1,1]){
+        push(headlights,root,side*w*.19,.74,l*.49,
+          .26,.24,.11);
+        heroDetailParts++;
+      }
+      push(heroTrim,root,0,.67,l*.498,w*.66,.05,.045,CHROME);
+      heroDetailParts++;
+    }else if(id==="car-civic"){
+      // A low, long leading-edge grille and narrow sporty front spoiler.
+      push(heroTrim,root,0,.48,l*.499,w*.86,.045,.07,BLACK);
+      heroDetailParts++;
+    }else if(id==="car-gol"||id==="car-palio"){
+      // Hatch versions have distinct upright rear silhouettes in
+      // the hero cabin mesh; keep a small rear wiper and hatch handle.
+      push(heroTrim,root,0,1.03,-l*.445,w*.31,.035,.04,BLACK);
+      heroDetailParts++;
+    }
+  }
+
   function begin(){
     for(const mesh of ownedMeshes)counts.set(mesh,0);
     renderedCars=0;renderedMotorcycles=0;totalWheels=0;totalRiders=0;
+    heroModels=0;ladderRungs=0;heroDetailParts=0;heroIds.clear();
+  }
+  function idToCabin(id){
+    return {
+      "car-fusca":.71,"car-uno":.67,"car-palio":.64,
+      "car-gol":.62,"car-civic":.61,"car-opala":.52
+    }[id]??null;
   }
   function renderVehicle(vehicle,userId,root,progress=0,running=false){
     const paint=new THREE.Color(paintFor(userId));
@@ -245,13 +328,27 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
       const cabinScale=hint.cabin??.59;
       const cabinCenter=hint.offset??0;
       const cabinHeight=hint.height??.70;
-      push(body.get(profile),root,0,.35,0,w,.78+(high?.13:0),l,paint);
-      // Window bottoms nest INTO the body (no floating glass shells).
+      const hero=isHeroCar(vehicle.id);
+      const mainBody=hero?heroBody.get(vehicle.id):body.get(profile);
+      push(mainBody,root,0,.35,0,w,.78+(high?.13:0),l,paint);
+      // For the six featured models, glass and metal roof contours are
+      // separately sculpted; all others retain the light shared meshes.
       const glassY=.79;
-      push(windows.get(profile),root,0,glassY,cabinCenter,
-        w*.81,cabinHeight,l*cabinScale);
-      push(roofs,root,0,glassY+cabinHeight*.98,cabinCenter,
-        w*.73,.085,l*cabinScale*.70,paint);
+      if(hero){
+        const glassLen=l*(idToCabin(vehicle.id)??cabinScale);
+        const heroLen=glassLen*1.08;
+        const heroHeight=cabinHeight*(vehicle.id==="car-uno"?1.08:1);
+        push(heroWindows.get(vehicle.id),root,0,glassY,cabinCenter,
+          w*.83,heroHeight,heroLen);
+        push(heroRoofs.get(vehicle.id),root,0,glassY,cabinCenter,
+          w*.83,heroHeight,heroLen,paint);
+        addHeroDetails(vehicle,root,paint);
+      }else{
+        push(windows.get(profile),root,0,glassY,cabinCenter,
+          w*.81,cabinHeight,l*cabinScale);
+        push(roofs,root,0,glassY+cabinHeight*.98,cabinCenter,
+          w*.73,.085,l*cabinScale*.70,paint);
+      }
       const classic=profile==="classic";
       const sport=hint.lights==="slim";
       const upright=hint.lights==="vertical";
@@ -322,6 +419,8 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
   function stats(){return {
     realCarModels:renderedCars,realMotorcycleModels:renderedMotorcycles,
     motorcycleRiders:totalRiders,realWheels:totalWheels,
+    heroModels,heroUniqueModels:heroIds.size,
+    unoLadderRungs:ladderRungs,heroDetailParts,
     realDetailMeshes:ownedMeshes.filter(mesh=>mesh.count>0).length
   };}
   function dispose(){

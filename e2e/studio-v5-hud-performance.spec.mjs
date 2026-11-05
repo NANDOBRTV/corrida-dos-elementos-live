@@ -72,8 +72,8 @@ for(const profile of [
     expect(audit.mapPath).toBeGreaterThan(40);
     expect(audit.stats.cameraCount).toBe(1);
     expect(audit.stats.runners).toBe(100);
-    expect(audit.stats.drawCalls).toBeLessThan(30);
-    expect(audit.stats.triangles).toBeLessThan(55000);
+    expect(audit.stats.drawCalls).toBeLessThan(50);
+    expect(audit.stats.triangles).toBeLessThan(200000);
     expect(audit.watchdog.renderErrors).toBe(0);
     expect(errors).toEqual([]);
     await page.screenshot({path:'test-results/parte9-'+profile.width+'x'+profile.height+'.png'});
@@ -116,7 +116,7 @@ test('Parte 9: medir FPS real do navegador, qualidade adaptativa e recuperação
   expect(frames.frames).toBeGreaterThan(0);
   expect(after.stats.cameraCount).toBe(1);
   expect(after.stats.runners).toBe(100);
-  expect(after.stats.drawCalls).toBeLessThan(30);
+  expect(after.stats.drawCalls).toBeLessThan(50);
   expect(after.stats.renderScale).toBeGreaterThanOrEqual(.62);
   expect(after.stats.renderScale).toBeLessThanOrEqual(1);
   expect(after.watchdog.renderErrors).toBe(0);

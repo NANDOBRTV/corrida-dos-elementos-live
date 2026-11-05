@@ -136,10 +136,55 @@ function element(tag,className,value){
   if(value!==undefined)node.textContent=String(value);
   return node;
 }
+// Original 32px pixel portraits replace letter-only placeholders in the
+// ranking, nameplates, viewer chips and event card. No platform assets used.
+const portraitCache=new Map();
+function voxelPortrait(name,color="#86a8d7"){
+  const key=String(name)+"|"+String(color);
+  if(portraitCache.has(key))return portraitCache.get(key);
+  const seed=Array.from(key).reduce((h,c)=>
+    (Math.imul(h^c.charCodeAt(0),16777619))>>>0,2166136261);
+  const skins=["#f2c5a1","#b57d58","#e8b898","#ad795d","#e7d4b9"];
+  const hair=["#242633","#624230","#e6bf61","#352838","#c6d6e2"];
+  const canvas=document.createElement("canvas");
+  canvas.width=32;canvas.height=32;
+  const ctx=canvas.getContext("2d");
+  ctx.imageSmoothingEnabled=false;
+  function rect(x,y,w,h,fill){
+    ctx.fillStyle=fill;ctx.fillRect(x,y,w,h);
+  }
+  rect(0,0,32,32,typeof color==="string"&&/^#[0-9a-f]{6}$/i.test(color)?
+    color:"#6b99b7");
+  rect(2,2,28,28,"#ffffff24");
+  const skin=skins[seed%skins.length],h=hair[(seed>>>4)%hair.length];
+  const shirt=["#1d374d","#b35c75","#8f653f","#303a51","#d8e2eb"][(seed>>>7)%5];
+  rect(0,25,32,7,shirt);
+  rect(5,20,22,8,shirt);
+  rect(8,7,16,18,skin);
+  rect(7,6,18,5,h);
+  rect(7,11,3,7,h);rect(22,11,3,7,h);
+  if(seed%4===0){
+    rect(8,4,16,4,shirt);rect(5,8,21,3,shirt);
+  }else if(seed%4===1){
+    rect(4,7,4,12,shirt);rect(24,7,4,12,shirt);
+    rect(6,4,20,4,shirt);
+  }else if(seed%4===2){
+    rect(10,3,5,5,h);rect(16,2,6,6,h);
+  }
+  rect(11,15,3,3,"#101926");rect(19,15,3,3,"#101926");
+  rect(12,15,1,1,"#ffffff");rect(20,15,1,1,"#ffffff");
+  rect(14,21,5,2,"#784c45");
+  if(seed%7===0)rect(9,20,15,4,shirt);
+  const result=canvas.toDataURL("image/png");
+  if(portraitCache.size>=150)
+    portraitCache.delete(portraitCache.keys().next().value);
+  portraitCache.set(key,result);
+  return result;
+}
 function avatarChip(profile,name,color){
   const holder=element("span","studio-avatar");
   holder.style.setProperty("--avatar-color",color||"#81b9d5");
-  const source=safePhoto(profile?.avatarUrl);
+  const source=safePhoto(profile?.avatarUrl)||voxelPortrait(name,color);
   holder.textContent=shortName(name,1).toUpperCase();
   if(source){
     const img=document.createElement("img");
@@ -312,6 +357,25 @@ export async function startStudioLive({preview=false}={}){
   }
   function renderMessages(state){
     const messages=Array.isArray(state.messages)?state.messages.slice(0,5):[];
+    // Reference-like fictional preview chat; clearly identified as a demo.
+    // Never generate synthetic spectators, messages or gifts in a real LIVE.
+    if(preview&&state.active?.length){
+      const time=(state.phase==="RUNNING"?state.raceMs:state.phaseMs)||0;
+      const bucket=Math.floor(time/5100);
+      const sample=[
+        "vai dar certo! ✨",
+        "olha essa corrida 🔥",
+        "quem está liderando? 👀",
+        "torcendo por vocês 💙",
+        "esse turbo foi demais ⚡"
+      ];
+      for(let k=0;k<4;k++){
+        const runner=state.active[(bucket*3+k*5)%state.active.length];
+        messages.push({id:"demo-"+bucket+"-"+k,
+          sender:runner?.name||"Corredor",
+          text:"[demo] "+sample[(bucket+k)%sample.length]});
+      }
+    }
     const signature=messages.map(m=>String(m.id??"")+"#"+String(m.text)).join("|");
     if(signature===liveState.lastChatKey)return;
     liveState.lastChatKey=signature;
@@ -440,8 +504,12 @@ export async function startStudioLive({preview=false}={}){
       };
       const [label,color]=powers[activeFx.type]??["⚡ EFEITO","#f2c960"];
       text(ui.featureName,name);text(ui.featurePower,label);
-      text(ui.featureAvatar,name.charAt(0));
-      ui.featureAvatar.style.background=color;
+      text(ui.featureAvatar,"");
+      ui.featureAvatar.style.backgroundColor=color;
+      const avatarSrc=safePhoto(profile(chosen?.id)?.avatarUrl)||
+        voxelPortrait(name,color);
+      ui.featureAvatar.style.backgroundImage="url("+avatarSrc+")";
+      ui.featureAvatar.style.backgroundSize="cover";
       text(ui.featureLabel,preview?"EFEITO DE DEMONSTRAÇÃO":"EFEITO DA CORRIDA");
     }
     if(phase==="LOBBY"){

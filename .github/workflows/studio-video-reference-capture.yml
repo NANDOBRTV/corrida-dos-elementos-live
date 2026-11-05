@@ -70,6 +70,11 @@ jobs:
           const running=await page.screenshot({type:'jpeg',quality:53});
           writeFileSync('test-results/reference-review/running.jpg',running);
           console.log('VISUAL_IMAGE_RUNNING:'+running.toString('base64'));
+          await page.evaluate(()=>{window.__studioV5Debug.getState().raceMs=12000;});
+          await page.waitForTimeout(1500);
+          const leaders=await page.screenshot({type:'jpeg',quality:53});
+          writeFileSync('test-results/reference-review/top-three.jpg',leaders);
+          console.log('VISUAL_IMAGE_TOP_THREE:'+leaders.toString('base64'));
           console.log('SCENE_STATS:'+JSON.stringify(await page.evaluate(
             ()=>window.__studioV5Debug.getSceneStats())));
           await browser.close();

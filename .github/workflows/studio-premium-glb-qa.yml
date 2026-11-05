@@ -1,0 +1,53 @@
+name: Carros premium GLB — QA com modelos licenciados
+on:
+  push:
+    branches: [studio-v5-live-9x16]
+    paths:
+      - ".github/workflows/studio-premium-glb-qa.yml"
+      - "src/studio-premium-assets.js"
+      - "src/studio-premium-cars.js"
+      - "src/studio-scene.js"
+      - "src/studio-vehicle-models.js"
+      - "scripts/fetch-hero-models.mjs"
+      - "e2e/studio-premium-glb.spec.mjs"
+      - "package.json"
+      - "index.html"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  premium-glb:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install JavaScript dependencies
+        run: npm install --include=dev --no-audit --no-fund
+      - name: Retrieve verified CC BY GLB files (5 source-correct cars)
+        env:
+          ENABLE_PREMIUM_MODELS: "1"
+          REQUIRE_HERO_MODELS: "1"
+        run: node scripts/fetch-hero-models.mjs
+      - name: Verify source and game engine
+        run: |
+          npm run check
+          npm test
+      - name: Install Chromium + SwiftShader/WebGL
+        run: npx playwright install --with-deps chromium
+      - name: Render real licensed GLB cars and screenshot
+        env:
+          CI: "1"
+          TEST_PREMIUM_GLB: "1"
+        run: npx playwright test e2e/studio-premium-glb.spec.mjs --reporter=line
+      - name: Preserve premium renders and failure traces
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: studio-v5-licensed-glb-qa
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7

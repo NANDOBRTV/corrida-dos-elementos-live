@@ -8,9 +8,10 @@ import {
   advanceStudioCamera,studioVisibleNameplates
 } from "./studio-camera.js";
 import {buildStudioEffectParts,STUDIO_EFFECT_LIMITS} from "./studio-effects.js";
+import {resolveVehicle,vehicleForBot} from "./vehicles.js";
 
 export const STUDIO_SCENE_LIMITS=Object.freeze({
-  maxRunners:100,avatarParts:30,roadSegments:78,
+  maxRunners:100,avatarParts:VEHICLE_PARTS,roadSegments:78,
   segmentMeters:4,trees:162,hills:52,snowParticles:430,
   walls:22,decorations:130,qualityMinScale:.62,maxNameplates:12
 });
@@ -24,39 +25,110 @@ const colors={
     road:0x9d9888,edge:0xd8c5a0,line:0xf5ead4,
     trunk:0x69513a,crown:0x306849,hill:0x78ad78}
 };
-const avatarPart=[
-  {p:[0,1.15,0],s:[.83,.98,.51],style:"shirt"},
-  {p:[0,2.04,0],s:[.76,.78,.72],style:"skin"},
-  {p:[0,2.49,-.03],s:[.80,.17,.78],style:"hair"},
-  {p:[-.56,1.22,0],s:[.32,.89,.39],style:"sleeve",swing:-1},
-  {p:[ .56,1.22,0],s:[.32,.89,.39],style:"sleeve",swing:1},
-  {p:[-.23,.33,0],s:[.32,.69,.40],style:"pants",swing:1},
-  {p:[ .23,.33,0],s:[.32,.69,.40],style:"pants",swing:-1},
-  {p:[-.23,.05,.10],s:[.34,.18,.59],style:"shoe",swing:1},
-  {p:[ .23,.05,.10],s:[.34,.18,.59],style:"shoe",swing:-1},
-  {p:[-.14,2.14,.365],s:[.105,.12,.035],style:"eye"},
-  {p:[ .14,2.14,.365],s:[.105,.12,.035],style:"eye"},
-  {p:[0,1.88,.365],s:[.20,.05,.03],style:"mouth"},
-  {p:[0,.98,-.32],s:[.47,.66,.27],style:"pack"},
-  {p:[0,2.53,-.22],s:[.93,.18,.47],style:"hair"},
-  {p:[-.27,1.35,-.28],s:[.19,.67,.065],style:"stripe"},
-  {p:[ .27,1.35,-.28],s:[.19,.67,.065],style:"stripe"},
-  {p:[-.58,.62,.02],s:[.35,.18,.43],style:"wrist"},
-  {p:[ .58,.62,.02],s:[.35,.18,.43],style:"wrist"},
-  {p:[0,1.11,-.478],s:[.52,.16,.05],style:"emblem"},
-  // Deterministic outfit silhouettes, built only from original voxel blocks.
-  {p:[0,2.67,-.04],s:[.96,.28,.87],style:"hood",only:[1,3,6]},
-  {p:[-.47,2.13,.01],s:[.21,.74,.75],style:"hood",only:[1,3]},
-  {p:[ .47,2.13,.01],s:[.21,.74,.75],style:"hood",only:[1,3]},
-  {p:[0,2.17,.395],s:[.68,.21,.07],style:"visor",only:[0,4,6]},
-  {p:[0,1.92,.397],s:[.70,.24,.09],style:"mask",only:[2,3,6]},
-  {p:[0,1.08,-.62],s:[.86,1.18,.15],style:"cape",only:[2,5]},
-  {p:[-.75,1.48,0],s:[.45,.31,.63],style:"armor",only:[0,2,4]},
-  {p:[ .75,1.48,0],s:[.45,.31,.63],style:"armor",only:[0,2,4]},
-  {p:[0,2.79,-.08],s:[.75,.24,.71],style:"hat",only:[4,7]},
-  {p:[0,1.20,.34],s:[.53,.52,.11],style:"chest",only:[0,4,7]},
-  {p:[0,.83,.33],s:[.83,.19,.13],style:"belt",only:[0,2,5]}
-];
+// A single fixed 30-block InstancedMesh carries every car and motorcycle.
+// Model-specific coordinates are cached once; no separate meshes per runner.
+const VEHICLE_PARTS=30;
+const vehicleShapes=new Map();
+const hide=()=>({p:[0,0,0],s:[0,0,0],style:"body"});
+function blocksFor(vehicle){
+  const id=vehicle.id;
+  if(vehicleShapes.has(id))return vehicleShapes.get(id);
+  const out=[];
+  const add=(p,s,style,role="")=>{
+    if(out.length<VEHICLE_PARTS)out.push({p,s,style,role});
+  };
+  const w=vehicle.width,l=vehicle.length,h=vehicle.height;
+  if(vehicle.kind==="car"){
+    const isPickup=vehicle.shape==="pickup";
+    const isSuv=vehicle.shape==="suv";
+    const isClassic=vehicle.shape==="classic-round";
+    const isSedan=/sedan|muscle/.test(vehicle.shape);
+    const isCompact=vehicle.shape==="compact";
+    const wheelZ=l*.32,wheelX=w*.49;
+    const cabinLength=isPickup?l*.39:isSuv?l*.69:
+      isSedan?l*.48:isCompact?l*.62:l*.57;
+    const cabinCenter=isPickup?l*.16:isSedan?-.13:0;
+    const cabinHeight=isSuv?.72:isCompact?.70:isPickup?.59:.54;
+    // Front direction is +Z, the same heading as the race camera.
+    add([0,.55,0],[w,.42,l],"body");
+    add([0,.77,l*.34],[w*.92,.22,l*.30],"body");
+    add([0,.77,-l*.33],[w*.90,isPickup?.15:.24,l*.30],
+      isPickup?"trim":"body");
+    if(isPickup){
+      add([0,.66,-l*.30],[w*.88,.07,l*.44],"cargo");
+      for(const sign of [-1,1])
+        add([sign*w*.42,.86,-l*.30],[.10,.37,l*.43],"body");
+    }else{
+      add([0,1.00+h*.11,cabinCenter],
+        [w*.77,cabinHeight,cabinLength],"glass");
+      add([0,1.29+h*.17,cabinCenter],[w*.85,.17,cabinLength*.94],
+        "roof");
+    }
+    if(isPickup){
+      add([0,1.02+h*.08,cabinCenter],[w*.79,.46,cabinLength],"glass");
+      add([0,1.30+h*.1,cabinCenter],[w*.85,.16,cabinLength*.94],"roof");
+    }
+    for(const side of [-1,1]){
+      add([side*w*.43,1.05,cabinCenter],[.065,.35,cabinLength*.78],"glass");
+      add([side*w*.46,.57,0],[.07,.08,l*.29],"trim");
+      add([side*w*.39,.75,l*.43],[.15,.19,.11],"light");
+      add([side*w*.39,.76,-l*.45],[.16,.17,.11],"tail");
+      add([side*wheelX,.36,wheelZ],[.32,.63,.65],"wheel","wheel");
+      add([side*wheelX,.36,-wheelZ],[.32,.63,.65],"wheel","wheel");
+      add([side*(wheelX+.17),.36,wheelZ],[.035,.27,.27],"rim","spoke");
+      add([side*(wheelX+.17),.36,-wheelZ],[.035,.27,.27],"rim","spoke");
+    }
+    add([0,.51,l*.49],[w*.90,.23,.13],"bumper");
+    add([0,.51,-l*.49],[w*.91,.22,.13],"bumper");
+    add([0,.73,l*.505],[w*.46,.17,.035],"grill");
+    add([0,.56,-l*.506],[.48,.18,.038],"plate");
+    if(isSuv)add([0,1.50+h*.16,cabinCenter],
+      [w*.72,.10,cabinLength*.77],"trim");
+    if(isClassic)add([0,1.38,cabinCenter],[w*.62,.24,cabinLength*.77],"roof");
+    if(vehicle.shape==="muscle")
+      add([0,.89,l*.13],[w*.60,.10,.50],"trim");
+  }else{
+    const isScooter=vehicle.shape==="scooter"||vehicle.shape==="step-through";
+    const isTrail=vehicle.shape==="trail";
+    const wheelZ=l*.32,wheelY=isTrail?.49:.42;
+    const wheelSize=isTrail?.89:.72;
+    // Two wheels, tank, seat, handlebar, suspension and lights.
+    for(const z of [-wheelZ,wheelZ]){
+      add([0,wheelY,z],[.29,wheelSize,wheelSize],"wheel","wheel");
+      add([.165,wheelY,z],[.04,wheelSize*.63,wheelSize*.63],"rim","spoke");
+      add([-.165,wheelY,z],[.04,wheelSize*.63,wheelSize*.63],"rim","spoke");
+    }
+    add([0,.78,0],[.40,.37,l*.70],"frame");
+    add([0,.95,l*.12],[.57,.42,l*.35],"body");
+    add([0,1.10,-l*.20],[.48,.17,l*.35],"seat");
+    add([0,1.20,l*.36],[.14,.75,.15],"chrome");
+    add([0,1.53,l*.35],[w*.95,.10,.12],"chrome");
+    add([-.43,1.53,l*.34],[.10,.19,.10],"chrome");
+    add([.43,1.53,l*.34],[.10,.19,.10],"chrome");
+    add([0,1.18,l*.47],[.40,.35,.14],"light");
+    add([0,.93,-l*.42],[.35,.20,.12],"tail");
+    add([0,.65,l*.32],[.42,.12,.58],"body");
+    add([0,.70,-l*.33],[.42,.12,.54],"body");
+    add([.29,.52,-l*.10],[.14,.12,.73],"chrome");
+    add([-.25,.55,0],[.08,.49,.50],"frame");
+    add([.25,.55,0],[.08,.49,.50],"frame");
+    if(isScooter){
+      add([0,.93,l*.24],[.63,.68,.34],"body");
+      add([0,.66,-.12],[.50,.20,.55],"trim");
+      add([0,1.27,l*.32],[.62,.32,.11],"glass");
+    }else{
+      add([0,.91,l*.19],[.50,.15,.52],"trim");
+      add([0,.58,l*.07],[.64,.22,.13],"chrome");
+    }
+    if(isTrail){
+      add([0,1.18,l*.35],[.51,.19,.65],"body");
+      add([0,.54,-l*.31],[.43,.12,.59],"trim");
+    }
+  }
+  while(out.length<VEHICLE_PARTS)out.push(hide());
+  vehicleShapes.set(id,out);
+  return out;
+}
 function nameHash(value){
   let h=2166136261;
   for(const c of String(value??"")){
@@ -64,50 +136,21 @@ function nameHash(value){
   }
   return h>>>0;
 }
-function paletteFor(r){
-  const seed=nameHash(r?.id);
-  const color=String(r?.color??RUNNER_COLORS[seed%RUNNER_COLORS.length]);
-  // Original, deterministic voxel costumes: high-contrast blocky outfits,
-  // not imported platform skins or copies of another game's characters.
-  const outfits=[
-    [0x162a32,0x18222e,0x25bac3,0x113f52],
-    [0x9b275c,0x542445,0xffa1cf,0x682b75],
-    [0xebb743,0x915a30,0xffe58b,0xc36b2c],
-    [0x9e3344,0x24483d,0xd9bf7a,0x264d38],
-    [0x45c1b5,0x245e65,0x89f5e7,0x308c86],
-    [0x6548aa,0x342854,0xc9a5ff,0x453086],
-    [0xb7b7bf,0x586474,0xe5e9eb,0x414e60],
-    [0x30373c,0x171c27,0x7ad1df,0x25404e],
-    [0xd58b30,0x644a2f,0xffd46a,0x9c6330],
-    [0x5c934d,0x284a32,0xb8dc65,0x3b694a],
-    [0xd0b9a2,0x7d4751,0xffd8bf,0x7e6d74],
-    [0x2748a6,0x1c2862,0x91dcf7,0x30367b]
-  ];
-  const outfit=outfits[(seed>>>3)%outfits.length];
-  const skin=[0xf4c8a0,0xa16b4e,0xeac49f,0x795034,0xc1c3ca,0xd5a999][seed%6];
-  const hair=[0x171f29,0x593b2b,0x916740,0x35252f,0xe5d36a,0x222b38][seed%6];
-  const primary=seed%5===0?new THREE.Color(color):new THREE.Color(outfit[0]);
+function paletteFor(r,vehicle){
+  const seed=nameHash(r?.id??"");
+  const paints=["#dc3e41","#42a9d3","#e5b843","#faf3e8","#3c7c5a",
+    "#a759a3","#4e60ac","#e27740","#313f53","#a7c1ce"];
+  const base=new THREE.Color(paints[seed%paints.length]);
+  const dark=base.clone().multiplyScalar(.57);
+  const light=base.clone().lerp(new THREE.Color(0xffffff),.25);
   return {
-    shirt:primary,
-    skin:new THREE.Color(skin),
-    hair:new THREE.Color(hair),
-    sleeve:primary,
-    pants:new THREE.Color(outfit[1]),
-    shoe:new THREE.Color((seed%3===0)?0xe1e6ed:0x171c2a),
-    eye:new THREE.Color(0x132232),
-    mouth:new THREE.Color(0x834f46),
-    pack:new THREE.Color(outfit[3]),
-    stripe:new THREE.Color(outfit[2]),
-    wrist:new THREE.Color(outfit[2]),
-    emblem:new THREE.Color(outfit[2]),
-    hood:new THREE.Color(seed%2?outfit[0]:outfit[1]),
-    visor:new THREE.Color(seed%3===0?0x94f7ff:0xffed91),
-    mask:new THREE.Color(seed%2?0x1a2330:outfit[1]),
-    cape:new THREE.Color(outfit[3]),
-    armor:new THREE.Color(outfit[2]),
-    hat:new THREE.Color(seed%2?outfit[0]:outfit[2]),
-    chest:new THREE.Color(outfit[2]),
-    belt:new THREE.Color(outfit[3])
+    body:base,roof:light,glass:new THREE.Color(0x243d51),
+    wheel:new THREE.Color(0x14191c),rim:new THREE.Color(0xa9b5c0),
+    trim:dark,bumper:new THREE.Color(0x20282f),
+    light:new THREE.Color(0xf8ecc5),tail:new THREE.Color(0xe63238),
+    grill:new THREE.Color(0x202c35),plate:new THREE.Color(0xf3f1df),
+    cargo:dark,frame:new THREE.Color(0x2c353e),
+    seat:new THREE.Color(0x1b242c),chrome:new THREE.Color(0xbec9d5)
   };
 }
 export function createStudioScene(canvas,{quality="balanced",
@@ -385,53 +428,54 @@ export function createStudioScene(canvas,{quality="balanced",
     const entries=Array.isArray(state.active)?
       state.active.slice(0,LIVE_STUDIO.maxRunners):[];
     const phase=String(state.phase??"LOBBY");
+    const runningPhase=phase==="RUNNING";
     const t=Number(state.raceMs)||0;
     const results=Array.isArray(state.results)?state.results:[];
     const positions=studioCrowdPoses(state);
     for(let i=0;i<entries.length;i++){
-      const r=entries[i];
+      const r=entries[i],vehicle=resolveVehicle(r.vehicleId)||vehicleForBot(i);
+      const parts=blocksFor(vehicle);
       const pose=positions.get(r.id)??studioRunnerPose(r,i,phase,results);
-      // During registration the runners face the audience; when the
-      // countdown ends they turn and run forward, using the same camera.
       const rootAngle=pose.heading+
         (phase==="LOBBY"||phase==="COUNTDOWN"?Math.PI:0);
-      const running=phase==="RUNNING"&&r.status==="running";
-      const costume=nameHash(r.id)%8;
-      const seed=nameHash(r.id)%1000;
-      const gait=running?Math.sin(t*.013+seed)*.31:0;
-      const bob=running?Math.abs(Math.sin(t*.013+seed))*.085:0;
+      const running=runningPhase&&r.status==="running";
+      const future=studioCourseAt((Number(r.progress)||0)+4);
+      const angleDiff=Math.atan2(Math.sin(future.heading-pose.heading),
+        Math.cos(future.heading-pose.heading));
+      const lean=running?clamp(angleDiff*(vehicle.kind==="motorcycle"?2.0:.16),
+        vehicle.kind==="motorcycle"?-.20:-.03,
+        vehicle.kind==="motorcycle"?.20:.03):0;
+      const bob=running?Math.abs(Math.sin(t*.012+nameHash(r.id)%30))*.028:0;
+      const scale=vehicle.kind==="motorcycle"?.96:.79;
       tmp.position.set(pose.x,pose.y+bob,pose.z);
-      tmp.rotation.set(0,rootAngle,0);
-      tmp.scale.set(1,1,1);
+      tmp.rotation.set(0,rootAngle,lean);
+      tmp.scale.set(scale,scale,scale);
       tmp.updateMatrix();rootMatrix.copy(tmp.matrix);
-      if(lastAvatarIds[i]!==r.id||currentColors[i]!==r.color){
-        const palette=paletteFor(r);
-        for(let part=0;part<avatarPart.length;part++){
-          avatars.setColorAt(i*avatarPart.length+part,
-            palette[avatarPart[part].style]);
+      const colorKey=String(r.color)+"|"+vehicle.id;
+      if(lastAvatarIds[i]!==r.id||currentColors[i]!==colorKey){
+        const palette=paletteFor(r,vehicle);
+        for(let part=0;part<VEHICLE_PARTS;part++){
+          avatars.setColorAt(i*VEHICLE_PARTS+part,palette[parts[part].style]);
         }
         lastAvatarIds[i]=r.id;
-        currentColors[i]=r.color;
+        currentColors[i]=colorKey;
         avatarColorChanges++;
       }
-      for(let part=0;part<avatarPart.length;part++){
-        const meta=avatarPart[part];
-        localPos.set(meta.p[0],meta.p[1],meta.p[2]+
-          (meta.swing?meta.swing*gait:0));
-        const enabled=!meta.only||meta.only.includes(costume);
-        partScale.set(
-          enabled?meta.s[0]:0,enabled?meta.s[1]:0,enabled?meta.s[2]:0
-        );
-        if(meta.swing)limbRotation.setFromAxisAngle(limbAxis,meta.swing*gait);
-        partMatrix.compose(localPos,meta.swing?limbRotation:noRotation,partScale);
+      for(let part=0;part<VEHICLE_PARTS;part++){
+        const meta=parts[part];
+        localPos.set(meta.p[0],meta.p[1],meta.p[2]);
+        partScale.set(meta.s[0],meta.s[1],meta.s[2]);
+        const spinning=running&&(meta.role==="spoke"||meta.role==="wheel");
+        if(spinning)limbRotation.setFromAxisAngle(limbAxis,
+          t*.013*(vehicle.kind==="motorcycle"?1.2:1));
+        partMatrix.compose(localPos,spinning?limbRotation:noRotation,partScale);
         composed.multiplyMatrices(rootMatrix,partMatrix);
-        avatars.setMatrixAt(i*avatarPart.length+part,composed);
+        avatars.setMatrixAt(i*VEHICLE_PARTS+part,composed);
       }
     }
-    avatars.count=entries.length*avatarPart.length;
+    avatars.count=entries.length*VEHICLE_PARTS;
     avatars.instanceMatrix.needsUpdate=true;
     if(avatars.instanceColor)avatars.instanceColor.needsUpdate=true;
-    // No stale names or old characters persist after the round resets.
     for(let i=entries.length;i<lastAvatarIds.length;i++){
       lastAvatarIds[i]=null;delete currentColors[i];
     }
@@ -571,7 +615,8 @@ export function createStudioScene(canvas,{quality="balanced",
       max:STUDIO_SCENE_LIMITS.maxNameplates,featuredId
     });
     return choices.flatMap(item=>{
-      faceVector.set(item.pose.x,item.pose.y+2.95,item.pose.z);
+      const vehicle=resolveVehicle(item.vehicleId)||resolveVehicle(item.name);
+      faceVector.set(item.pose.x,item.pose.y+(vehicle?.kind==="motorcycle"?2.0:1.85),item.pose.z);
       faceVector.project(camera);
       if(faceVector.z<-.9||faceVector.z>1||
         Math.abs(faceVector.x)>1.12||Math.abs(faceVector.y)>1.12)return [];

@@ -13,6 +13,7 @@ import {createLiveDiagnostics} from "./telemetry.js";
 import {createLikeBuffer,applyLikeBatch,applySimulatedLikes} from "../src/likes.js";
 import {parseRaceJoin} from "../src/roblox-names.js";
 import {createRobloxLookup,RobloxLookupError} from "./roblox-users.js";
+import {createStudioRuntime} from "./studio-runtime.js";
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const mime={".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",
@@ -79,6 +80,14 @@ export async function createApp(opts={}){
   const robloxLookup=opts.robloxLookup??createRobloxLookup();
   // Segurança pré-lançamento: TIKTOK_USERNAME pode permanecer salvo sem abrir conexão.
   const realLiveEnabled=process.env.TIKTOK_LIVE_MODE==="enabled";
+  // Studio V5 remains strictly opt-in. The legacy public game, its PostgreSQL
+  // state and existing /api/* routes are unchanged while UI/QA is unfinished.
+  const studioV5Enabled=opts.studioV5Enabled===true||
+    (opts.studioV5Enabled!==false&&process.env.STUDIO_V5_ENABLED==="true");
+  const studio=studioV5Enabled?createStudioRuntime({
+    adminKey:secret,autoStart:true,
+    sourceConnected:false
+  }):null;
   const subscribers=new Set();
   let lastTick=now(),lastBroadcast=0,lastSave=now();
   let revision=0,savedRevision=recovered&&!biomeMigrated?0:-1;
@@ -176,6 +185,11 @@ export async function createApp(opts={}){
     if(closed){sendJson(res,503,{ok:false,error:"Serviço encerrando"});return;}
     const url=new URL(req.url??"/","http://localhost");
     const path=url.pathname;
+    if(path.startsWith("/api/studio/")){
+      if(!studio){sendJson(res,404,{ok:false,error:"Studio V5 ainda não ativado"});return;}
+      await studio.handle(req,res,path);
+      return;
+    }
     if(req.method==="GET"&&path==="/health"){
       sendJson(res,200,{ok:true,service:"corrida-dos-elementos-live",role:"race-engine",
         uptimeSeconds:Math.round(process.uptime()),instanceId,round:state.round,phase:state.phase,
@@ -370,6 +384,8 @@ export async function createApp(opts={}){
   ssePing.unref?.();
   return {
     state:()=>state,
+    studioState:()=>studio?.state()??null,
+    studioRuntime:studio,
     stats,
     flush:()=>persist(true),
     async listen(port=Number(process.env.PORT)||3000){
@@ -407,6 +423,7 @@ export async function createApp(opts={}){
     async close(){
       if(closed)return;closed=true;
       clearInterval(heartbeat);clearInterval(ssePing);
+      studio?.stop();
       for(const client of subscribers){try{client.end();}catch{}}
       subscribers.clear();
       if(bridge)await bridge.close();

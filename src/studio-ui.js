@@ -1,7 +1,7 @@
 
 import {createStudioScene} from "./studio-scene.js";
 import {studioCourseAt} from "./studio-camera.js";
-import {createStudioState,studioFillBots,studioTick,studioRank} from "./studio-engine.js";
+import {createStudioState,studioFillBots,studioTick,studioRank,studioGift} from "./studio-engine.js";
 import {LIVE_STUDIO} from "./config.js";
 
 const $=id=>document.getElementById(id);
@@ -88,6 +88,12 @@ const MARKUP=[
       "<strong>SEU CORREDOR VOXEL NA PISTA</strong>",
       "<span>COMENTE <b>entrar SeuUsuario</b></span>",
       "<small>OU PARTICIPE COM UM CORREDOR ALEATÓRIO</small>",
+    "</div>",
+    "<div id='studioFeatureCard' class='studio-feature-card' hidden aria-live='off'>",
+      "<div class='studio-feature-avatar' id='studioFeatureAvatar'>⚡</div>",
+      "<strong id='studioFeatureName'>Corredor</strong>",
+      "<span id='studioFeaturePower'>⚡ IMPULSO</span>",
+      "<small id='studioFeatureLabel'>DEMONSTRAÇÃO</small>",
     "</div>",
     "<div id='studioCountdown' class='studio-countdown' hidden aria-live='off'>3</div>",
     "<div id='studioWinner' class='studio-winner' hidden>",
@@ -237,7 +243,10 @@ export async function startStudioLive({preview=false}={}){
     openingClock:$("studioOpeningClock"),
     openingHint:$("studioOpeningHint"),
     countdown:$("studioCountdown"),winner:$("studioWinner"),
-    winnerName:$("studioWinnerName"),toast:$("studioToast")
+    winnerName:$("studioWinnerName"),toast:$("studioToast"),
+    featureCard:$("studioFeatureCard"),featureAvatar:$("studioFeatureAvatar"),
+    featureName:$("studioFeatureName"),featurePower:$("studioFeaturePower"),
+    featureLabel:$("studioFeatureLabel")
   };
   function toast(message){
     text(ui.toast,message);
@@ -411,6 +420,30 @@ export async function startStudioLive({preview=false}={}){
     ui.opening.hidden=phase==="RUNNING"||phase==="RESULTS";
     ui.countdown.hidden=phase!=="COUNTDOWN";
     ui.winner.hidden=phase!=="RESULTS";
+    const activeFx=phase==="RUNNING"?
+      [...(state.effects||[])].reverse().find(e=>
+        ["turbo-flame","jetpack-smoke","torpedo-explosion","turbo-rain",
+          "like-boost","ice-impact"].includes(e?.type)&&
+        asNum(state.raceMs)-asNum(e?.createdAt)<2250):null;
+    ui.featureCard.hidden=!activeFx;
+    if(activeFx){
+      const chosen=active.find(r=>r.id===activeFx.runnerId||
+        r.id===activeFx.targetId);
+      const name=shortName(chosen?.name??"Corredor",13);
+      const powers={
+        "turbo-flame":["⚡ TURBO","#f2c960"],
+        "jetpack-smoke":["🚀 PROPULSOR","#a1dcff"],
+        "torpedo-explosion":["✨ IMPACTO","#ffa36b"],
+        "turbo-rain":["🔥 PODER","#ffa56a"],
+        "like-boost":["⭐ IMPULSO","#ffe47d"],
+        "ice-impact":["❄️ GELO","#89e7ff"]
+      };
+      const [label,color]=powers[activeFx.type]??["⚡ EFEITO","#f2c960"];
+      text(ui.featureName,name);text(ui.featurePower,label);
+      text(ui.featureAvatar,name.charAt(0));
+      ui.featureAvatar.style.background=color;
+      text(ui.featureLabel,preview?"EFEITO DE DEMONSTRAÇÃO":"EFEITO DA CORRIDA");
+    }
     if(phase==="LOBBY"){
       text(ui.openingTitle,"INSCRIÇÕES ABERTAS");
       text(ui.openingClock,openingSeconds(state));
@@ -518,6 +551,7 @@ export async function startStudioLive({preview=false}={}){
   const previewBots=Number.isInteger(requestedCrowd)&&
     requestedCrowd>=1&&requestedCrowd<=100?requestedCrowd:100;
   const previewState=preview?createStudioState({connected:false,seed:5001}):null;
+  let previewGiftBucket=-1,previewGiftRound=-1;
   if(previewState){
     studioFillBots(previewState,{count:previewBots});
     applyState(previewState);
@@ -564,6 +598,22 @@ export async function startStudioLive({preview=false}={}){
       // while the real engine and ?crowd=100 still support all 100 slots.
       if(previewBots<100&&previewState.active.length>previewBots)
         previewState.active.length=previewBots;
+      if(previewGiftRound!==previewState.round){
+        previewGiftRound=previewState.round;previewGiftBucket=-1;
+      }
+      // Offline-only example effect every 15 seconds. These are not platform
+      // gifts, real spectators, payments or server-authoritative mutations.
+      if(previewState.phase==="RUNNING"&&previewState.raceMs>=3500){
+        const bucket=Math.floor((previewState.raceMs-3500)/15000);
+        if(bucket!==previewGiftBucket){
+          previewGiftBucket=bucket;
+          const pool=previewState.active.filter(r=>r.status==="running");
+          const player=pool[Math.floor(pool.length*.55)];
+          if(player)studioGift(previewState,{
+            userId:player.id,name:"Rosa",coins:1
+          });
+        }
+      }
       liveState.source=previewState;
       liveState.lastPacketAt=now;
     }

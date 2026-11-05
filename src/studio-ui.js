@@ -180,7 +180,7 @@ export async function startStudioLive({preview=false}={}){
   const liveState={
     source:null,lastPacketAt:0,round:-1,profiles:new Map(),
     map:null,lastChatKey:"",lastRankKey:"",plateNodes:new Map(),
-    latestFrameAt:0,lastUiAt:0,lastPlateAt:0,fpsAccum:0,
+    latestFrameAt:0,lastUiAt:0,lastPlateAt:0,lastFacesKey:"",fpsAccum:0,
     fpsFrames:0,lastPerfAt:performance.now(),qualityScale:1,
     previousPhase:null,toastTimer:null,connection:null,closed:false
   };
@@ -248,9 +248,13 @@ export async function startStudioLive({preview=false}={}){
   }
   function renderViewerFaces(state){
     const leaders=standings(state).slice(0,3);
-    const list=[];
-    for(const r of leaders)list.push(avatarChip(profile(r.id),r.name,r.color));
-    ui.faces.replaceChildren(...list);
+    const facesKey=leaders.map(r=>r.id+"|"+(profile(r.id)?.avatarUrl||"")).join(",");
+    if(facesKey!==liveState.lastFacesKey){
+      liveState.lastFacesKey=facesKey;
+      const list=[];
+      for(const r of leaders)list.push(avatarChip(profile(r.id),r.name,r.color));
+      ui.faces.replaceChildren(...list);
+    }
     const viewers=asNum(state.viewerCount,NaN);
     text(ui.viewers,Number.isFinite(viewers)&&viewers>=0?
       Math.floor(viewers).toLocaleString("pt-BR"):"—");
@@ -289,6 +293,7 @@ export async function startStudioLive({preview=false}={}){
       liveState.round=incoming.round;
       liveState.lastRankKey="";
       liveState.lastChatKey="";
+      liveState.lastFacesKey="";
       void loadProfiles();
     }
     rebuildMap(incoming);
@@ -309,6 +314,7 @@ export async function startStudioLive({preview=false}={}){
       }
       liveState.profiles=next;
       liveState.lastRankKey="";liveState.lastChatKey="";
+      liveState.lastFacesKey="";
     }catch{/* Image service outages never stop the race. */}
   }
   function renderPlates(state){
@@ -436,6 +442,8 @@ export async function startStudioLive({preview=false}={}){
     lastRaf=now;
     if(previewState){
       studioTick(previewState,dt*1000);
+      if(previewState.phase==="LOBBY"&&previewState.active.length===0)
+        studioFillBots(previewState,{count:100});
       liveState.source=previewState;
       liveState.lastPacketAt=now;
     }

@@ -27,8 +27,12 @@ function normalizeIdentity(event){
   if(value==null||typeof value==="number"&&!Number.isSafeInteger(value))return null;
   const raw=clean(value);
   if(!raw||raw==="undefined"||raw==="null")return null;
-  return {raw,name:clean(event.user?.nickname??event.user?.uniqueId??"Participante",28)||
-    "Participante"};
+  const nickname=clean(event.user?.nickname??event.user?.uniqueId??"Participante",28)||
+    "Participante";
+  // Platform-internal identifiers must not leak if a provider accidentally
+  // mirrors an ID into the display-name field. Short ordinary names stay valid.
+  const name=raw.length>=8&&nickname.includes(raw)?"Participante":nickname;
+  return {raw,name};
 }
 function messageId(event){
   const value=event?.common?.msgId??event?.common?.messageId??event?.msgId;
@@ -40,7 +44,8 @@ export function normalizeStudioChat(event){
   const content=event.comment.trim();
   const command=parseRaceJoin(content);
   // The creator may type the Roblox username alone instead of "entrar User".
-  const username=command?.username??(validRobloxUsername(content)?content:null);
+  const username=command?command.username:
+    (content.toLowerCase()!=="entrar"&&validRobloxUsername(content)?content:null);
   if(!command&&!username)return null;
   return {...sender,username,eventId:messageId(event)};
 }

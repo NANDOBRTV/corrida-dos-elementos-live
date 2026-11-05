@@ -1,8 +1,10 @@
 // Configurações públicas do jogo. Nenhuma credencial TikTok é armazenada aqui.
-export const TRACK_LENGTH = 5000;
+export const TRACK_LENGTH = 400;
+export const PREVIOUS_LONG_TRACK_LENGTH=5000;
+export const MIN_LAPS=1,MAX_LAPS=10;
 export const PREVIOUS_TRACK_LENGTH = 300;
 export const STREAM_TILE_LENGTH = 300;
-export const LONG_RACE_TIMEOUT = 1_500_000; // 25 min cap for the 5km course.
+export const LONG_RACE_TIMEOUT = 1_500_000; // maximum running time for multi-lap events
 export const LEGACY_TRACK_LENGTH = 150;
 export const LANES = 5;
 export const LANE_WIDTH = 1.85;

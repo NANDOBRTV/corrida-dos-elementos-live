@@ -6,8 +6,8 @@ import {hash} from "./engine.js";
 export function appearanceForRunner(id){
   const seed=hash(String(id));
   const variant=seed%5;
-  // Preserve the historical kart/motorbike mapping for saved game visuals.
-  const vehicle=seed%10===2?"kart":seed%10===7?"moto":seed%13===5?"jetpack":"foot";
+  // Carros e motos só são concedidos por eventos de presentes.
+  const vehicle=seed%13===5?"jetpack":"foot";
   return {
     variant,vehicle,
     outfit:Math.floor(seed/37)%8,

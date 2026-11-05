@@ -1,4 +1,4 @@
-import { TRACK_LENGTH, PREVIOUS_TRACK_LENGTH, LEGACY_TRACK_LENGTH, LONG_RACE_TIMEOUT, STREAM_TILE_LENGTH, PHASE_TIMES, BIOME_ORDER, mapForRound, RUNNER_COLORS, obstaclesFor, LANES, LEGACY_BIOME_IDS } from "./config.js";
+import { TRACK_LENGTH, PREVIOUS_LONG_TRACK_LENGTH, PREVIOUS_TRACK_LENGTH, LEGACY_TRACK_LENGTH, LONG_RACE_TIMEOUT, MIN_LAPS, MAX_LAPS, STREAM_TILE_LENGTH, PHASE_TIMES, BIOME_ORDER, mapForRound, RUNNER_COLORS, obstaclesFor, LANES, LEGACY_BIOME_IDS } from "./config.js";
 import {recordCompletedRace} from "./history.js";
 import {parseRaceJoin,validRobloxUsername} from "./roblox-names.js";
 import {activeGiftObstacles} from "./gift-obstacles.js";
@@ -16,7 +16,7 @@ export function randomFrom(seed) {
 export function joinCommand(content) { return typeof content==="string" && content.trim().toLowerCase()==="entrar"; }
 export function createState(seed=127492) {
   return {
-    version:1, round:1, mapId:mapForRound(1), trackLength:TRACK_LENGTH, phase:"LOBBY", phaseMs:0, raceMs:0,
+    version:1, round:1, mapId:mapForRound(1), trackLength:TRACK_LENGTH, phase:"LOBBY", phaseMs:0, raceMs:0, laps:1, nextLaps:1,
     accumulator:0, seed:seed>>>0, active:[], next:[], results:[], history:[], seasonLeaders:[], paused:false,
     giftObstacles:[],giftObstacleSequence:0,
     messages:[{ text:"Ambiente de demonstração iniciado. Digite entrar.", at:0 }]
@@ -27,6 +27,7 @@ export function buildRunner(person,index,seed) {
   return {
     id:person.id, name:person.name, ...(person.robloxUserId?{robloxUserId:person.robloxUserId,robloxUsername:person.robloxUsername}:{}), lane:index%LANES, progress:0,
     baseSpeed:5.05+rng()*1.65, speed:0, status:"waiting",
+    vehicleKind:"foot",vehicleUntil:0,
     finishTime:null, slowUntil:0, turboUntil:0, passed:[], color:RUNNER_COLORS[index%RUNNER_COLORS.length]
   };
 }
@@ -85,11 +86,13 @@ function enterPhase(state,nextPhase) {
     for(const r of state.active){
       r.progress=0; r.speed=0; r.status="running"; r.finishTime=null;
       r.slowUntil=0;r.turboUntil=0;r.passed=[];
+      r.vehicleKind="foot";r.vehicleUntil=0;
     }
     announce(state,"LARGADA! Boa sorte a todos.");
   }
   if(nextPhase==="RESULTS"){
     state.giftObstacles=[];
+    for(const r of state.active){r.vehicleKind="foot";r.vehicleUntil=0;}
     state.results=rank(state.active).map((r,index)=>({
       id:r.id,name:r.name,position:index+1,progress:r.progress,
       finished:r.finishTime!==null,finishTime:r.finishTime
@@ -102,7 +105,9 @@ export function nextRound(state) {
   const pending=state.next;
   state.round++;
   state.mapId=mapForRound(state.round);
-  state.trackLength=TRACK_LENGTH;
+  state.laps=Number.isInteger(state.nextLaps)&&state.nextLaps>=1&&state.nextLaps<=MAX_LAPS?state.nextLaps:1;
+  state.trackLength=TRACK_LENGTH*state.laps;
+  state.nextLaps=1;
   state.seed=(state.seed+7919)>>>0;
   state.active=pending.map((p,i)=>buildRunner(p,i,state.seed));
   state.next=[];
@@ -117,6 +122,19 @@ export function advance(state) {
   else if(state.phase==="RUNNING")enterPhase(state,"RESULTS");
   else nextRound(state);
 }
+export function configureNextLaps(state,requested){
+  const laps=Number(requested);
+  if(!Number.isInteger(laps)||laps<MIN_LAPS||laps>MAX_LAPS)
+    return {ok:false,reason:"Escolha de 1 a 10 voltas."};
+  if(state.phase==="LOBBY"){
+    state.laps=laps;state.trackLength=TRACK_LENGTH*laps;
+    announce(state,"Esta corrida terá "+laps+" volta(s) de 400 metros.");
+    return {ok:true,laps,applies:"corrida atual"};
+  }
+  state.nextLaps=laps;
+  announce(state,"Próxima corrida: "+laps+" volta(s) de 400 metros.");
+  return {ok:true,laps,applies:"próxima corrida"};
+}
 export function turbo(state,id) {
   if(state.phase!=="RUNNING")return false;
   const runner=state.active.find(r=>r.id===id&&r.status==="running");
@@ -126,12 +144,17 @@ export function turbo(state,id) {
   return true;
 }
 export function raceLength(state){
-  return [TRACK_LENGTH,PREVIOUS_TRACK_LENGTH,LEGACY_TRACK_LENGTH].includes(state?.trackLength)
-    ?state.trackLength:LEGACY_TRACK_LENGTH;
+  const d=state?.trackLength;
+  return ((Number.isInteger(d)&&d>=TRACK_LENGTH&&d<=TRACK_LENGTH*MAX_LAPS&&d%TRACK_LENGTH===0)||
+    [PREVIOUS_LONG_TRACK_LENGTH,PREVIOUS_TRACK_LENGTH,LEGACY_TRACK_LENGTH].includes(d))
+    ?d:LEGACY_TRACK_LENGTH;
 }
 export function phaseDuration(state){
-  return state?.phase==="RUNNING"&&raceLength(state)===TRACK_LENGTH
-    ?LONG_RACE_TIMEOUT:PHASE_TIMES[state?.phase]||0;
+  if(state?.phase!=="RUNNING")return PHASE_TIMES[state?.phase]||0;
+  const d=raceLength(state);
+  if(d===PREVIOUS_LONG_TRACK_LENGTH)return LONG_RACE_TIMEOUT;
+  return d>=TRACK_LENGTH?Math.min(LONG_RACE_TIMEOUT,
+    Math.max(PHASE_TIMES.RUNNING,Math.ceil(d/4.3*1000))):PHASE_TIMES.RUNNING;
 }
 function stepRunners(state,ms) {
   state.raceMs+=ms;
@@ -210,7 +233,12 @@ export function migrateSavedState(v) {
 export function validateSavedState(v) {
   if(!v||v.version!==1||!Number.isSafeInteger(v.round)||v.round<1||
      !BIOME_ORDER.includes(v.mapId)||!PHASE_TIMES[v.phase]||
-     (v.trackLength!==undefined&&![TRACK_LENGTH,PREVIOUS_TRACK_LENGTH,LEGACY_TRACK_LENGTH].includes(v.trackLength))||
+     (v.trackLength!==undefined&&
+       !((Number.isInteger(v.trackLength)&&v.trackLength>=TRACK_LENGTH&&
+          v.trackLength<=TRACK_LENGTH*MAX_LAPS&&v.trackLength%TRACK_LENGTH===0)||
+         [PREVIOUS_LONG_TRACK_LENGTH,PREVIOUS_TRACK_LENGTH,LEGACY_TRACK_LENGTH].includes(v.trackLength)))||
+     (v.laps!==undefined&&(!Number.isInteger(v.laps)||v.laps<1||v.laps>MAX_LAPS))||
+     (v.nextLaps!==undefined&&(!Number.isInteger(v.nextLaps)||v.nextLaps<1||v.nextLaps>MAX_LAPS))||
      !Array.isArray(v.active)||!Array.isArray(v.next)||!Array.isArray(v.results)||
      v.active.length>50||v.next.length>50)return false;
   return true;

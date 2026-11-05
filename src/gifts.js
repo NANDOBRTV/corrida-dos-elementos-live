@@ -1,7 +1,9 @@
 // Regras públicas dos presentes. Não representam conversão financeira nem saldo de moedas.
 import {spawnGiftObstacle} from "./gift-obstacles.js";
+import {hash} from "./engine.js";
 export const GIFT_TURBO_MS=4000;
 export const MAX_GIFT_FEED=8;
+export const GIFT_VEHICLE_MS=12000;
 
 export function applyGiftEvent(state,gift) {
   if(!state||typeof gift!=="object"||!gift)return {ok:false,reason:"Evento inválido"};
@@ -22,20 +24,37 @@ export function applyGiftEvent(state,gift) {
   const effect=eligible?"turbo":"agradecimento";
   const simulated=gift.simulated===true;
   const obstacle=spawnGiftObstacle(state,{simulated});
+  let vehicle=null;
+  if(state.phase==="RUNNING"){
+    const runners=state.active.filter(r=>r.status==="running");
+    if(runners.length){
+      const selected=runner?.status==="running"?runner:
+        runners[hash(userId+"|"+String(gift.giftId??"gift"))%runners.length];
+      const hint=(giftName+" "+String(gift.giftId??"")).toLowerCase();
+      const kind=/moto|motorcycle/.test(hint)?"moto":
+        /carro|kart|car/.test(hint)?"kart":
+        hash(userId+"|"+giftName)%2===0?"kart":"moto";
+      selected.vehicleKind=kind;
+      selected.vehicleUntil=state.raceMs+GIFT_VEHICLE_MS;
+      vehicle={runnerId:selected.id,runnerName:selected.name,kind,
+        expiresAt:selected.vehicleUntil,simulated};
+    }
+  }
   const entry={
     userId,displayName:nickname,giftName,quantity,
-    effect,simulated,round:state.round,obstacleSpawned:Boolean(obstacle)
+    effect,simulated,round:state.round,obstacleSpawned:Boolean(obstacle),vehicle:vehicle?.kind??null
   };
   if(!Array.isArray(state.gifts))state.gifts=[];
   state.gifts.unshift(entry);
   state.gifts.length=Math.min(state.gifts.length,MAX_GIFT_FEED);
   const announce=(simulated?"[TESTE] ":"")+nickname+" enviou "+giftName+
     (quantity>1?" x"+quantity:"")+(eligible?" · TURBO +4s!":" · obrigado!")+
-    (obstacle?" · OBSTÁCULO NA PISTA!":"");
+    (obstacle?" · OBSTÁCULO NA PISTA!":"")+
+    (vehicle?" · "+(vehicle.kind==="kart"?"CARRO":"MOTO")+" PARA "+vehicle.runnerName:"");
   if(!Array.isArray(state.messages))state.messages=[];
   state.messages.unshift({text:announce.slice(0,150),at:state.round});
   state.messages.length=Math.min(8,state.messages.length);
-  return {ok:true,effect,entry,obstacle:obstacle||null};
+  return {ok:true,effect,entry,obstacle:obstacle||null,vehicle};
 }
 
 // Retém somente marcadores técnicos de eventos; não armazena mensagens nem tokens.

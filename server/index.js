@@ -3,7 +3,7 @@ import {readFile,stat} from "node:fs/promises";
 import {fileURLToPath} from "node:url";
 import {dirname,join,extname,resolve,sep} from "node:path";
 import {timingSafeEqual,randomBytes} from "node:crypto";
-import {createState,addDemo,register,rank,advance,tick,turbo,validateSavedState,migrateSavedState} from "../src/engine.js";
+import {createState,addDemo,register,rank,advance,tick,turbo,configureNextLaps,validateSavedState,migrateSavedState} from "../src/engine.js";
 import {openStorage} from "./storage.js";
 import {startTikTokBridge} from "./tiktok.js";
 import {applyGiftEvent,createGiftDeduplicator} from "../src/gifts.js";
@@ -199,7 +199,7 @@ export async function createApp(opts={}){
         id:h.id,z:h.z,lane:h.lane,kind:h.kind,simulated:h.simulated,expiresAt:h.expiresAt
       }));
       sendJson(res,200,{ok:true,round:state.round,mapId:state.mapId,phase:state.phase,
-        raceMs:state.raceMs,trackLength:state.trackLength,participants,obstacles});
+        raceMs:state.raceMs,trackLength:state.trackLength,laps:state.laps??1,lapLength:400,participants,obstacles});
       return;
     }
     if(req.method==="GET"&&path==="/api/state"){
@@ -281,6 +281,11 @@ export async function createApp(opts={}){
         else if(action==="resume")mutation(()=>{state.paused=false;lastTick=now();});
         else if(action==="advance")mutation(()=>advance(state));
         else if(action==="add-demo")outcome={ok:true,added:mutation(()=>addDemo(state,10))};
+        else if(action==="set-next-laps"){
+          const result=mutation(()=>configureNextLaps(state,data.laps));
+          if(!result.ok){sendJson(res,400,{ok:false,error:result.reason});return;}
+          outcome=result;
+        }
         else if(action==="turbo") {
           const id=typeof data.userId==="string"?data.userId:rank(state.active).find(r=>r.status==="running")?.id;
           if(!mutation(()=>turbo(state,id))){sendJson(res,400,{ok:false,error:"Turbo disponível somente durante a corrida"});return;}

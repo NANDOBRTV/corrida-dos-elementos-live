@@ -1,3 +1,9 @@
+## Versão 4.0 — corrida de 400 metros por volta e veículos acionados por presentes
+
+Cada volta passa a ter 400 metros e o operador pode escolher de 1 a 10 voltas para a próxima corrida. O motor calcula a distância total como 400 × voltas, mantendo o progresso oficial das rodadas antigas salvas de 5 km, 300 m e 150 m. O carro/kart e a moto aparecem somente após um presente processado durante a fase RUNNING, por 12 segundos, sem bônus de velocidade. O destinatário inscrito recebe o efeito, ou outro corredor em movimento quando quem presenteou não está na prova. A versão web exibe modelos originais; a versão nativa Roblox continua dependente de Roblox Studio. Os testes com presentes fictícios não representam eventos reais do TikTok.
+
+---
+
 ## Versão 3.4.1 — close-ups em intervalos aleatórios de 0 a 10 segundos
 
 Em vez de um corte fixo a cada 10 segundos, **após cada destaque de 3,2 segundos** a câmera aguarda um tempo pseudoaleatório entre **0 e 10 segundos** até destacar outro corredor. Espera zero significa que o próximo close começa imediatamente após o anterior, sem sobreposição. Os intervalos são derivados da rodada e do índice do destaque, permanecendo estáveis com a mesma corrida mesmo após recarregamento ou reconexão. O tempo é contado no relógio oficial da corrida; resultados, ausência de corredores e lobby desativam o efeito.

@@ -1,3 +1,4 @@
+import {TRACK_LENGTH} from "./config.js";
 // Obstáculos existem SOMENTE após presente aceito pelo servidor ou presente simulado.
 // Não há geração periódica. Valores/quantidade de moedas não afetam o resultado.
 export const MAX_ACTIVE_GIFT_OBSTACLES=8;
@@ -7,7 +8,7 @@ export function activeGiftObstacles(state){
   if(state?.phase!=="RUNNING"||!Array.isArray(state?.giftObstacles))return [];
   const clock=Number(state.raceMs)||0;
   return state.giftObstacles.filter(h=>h&&h.round===state.round&&
-    Number.isFinite(h.z)&&h.z>=0&&h.z<=(state.trackLength||5000)&&
+    Number.isFinite(h.z)&&h.z>=0&&h.z<=(state.trackLength||TRACK_LENGTH)&&
     Number.isInteger(h.lane)&&h.lane>=0&&h.lane<5&&h.expiresAt>clock);
 }
 export function spawnGiftObstacle(state,{simulated=false}={}){
@@ -20,7 +21,7 @@ export function spawnGiftObstacle(state,{simulated=false}={}){
   if(active.length>=MAX_ACTIVE_GIFT_OBSTACLES||sequence>=MAX_GIFT_OBSTACLES_PER_ROUND)return null;
   const positions=runners.map(r=>r.progress).sort((a,b)=>a-b);
   const middle=positions[Math.floor(positions.length/2)];
-  const finish=Number.isFinite(state.trackLength)?state.trackLength:5000;
+  const finish=Number.isFinite(state.trackLength)?state.trackLength:TRACK_LENGTH;
   // Place 16 metres ahead of the pack; never spawn on top of a runner.
   const z=Math.min(finish-1,middle+16);
   if(z<=middle+2)return null;

@@ -13,7 +13,34 @@
   <link rel="stylesheet" href="./assets/live-reference.css">
   <link rel="stylesheet" href="./assets/reference-roblox.css">
   <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js"}}</script>
-  <script type="module" src="./src/app.js"></script>
+  <link rel="stylesheet" href="./assets/studio-live.css">
+  <script type="module">
+    // V5 replaces the live broadcast only when the server explicitly enables it.
+    // Legacy operator and public broadcast remain intact until rollout.
+    const query=new URLSearchParams(window.location.search);
+    const wantsV5=query.get("view")==="live";
+    const preview=wantsV5&&query.get("studioPreview")==="1";
+    let enabled=preview;
+    if(wantsV5&&!preview){
+      try{
+        const response=await fetch("/api/studio/health",{
+          cache:"no-store",signal:AbortSignal.timeout(2500)
+        });
+        enabled=response.ok&&Boolean((await response.json()).enabled);
+      }catch{enabled=false;}
+    }
+    if(enabled){
+      try{
+        const app=await import("./src/studio-ui.js");
+        await app.startStudioLive({preview});
+      }catch(error){
+        console.error("[Studio V5] UI unavailable",error);
+        if(document.getElementById("raceCanvas"))await import("./src/app.js");
+      }
+    }else{
+      await import("./src/app.js");
+    }
+  </script>
 </head>
 <body>
   <div class="app-shell">

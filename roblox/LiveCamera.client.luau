@@ -65,9 +65,43 @@ local function animator(model)
   animated[model]=found
   return found
 end
+-- A different native avatar gets a close-up every 10 seconds of race time.
+-- Camera only: does not change race mechanics, NPC physics or chat events.
+local lastRaceMs=-1
+local syncClock=os.clock()
+local currentRound=-1
+local lastSlot=0
+local lastFeatured=nil
+local featuredId=nil
+local function smoothstep(x)
+  local t=math.clamp(x,0,1)
+  return t*t*(3-2*t)
+end
+local function chooseFeatured(models,center,slot,round)
+  local candidates={}
+  for _,model in ipairs(models) do
+    local progress=model:GetAttribute("RaceProgress")
+    local userId=model:GetAttribute("RobloxUserId")
+    if model:GetAttribute("RunnerMoving")==true and type(progress)=="number"
+       and type(userId)=="number" and math.abs(progress-center)<=115 then
+      table.insert(candidates,model)
+    end
+  end
+  table.sort(candidates,function(a,b)
+    return a:GetAttribute("RobloxUserId")<b:GetAttribute("RobloxUserId")
+  end)
+  if #candidates==0 then return nil end
+  local roll=Random.new(round*7937+slot*10949)
+  local index=roll:NextInteger(1,#candidates)
+  if #candidates>1 and candidates[index]:GetAttribute("RobloxUserId")==lastFeatured then
+    index=index%#candidates+1
+  end
+  return candidates[index]:GetAttribute("RobloxUserId")
+end
 RunService:BindToRenderStep("RaceLiveCamera",Enum.RenderPriority.Camera.Value+1,function(dt)
   local positions={}
-  for _,model in ipairs(folder:GetChildren()) do
+  local models=folder:GetChildren()
+  for _,model in ipairs(models) do
     local z=model:GetAttribute("RaceProgress")
     if type(z)=="number" then table.insert(positions,z) end
     local motors=animator(model)
@@ -99,7 +133,57 @@ RunService:BindToRenderStep("RaceLiveCamera",Enum.RenderPriority.Camera.Value+1,
     Vector3.new(bx,by+20+overview*72,bz),
     Vector3.new(ax,ay+1.8,az)
   )
-  local alpha=1-math.exp(-2.5*math.min(.12,dt))
+  local phase=folder:GetAttribute("RacePhase")
+  local round=folder:GetAttribute("RaceRound") or 0
+  local serverMs=folder:GetAttribute("RaceMs") or 0
+  if round~=currentRound then
+    currentRound=round;lastSlot=0;lastFeatured=nil;featuredId=nil
+    lastRaceMs=-1
+  end
+  if serverMs~=lastRaceMs then
+    lastRaceMs=serverMs
+    syncClock=os.clock()
+  end
+  if phase=="RUNNING" then
+    local raceMs=serverMs+math.min(2,os.clock()-syncClock)*1000
+    local slot=math.floor(raceMs/10000)
+    if slot>=1 and slot~=lastSlot then
+      lastSlot=slot
+      featuredId=chooseFeatured(models,center,slot,round)
+      if featuredId then lastFeatured=featuredId end
+    end
+    local elapsed=raceMs-slot*10000
+    if slot>=1 and featuredId and elapsed>=0 and elapsed<3200 then
+      local focused
+      for _,model in ipairs(models) do
+        if model:GetAttribute("RobloxUserId")==featuredId and
+          model:GetAttribute("RunnerMoving")==true then
+          focused=model;break
+        end
+      end
+      if focused then
+        local progress=focused:GetAttribute("RaceProgress") or center
+        local x,y,z,yaw=centerAt(progress)
+        local lane=math.clamp(tonumber(focused:GetAttribute("RaceLane")) or 2,0,4)
+        local side=(lane-2)*4
+        local px=x+side*math.cos(yaw)
+        local pz=z-side*math.sin(yaw)
+        local fx=math.sin(yaw)
+        local fz=math.cos(yaw)
+        local angle=math.cos(yaw)
+        local sid=-math.sin(yaw)
+        local close=CFrame.lookAt(
+          Vector3.new(px+fx*5.8+angle*2, y+3.65, pz+fz*5.8+sid*2),
+          Vector3.new(px,y+1.8,pz)
+        )
+        local blend=math.min(smoothstep(elapsed/650),smoothstep((3200-elapsed)/750))
+        desired=desired:Lerp(close,blend)
+      end
+    end
+  else
+    lastSlot=0;featuredId=nil
+  end
+  local alpha=1-math.exp(-5.8*math.min(.12,dt))
   if (cam.CFrame.Position-desired.Position).Magnitude>180 then
     cam.CFrame=desired
   else

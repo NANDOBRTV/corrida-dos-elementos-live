@@ -1,3 +1,9 @@
+### Close-up na versão Roblox Studio
+
+A câmera opcional no Roblox Studio também foi preparada para destacar a cada 10 segundos um avatar real aleatório que esteja correndo. O script recebe `RaceMs`, `RacePhase` e `RaceRound` por atributos replicados, aproxima durante 3,2 segundos e retorna à câmera geral. Nenhuma chave secreta vai para o script do cliente. **Ainda não houve validação dentro do Roblox Studio**; a versão web no Render é testada separadamente.
+
+---
+
 ## Versão 3.4 — close-up automático a cada 10 segundos
 
 Na corrida de 5.000 metros, a câmera 3D destaca um corredor aleatório a cada **10 segundos de tempo oficial de corrida**, acompanha seu rosto/roupa em um enquadramento próximo por **3,2 segundos** e retorna suavemente à visão normal do pelotão. A seleção usa uma semente estável e evita repetir o mesmo corredor duas vezes seguidas; somente corredores em movimento e dentro da região visível da pista podem ser selecionados. Durante o close, aparece um pequeno identificador com nome e distância. Fora de RUNNING, sem corredores ou após a chegada, o efeito não é ativado.

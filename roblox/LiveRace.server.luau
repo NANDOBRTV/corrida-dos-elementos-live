@@ -317,6 +317,11 @@ local function onRound(snapshot)
   syncGiftObstacles(snapshot)
   latest=snapshot
   lastUpdate=os.clock()
+  -- This replicated state lets the Studio spectator trigger the same 10s cuts
+  -- as the web viewer, with no client-side Roblox HTTP credentials.
+  folder:SetAttribute("RaceMs",snapshot.raceMs)
+  folder:SetAttribute("RacePhase",snapshot.phase)
+  folder:SetAttribute("RaceRound",snapshot.round)
   if lastRound~=snapshot.round then
     lastRound=snapshot.round
     for key,model in pairs(current) do
@@ -361,6 +366,7 @@ RunService.Heartbeat:Connect(function(dt)
       local bob=moving and math.abs(math.sin(os.clock()*10+entry.userId%13))*.08 or 0
       model:SetAttribute("RaceProgress",progress)
       model:SetAttribute("RunnerMoving",moving)
+      model:SetAttribute("RaceLane",lane)
       local pos,yaw=coursePosition(progress,(lane-2)*4,2.8+bob)
       -- Roblox characters face -Z locally; +pi points them toward the finish.
       model:PivotTo(CFrame.new(pos)*CFrame.Angles(0,yaw+math.pi,0))

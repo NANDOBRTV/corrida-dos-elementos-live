@@ -30,3 +30,11 @@ test("Camera progression is continuous, finite and bounded on slow Android GPUs"
     assert.ok(Math.abs(s.height-next.height)<2);
   }
 });
+
+test("Finish arch is hidden at the start so the ten front-row avatars remain visible",async()=>{
+  const {readFile}=await import("node:fs/promises");
+  const world=await readFile(new URL("../src/world.js",import.meta.url),"utf8");
+  assert.ok(world.includes('finishGroup.visible=(race.phase==="RUNNING"||race.phase==="RESULTS")'));
+  assert.ok(world.includes('z>Math.max(0,currentLength-43)'));
+  assert.ok(world.includes("const frontDistance=19+"));
+});

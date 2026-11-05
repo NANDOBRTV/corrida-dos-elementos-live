@@ -1,3 +1,9 @@
+### Visibilidade na largada
+
+A revisão das capturas reais do Android mostrou que o pórtico de chegada estava à frente dos personagens. Agora o pórtico é ocultado no lobby e durante a contagem regressiva, reaparecendo perto do final da volta. O quadro de inscrição e o cronômetro foram separados para não cobrir a primeira fileira de dez corredores. O sistema de chegada e a linha física de início da volta permanecem ativos.
+
+---
+
 ### Câmera de corrida baseada na sequência do vídeo
 
 Além da largada frontal em plano aberto e da troca imediata para câmera traseira, o acompanhamento alterna **câmera baixa atrás do pelotão, enquadramento mais próximo e duas tomadas aéreas amplas**, com movimentos suaves. O padrão segue o ritmo visual do vídeo de referência sem reproduzir literalmente assets, nome de plataforma ou o layout do criador. O close manual de 5s e os closes automáticos de 0–10s continuam prioritários. São apenas posições de uma câmera 3D existente; nenhum modelo extra é carregado.

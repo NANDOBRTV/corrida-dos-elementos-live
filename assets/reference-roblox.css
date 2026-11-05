@@ -223,3 +223,14 @@ body[data-view="live"][data-phase="countdown"] .call-to-action{display:none!impo
   body[data-view="live"] .start-banner{top:11%;padding:6px 11px}
   body[data-view="live"] .start-banner strong{font-size:25px}
 }
+
+/* v4.1 visual polish: no overlapping intro banners or HUD in front of faces. */
+body[data-view="live"][data-phase="lobby"] .arena-top,
+body[data-view="live"][data-phase="countdown"] .arena-top{display:none!important}
+body[data-view="live"][data-phase="lobby"] .call-to-action{
+  top:29%!important;max-width:270px;z-index:7
+}
+body[data-view="live"] .start-banner{top:14%!important}
+@media(max-height:700px){
+  body[data-view="live"][data-phase="lobby"] .call-to-action{top:31%!important}
+}

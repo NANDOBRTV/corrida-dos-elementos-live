@@ -559,6 +559,10 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     const distances=active.map(r=>Math.max(0,Number(r.progress)||0)).sort((a,b)=>a-b);
     const middle=distances.length?distances[Math.floor(distances.length*.45)]:0;
     const z=Math.min(currentLength,middle);
+    // In the reference, the starting view contains only the people and
+    // open road; the finish arch must never obscure their faces.
+    finishGroup.visible=(race.phase==="RUNNING"||race.phase==="RESULTS")&&
+      z>Math.max(0,currentLength-43);
     if(currentLength===TRACK_LENGTH){
       // A full 400m closed circuit is rendered once; no streaming roll
       // or scenery rebuild on each additional lap.

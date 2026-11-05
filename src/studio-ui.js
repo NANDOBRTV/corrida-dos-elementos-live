@@ -1,6 +1,6 @@
 
 import {createStudioScene} from "./studio-scene.js";
-import {studioCourseAt} from "./studio-camera.js";
+import {studioCourseAt,studioCameraShot,STUDIO_SHOTS} from "./studio-camera.js";
 import {createStudioState,studioFillBots,studioTick,studioRank,studioGift,studioJoin} from "./studio-engine.js";
 import {LIVE_STUDIO} from "./config.js";
 import {resolveVehicle,parseVehicleChoice} from "./vehicles.js";
@@ -68,7 +68,12 @@ const MARKUP=[
       "<div class='studio-panel-title'><span class='studio-live-dot'></span>LIVE RANKING</div>",
       "<ol id='studioRankRows' class='studio-ranking-rows'></ol>",
     "</section>",
-    "<aside class='studio-race-data' aria-label='Informações da corrida'>",
+    "<aside class='studio-vehicle-mini' aria-label='Mini lista de veículos na pista'>",
+      "<strong class='studio-vehicle-mini-title'>🚗 VEÍCULOS NA PISTA</strong>",
+      "<ol id='studioVehicleList' class='studio-vehicle-mini-rows'></ol>",
+    "</aside>",
+    "<div id='studioCameraLabel' class='studio-camera-label' hidden aria-live='off'></div>",
+    "<aside class='studio-race-data' aria-label='Informações da corrida'>
       "<div class='studio-race-time' id='studioRaceTime'>0:00</div>",
       "<div class='studio-race-remaining'><span aria-hidden='true'>⚑</span><b id='studioRemaining'>1200 m</b><span>restantes</span></div>",
       "<div class='studio-race-count'><b id='studioRunnerCount'>0/100</b><span>corredores</span></div>",
@@ -253,8 +258,10 @@ function trackMap(distance){
   return {length,path,point};
 }
 function chooseFeatured(state){
-  if(state.phase!=="RESULTS")return null;
-  return state.results?.[0]?.id??null;
+  if(state.phase==="RUNNING")
+    return studioCameraShot(state).featuredId;
+  if(state.phase==="RESULTS")return state.results?.[0]?.id??null;
+  return null;
 }
 export async function startStudioLive({preview=false}={}){
   document.body.classList.add("studio-live-active");
@@ -281,7 +288,7 @@ export async function startStudioLive({preview=false}={}){
   }
   const liveState={
     source:null,lastPacketAt:0,round:-1,profiles:new Map(),
-    map:null,lastChatKey:"",lastRankKey:"",plateNodes:new Map(),
+    map:null,lastChatKey:"",lastRankKey:"",lastVehicleKey:"",plateNodes:new Map(),
     latestFrameAt:0,lastUiAt:0,lastPlateAt:0,lastFacesKey:"",fpsAccum:0,
     fpsFrames:0,lastPerfAt:performance.now(),qualityScale:1,
     previousPhase:null,toastTimer:null,connection:null,closed:false,
@@ -292,6 +299,7 @@ export async function startStudioLive({preview=false}={}){
   const ui={
     likes:$("studioLikes"),viewers:$("studioViewerTotal"),
     faces:$("studioViewerFaces"),rank:$("studioRankRows"),
+    vehicleList:$("studioVehicleList"),cameraLabel:$("studioCameraLabel"),
     time:$("studioRaceTime"),remaining:$("studioRemaining"),
     count:$("studioRunnerCount"),mapPath:$("studioMapPath"),
     mapDot:$("studioMapDot"),chat:$("studioChatEntries"),
@@ -444,6 +452,7 @@ export async function startStudioLive({preview=false}={}){
     if(incoming.round!==liveState.round){
       liveState.round=incoming.round;
       liveState.lastRankKey="";
+      liveState.lastVehicleKey="";
       liveState.lastChatKey="";
       liveState.lastFacesKey="";
       void loadProfiles();
@@ -470,35 +479,74 @@ export async function startStudioLive({preview=false}={}){
     }catch{/* Image service outages never stop the race. */}
   }
   function renderPlates(state){
-    const selected=world.nameplates({featuredId:chooseFeatured(state)});
-    const used=new Set();
-    const accepted=[];
-    for(const plate of selected){
+    // Every vehicle gets its owner's username anchored over its 3D position.
+    // Only in-frustum, non-overlapping anchors are rendered to keep mobile
+    // overlays legible with 100 participants.
+    const featured=chooseFeatured(state);
+    const selected=world.nameplates({featuredId:featured});
+    const shot=studioCameraShot(state);
+    const focus=new Set(shot.focusIds||[]);
+    const priority=selected.slice().sort((a,b)=>
+      Number(focus.has(b.id))-Number(focus.has(a.id))||
+      asNum(b.y)-asNum(a.y));
+    const used=new Set(),accepted=[];
+    for(const plate of priority){
       const x=asNum(plate.x)*100,y=asNum(plate.y)*100;
-      // Keep labels away from ranking, timer, chat and gift controls.
-      if(x<24||x>79||y<31||y>79)continue;
-      if(accepted.some(q=>Math.abs(q.x-x)<12&&Math.abs(q.y-y)<3.5))continue;
+      if(x<6||x>94||y<30||y>84)continue;
+      if(accepted.some(q=>Math.abs(q.x-x)<6.5&&Math.abs(q.y-y)<2.5))continue;
+      if(accepted.length>=36)break;
       accepted.push({x,y});used.add(plate.id);
       let node=liveState.plateNodes.get(plate.id);
       if(!node){
         node=element("div","studio-nameplate");
-        ui.plates.append(node);
-        liveState.plateNodes.set(plate.id,node);
+        ui.plates.append(node);liveState.plateNodes.set(plate.id,node);
       }
-      const key=plate.rank+"|"+plate.name+"|"+profile(plate.id)?.avatarUrl;
+      const username=shortName(plate.username||"Participante",26);
+      const key=plate.rank+"|"+username+"|"+plate.name;
       if(node.dataset.key!==key){
-        node.dataset.key=key;
-        node.replaceChildren();
+        node.dataset.key=key;node.replaceChildren();
         node.append(element("b","studio-position",plate.rank));
-        const avatar=avatarChip(profile(plate.id),plate.name,plate.color);
-        node.append(avatar,element("span","studio-plate-name",shortName(plate.name,22)));
+        node.append(element("span","studio-plate-name",username));
       }
       node.classList.toggle("studio-gold",plate.rank===1);
+      node.classList.toggle("studio-camera-focus",focus.has(plate.id));
       node.style.left=x.toFixed(2)+"%";
       node.style.top=y.toFixed(2)+"%";
     }
     for(const [id,node] of liveState.plateNodes){
       if(!used.has(id)){node.remove();liveState.plateNodes.delete(id);}
+    }
+  }
+  function renderVehicleMiniList(state,board){
+    const shot=studioCameraShot(state),focus=new Set(shot.focusIds||[]);
+    const rows=board.slice(0,7);
+    const key=state.phase+"|"+rows.map(r=>
+      r.id+"@"+r.name+"#"+Math.floor(asNum(r.meters)/3)+"!"+Number(focus.has(r.id))
+    ).join("|");
+    if(key!==liveState.lastVehicleKey){
+      liveState.lastVehicleKey=key;
+      const elements=rows.map((r,i)=>{
+        const item=element("li","studio-mini-vehicle"+(focus.has(r.id)?" is-focus":""));
+        item.append(element("span","studio-mini-number",String(i+1)));
+        item.append(element("span","studio-mini-name",shortName(r.name,22)));
+        return item;
+      });
+      ui.vehicleList.replaceChildren(...elements);
+    }
+    if(state.phase!=="RUNNING"){
+      ui.cameraLabel.hidden=true;
+      return;
+    }
+    ui.cameraLabel.hidden=false;
+    if(shot.mode==="VEHICLE_CLOSEUP"){
+      const active=(state.active||[]).find(r=>r.id===shot.featuredId);
+      const remaining=Math.max(1,Math.ceil((STUDIO_SHOTS.closeupMs-
+        asNum(state.raceMs)%(
+          STUDIO_SHOTS.closeupMs+STUDIO_SHOTS.topThreeMs))/1000));
+      text(ui.cameraLabel,"📷 CLOSE: "+shortName(active?.name,15)+
+        " · "+shortName(active?.driverName,16)+" · "+remaining+"s");
+    }else{
+      text(ui.cameraLabel,"🏁 CÂMERA: 3 PRIMEIROS");
     }
   }
   function updateUi(state){
@@ -566,6 +614,7 @@ export async function startStudioLive({preview=false}={}){
     stage.dataset.phase=phase.toLowerCase();
     stage.dataset.connected=state.connected?"yes":"no";
     renderRank(state);renderViewerFaces(state);renderMessages(state);
+    renderVehicleMiniList(state,board);
     rebuildMap(state);
     const dot=liveState.map.point(meters);
     ui.mapDot.setAttribute("cx",dot.x.toFixed(1));
@@ -781,6 +830,7 @@ export async function startStudioLive({preview=false}={}){
   window.__studioV5Debug=preview?{
     getState:()=>liveState.source,
     getSceneStats:()=>world.stats(),
+    getCameraShot:()=>studioCameraShot(liveState.source),
     getPlateCount:()=>liveState.plateNodes.size,
     getMapLength:()=>ui.mapPath.getTotalLength(),
     getWatchdog:()=>({

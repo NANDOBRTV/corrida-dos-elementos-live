@@ -157,8 +157,9 @@ async function parseBody(req){
   }
 }
 function compactRunner(r){
+  // Public spectator feeds expose vehicle labels, not the chat sender's name.
   return {id:r.id,name:r.name,vehicleId:r.vehicleId??"car-uno",
-    vehicleKind:r.vehicleKind??"car",driverName:r.driverName??null,
+    vehicleKind:r.vehicleKind??"car",
     color:r.color,lane:r.lane,
     gridPosition:r.gridPosition,progress:Math.round(r.progress*10)/10,
     status:r.status,finishMs:r.finishMs,isBot:r.isBot,

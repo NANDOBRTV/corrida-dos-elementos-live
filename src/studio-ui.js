@@ -519,7 +519,11 @@ export async function startStudioLive({preview=false}={}){
   }
   function renderVehicleMiniList(state,board){
     const shot=studioCameraShot(state),focus=new Set(shot.focusIds||[]);
-    const rows=board.slice(0,7);
+    // The main leaderboard intentionally has only five rows. Derive the
+    // mini list directly from the whole 100-car race to show seven models.
+    const rows=studioRank(state.active||[]).slice(0,7).map((r,i)=>({
+      ...r,position:i+1,meters:Math.floor(asNum(r.progress))
+    }));
     const key=state.phase+"|"+rows.map(r=>
       r.id+"@"+r.name+"#"+Math.floor(asNum(r.meters)/3)+"!"+Number(focus.has(r.id))
     ).join("|");

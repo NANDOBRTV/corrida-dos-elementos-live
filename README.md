@@ -1,3 +1,13 @@
+## Versão 3.3 — minimapa livre e obstáculos somente por presentes
+
+Na tela vertical, o minimapa agora mostra **somente o traçado curvo e os pontos dos corredores**. Foram retirados os dois retângulos, os fundos, as bordas, as sombras decorativas e os rótulos de distância do minimapa; o cronômetro e o ranking permanecem como estão.
+
+**Não existem mais obstáculos automáticos na estrada**: o gerador periódico foi desativado tanto no motor de corrida quanto no cenário 3D. Um presente validado durante RUNNING pode criar **um obstáculo temporário** na pista à frente do pelotão, mesmo quando o remetente não está inscrito. O obstáculo dura até 16 segundos; até 8 são mostrados ao mesmo tempo e, por segurança/performance, até 24 podem ser acionados na rodada. Presente com contagem repetida não gera 30 obstáculos. Combos/eventos duplicados são filtrados no servidor antes da alteração oficial. O obstáculo afeta somente quem cruza sua faixa (desvio ou redução temporária, conforme cálculo determinístico do servidor). Não há cobrança diferente por tipo de presente nem garantia de vitória; o turbo existente continua limitado. Presentes enviados durante lobby/resultado não criam obstáculos.
+
+**TESTE:** o botão administrativo SIMULAR PRESENTE utiliza o mesmo mecanismo, porém cria obstáculo marcado como fictício. A LIVE real do TikTok permanece desativada por padrão. O servidor e o navegador seguem sincronizados pelo mesmo snapshot; obstáculos expirados ou de rodadas anteriores não são exibidos.
+
+---
+
 ### Demonstração instantânea do cotovelo
 
 Abra `/?view=live&quality=low&showcase=1&section=hairpin&biome=ice` para visualizar imediatamente 50 corredores fictícios na primeira curva em U. Para testar outras curvas use `section=hairpin2` e `section=hairpin3`; para conferir a Floresta, use `biome=forest`. Essas URLs funcionam somente como **prévia local**, sem inscrições, presentes ou mudanças no PostgreSQL.

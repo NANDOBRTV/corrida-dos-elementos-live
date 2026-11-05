@@ -1,6 +1,7 @@
 import { TRACK_LENGTH, PREVIOUS_TRACK_LENGTH, LEGACY_TRACK_LENGTH, LONG_RACE_TIMEOUT, STREAM_TILE_LENGTH, PHASE_TIMES, BIOME_ORDER, mapForRound, RUNNER_COLORS, obstaclesFor, LANES, LEGACY_BIOME_IDS } from "./config.js";
 import {recordCompletedRace} from "./history.js";
 import {parseRaceJoin,validRobloxUsername} from "./roblox-names.js";
+import {activeGiftObstacles} from "./gift-obstacles.js";
 
 export const FIXED_STEP = 50;
 export function hash(text) {
@@ -17,6 +18,7 @@ export function createState(seed=127492) {
   return {
     version:1, round:1, mapId:mapForRound(1), trackLength:TRACK_LENGTH, phase:"LOBBY", phaseMs:0, raceMs:0,
     accumulator:0, seed:seed>>>0, active:[], next:[], results:[], history:[], seasonLeaders:[], paused:false,
+    giftObstacles:[],giftObstacleSequence:0,
     messages:[{ text:"Ambiente de demonstração iniciado. Digite entrar.", at:0 }]
   };
 }
@@ -79,6 +81,7 @@ function enterPhase(state,nextPhase) {
   if(nextPhase==="COUNTDOWN")announce(state,"Inscrições da rodada "+state.round+" encerradas.");
   if(nextPhase==="RUNNING"){
     state.raceMs=0;
+    state.giftObstacles=[];state.giftObstacleSequence=0;
     for(const r of state.active){
       r.progress=0; r.speed=0; r.status="running"; r.finishTime=null;
       r.slowUntil=0;r.turboUntil=0;r.passed=[];
@@ -86,6 +89,7 @@ function enterPhase(state,nextPhase) {
     announce(state,"LARGADA! Boa sorte a todos.");
   }
   if(nextPhase==="RESULTS"){
+    state.giftObstacles=[];
     state.results=rank(state.active).map((r,index)=>({
       id:r.id,name:r.name,position:index+1,progress:r.progress,
       finished:r.finishTime!==null,finishTime:r.finishTime
@@ -103,6 +107,7 @@ export function nextRound(state) {
   state.active=pending.map((p,i)=>buildRunner(p,i,state.seed));
   state.next=[];
   state.results=[];
+  state.giftObstacles=[];state.giftObstacleSequence=0;
   state.phase="LOBBY";state.phaseMs=0;state.raceMs=0;state.accumulator=0;
   announce(state,"Novo lobby: "+state.mapId+". É necessário comentar entrar a cada rodada.");
 }
@@ -132,25 +137,25 @@ function stepRunners(state,ms) {
   state.raceMs+=ms;
   const seconds=ms/1000;
   const finishAt=raceLength(state);
-  const hazards=obstaclesFor(state.mapId,finishAt);
+  // Empty until a completed present event is accepted. At most 8 active,
+  // time-limited obstacles are checked per runner, regardless of 5km distance.
+  const hazards=activeGiftObstacles(state);
   for(const r of state.active) {
     if(r.status!=="running")continue;
     const slowed=r.slowUntil>state.raceMs;
     const boosted=r.turboUntil>state.raceMs;
     const speed=r.baseSpeed*(slowed?.46:1)*(boosted?1.75:1);
-    // Each obstacle has an independent deterministic outcome. Rendering FPS cannot change it.
-    // Hazards are ordered by distance. Only inspect the nearby tile, not all
-    // ~400 obstacles 50 runners × 20 ticks/second for a 5km race.
-    const firstIndex=Math.max(0,Math.floor(r.progress/STREAM_TILE_LENGTH)*24-1);
-    for(let i=firstIndex;i<hazards.length;i++) {
-      const h=hazards[i];
-      if(h.z>r.progress+speed*seconds+.15)break;
-      if(h.z<r.progress-.2||r.passed.includes(h.index)||h.lane!==r.lane)continue;
-      if(r.progress<=h.z && r.progress+speed*seconds>=h.z-.15) {
-        r.passed.push(h.index);
-        const dice=randomFrom(hash(r.id+"|"+state.seed+"|"+h.index))();
-        if(dice<.60)r.lane=Math.max(0,Math.min(LANES-1,r.lane+(r.lane===4?-1:r.lane===0?1:dice<.3?-1:1)));
-        else r.slowUntil=state.raceMs+1100+Math.floor(dice*800);
+    for(const h of hazards){
+      if(h.lane!==r.lane||r.passed.includes(h.id))continue;
+      if(r.progress<=h.z&&r.progress+speed*seconds>=h.z-.15){
+        r.passed.push(h.id);
+        const dice=randomFrom(hash(r.id+"|"+state.seed+"|"+h.id))();
+        if(dice<.60){
+          r.lane=Math.max(0,Math.min(LANES-1,r.lane+
+            (r.lane===4?-1:r.lane===0?1:dice<.3?-1:1)));
+        }else{
+          r.slowUntil=state.raceMs+1100+Math.floor(dice*800);
+        }
       }
     }
     r.speed=speed;
@@ -166,6 +171,8 @@ function stepRunners(state,ms) {
 function updateStep(state,ms) {
   state.phaseMs+=ms;
   if(state.phase==="RUNNING")stepRunners(state,ms);
+  if(state.phase==="RUNNING"&&Array.isArray(state.giftObstacles))
+    state.giftObstacles=activeGiftObstacles(state);
   const everyoneFinished=state.phase==="RUNNING"&&state.active.length>0&&state.active.every(r=>r.status==="finished");
   // No entrants? Don't leave the demo in a pointless 85-second empty race.
   const emptyRace=state.phase==="RUNNING"&&state.active.length===0&&state.phaseMs>=1500;

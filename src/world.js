@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { TRACK_LENGTH, PREVIOUS_TRACK_LENGTH, STREAM_TILE_LENGTH, biome, laneX, obstaclesFor } from "./config.js";
+import { TRACK_LENGTH, PREVIOUS_TRACK_LENGTH, STREAM_TILE_LENGTH, biome, laneX } from "./config.js";
+import {activeGiftObstacles,MAX_ACTIVE_GIFT_OBSTACLES} from "./gift-obstacles.js";
 import {QUALITY_SETTINGS} from "./performance.js";
 import {trackCenter,trackPoint,COURSE_MILESTONES} from "./track-path.js";
 
@@ -33,7 +34,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   let currentLength=TRACK_LENGTH;
   let renderedLength=PREVIOUS_TRACK_LENGTH;
   const streamingLength=STREAM_TILE_LENGTH*2;
-  let weather=null,focusRing=null,boostTrails=null;
+  let weather=null,focusRing=null,boostTrails=null,giftObstacleMesh=null;
   let curvedCourse=false;
   let ribbons=[],curvedBatches=[],curvedSingles=[];
   const upAxis=new THREE.Vector3(0,1,0);
@@ -130,15 +131,37 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       }
     }
   }
-  function obstacleMesh(map){
-    for(const h of obstaclesFor(map,renderedLength)){
-      const x=laneX(h.lane);
-      if(h.kind==="ice")crystal(x,h.z,.68,0x7ad9fa);
-      else{
-        block(root,x,.28,h.z,1.25,.58,.8,0x7d5237);
-        block(root,x,.62,h.z,1,.18,.8,0xa8794f);
-      }
+  // Gift-triggered obstacles use exactly one instanced draw call. None at rest.
+  function makeGiftObstacleMesh(id){
+    giftObstacleMesh=new THREE.InstancedMesh(
+      id==="ice"?octahedronGeometry:boxGeometry,
+      material(id==="ice"?0x65daf6:0x8c6139,.07),
+      MAX_ACTIVE_GIFT_OBSTACLES
+    );
+    giftObstacleMesh.name="gift-obstacle-batch";
+    giftObstacleMesh.count=0;
+    giftObstacleMesh.frustumCulled=false;
+    giftObstacleMesh.castShadow=profile.shadows;
+    root.add(giftObstacleMesh);
+  }
+  function drawGiftObstacles(state){
+    if(!giftObstacleMesh)return;
+    const hazards=activeGiftObstacles(state);
+    let count=0;
+    for(const h of hazards){
+      if(count>=MAX_ACTIVE_GIFT_OBSTACLES)break;
+      const p=curvedCourse?trackPoint(h.z,laneX(h.lane),.65):
+        {x:laneX(h.lane),y:.65,z:h.z,heading:0};
+      trailTransform.position.set(p.x-root.position.x,p.y,p.z-root.position.z);
+      trailTransform.rotation.set(0,p.heading,0);
+      trailTransform.scale.set(h.kind==="ice"?.85:1.3,h.kind==="ice"?1.35:.85,
+        h.kind==="ice"?.85:.95);
+      trailTransform.updateMatrix();
+      giftObstacleMesh.setMatrixAt(count++,trailTransform.matrix);
     }
+    giftObstacleMesh.count=count;
+    giftObstacleMesh.visible=count>0;
+    if(count)giftObstacleMesh.instanceMatrix.needsUpdate=true;
   }
   // Agrupa centenas de blocos voxel estáticos em InstancedMesh.
   // Renderiza cada cor/geometria em uma chamada, preservando transformações de árvores,
@@ -373,7 +396,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       });
     }
     for(const mat of materials.values())mat.dispose();materials.clear();
-    weather=null;focusRing=null;boostTrails=null;
+    weather=null;focusRing=null;boostTrails=null;giftObstacleMesh=null;
     ribbons=[];curvedBatches=[];curvedSingles=[];
     finishGroup.position.set(0,0,0);finishGroup.rotation.set(0,0,0);
     courseStart.position.set(0,0,0);courseStart.rotation.set(0,0,0);
@@ -467,11 +490,12 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       block(root,0,.09,0,11.5,.03,.65,settings.id==="ice"?0xf5faff:0xe2f2d4);
       block(root,0,.09,targetLength,11.5,.03,1.2,0xffecc3);
     }
-    scenery(settings.id);obstacleMesh(settings.id);
+    scenery(settings.id);
     setupAtmosphere(settings.id);
     if(!curvedCourse)label("CHEGADA",0,7.2,targetLength);
     batchStaticScenery();
     updateCurvedCourse(0);
+    makeGiftObstacleMesh(settings.id);
   }
   function setRenderScale(value) {
     const next=Math.max(.65,Math.min(1,Number(value)||1));
@@ -527,6 +551,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     camera.lookAt(cameraTarget);
     animateAtmosphere(dt,z);
     updateSpeedTrails(race);
+    drawGiftObstacles(race);
     if(focusRing){
       const leader=active.reduce((best,r)=>!best||r.progress>best.progress?r:best,null);
       focusRing.visible=Boolean(leader);

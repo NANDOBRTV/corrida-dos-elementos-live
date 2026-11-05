@@ -1,4 +1,5 @@
 // Regras públicas dos presentes. Não representam conversão financeira nem saldo de moedas.
+import {spawnGiftObstacle} from "./gift-obstacles.js";
 export const GIFT_TURBO_MS=4000;
 export const MAX_GIFT_FEED=8;
 
@@ -20,19 +21,21 @@ export function applyGiftEvent(state,gift) {
   }
   const effect=eligible?"turbo":"agradecimento";
   const simulated=gift.simulated===true;
+  const obstacle=spawnGiftObstacle(state,{simulated});
   const entry={
     userId,displayName:nickname,giftName,quantity,
-    effect,simulated,round:state.round
+    effect,simulated,round:state.round,obstacleSpawned:Boolean(obstacle)
   };
   if(!Array.isArray(state.gifts))state.gifts=[];
   state.gifts.unshift(entry);
   state.gifts.length=Math.min(state.gifts.length,MAX_GIFT_FEED);
   const announce=(simulated?"[TESTE] ":"")+nickname+" enviou "+giftName+
-    (quantity>1?" x"+quantity:"")+(eligible?" · TURBO +4s!":" · obrigado!");
+    (quantity>1?" x"+quantity:"")+(eligible?" · TURBO +4s!":" · obrigado!")+
+    (obstacle?" · OBSTÁCULO NA PISTA!":"");
   if(!Array.isArray(state.messages))state.messages=[];
   state.messages.unshift({text:announce.slice(0,150),at:state.round});
   state.messages.length=Math.min(8,state.messages.length);
-  return {ok:true,effect,entry};
+  return {ok:true,effect,entry,obstacle:obstacle||null};
 }
 
 // Retém somente marcadores técnicos de eventos; não armazena mensagens nem tokens.

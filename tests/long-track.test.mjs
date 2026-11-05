@@ -5,18 +5,11 @@ import {createState,register,advance,tick,migrateSavedState,validateSavedState,r
 import {appearanceForRunner} from "../src/cosmetics.js";
 import {createApp} from "../server/index.js";
 
-test("Gelo e Floresta now have 5km of real race physics, with bounded repeated hazards",()=>{
+test("Gelo and Floresta run 5km with NO automatic hazards, including restored old distances",()=>{
   assert.equal(TRACK_LENGTH,5000);
-  for(const id of BIOME_ORDER){
-    const hazards=obstaclesFor(id,TRACK_LENGTH);
-    assert.equal(hazards.length,400);
-    assert.equal(obstaclesFor(id,PREVIOUS_TRACK_LENGTH).length,24);
-    assert.equal(obstaclesFor(id,600).length,48);
-    assert.equal(obstaclesFor(id,600),obstaclesFor(id,600),"Cached hazards reused");
-    assert.equal(hazards[0].lane,hazards[24].lane,"Visual pattern repeats each 300m");
-    assert.ok(hazards.every(x=>x.z>0&&x.z<TRACK_LENGTH));
-    assert.equal(obstaclesFor(id,LEGACY_TRACK_LENGTH).length,12);
-  }
+  for(const id of BIOME_ORDER)
+    for(const length of [TRACK_LENGTH,PREVIOUS_TRACK_LENGTH,600,LEGACY_TRACK_LENGTH])
+      assert.deepEqual(obstaclesFor(id,length),[],"No procedural hazards without gifts");
 });
 test("New races finish at 5km; vehicle appearance does not affect speed or ranking",()=>{
   const state=createState(42);

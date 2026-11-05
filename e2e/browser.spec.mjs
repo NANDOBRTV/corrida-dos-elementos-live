@@ -636,3 +636,54 @@ test("v3.2 hairpin showcase opens inside the U-turn without changing the real se
   expect(after.state.active.length).toBe(before.state.active.length);
   expect(errors).toEqual([]);
 });
+
+test("v3.3 minimap is ONLY route and markers, without either rectangular card",async({page})=>{
+  await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
+  await expect(page.locator("#playerCount")).toHaveText("50",{timeout:25000});
+  const visual=await page.evaluate(()=>{
+    const outer=getComputedStyle(document.querySelector(".live-minimap"));
+    const inner=getComputedStyle(document.querySelector(".live-minimap-road"));
+    return {
+      outerBorder:outer.borderTopWidth,innerBorder:inner.borderTopWidth,
+      outerBackground:outer.backgroundColor,innerBackground:inner.backgroundColor,
+      svg:getComputedStyle(document.querySelector(".live-course-svg")).display,
+      path:document.querySelector("#liveCoursePath").getAttribute("d").length,
+      finish:getComputedStyle(document.querySelector(".live-mini-finish")).display,
+      start:getComputedStyle(document.querySelector(".live-mini-start")).display
+    };
+  });
+  expect(visual.outerBorder).toBe("0px");
+  expect(visual.innerBorder).toBe("0px");
+  expect(visual.outerBackground).toBe("rgba(0, 0, 0, 0)");
+  expect(visual.innerBackground).toBe("rgba(0, 0, 0, 0)");
+  expect(visual.svg).not.toBe("none");
+  expect(visual.path).toBeGreaterThan(1000);
+  expect(visual.finish).toBe("none");expect(visual.start).toBe("none");
+});
+test("v3.3 only gift events create 3D obstacles; no generated track obstacles",async({page})=>{
+  await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
+  await expect(page.locator("#playerCount")).toHaveText("50",{timeout:25000});
+  const counts=await page.evaluate(async()=>{
+    const {createWorld}=await import("/src/world.js");
+    const {createState,register,advance}=await import("/src/engine.js");
+    const {applyGiftEvent}=await import("/src/gifts.js");
+    const canvas=document.createElement("canvas");
+    canvas.style.cssText="position:absolute;left:-9999px;width:280px;height:440px";
+    document.body.append(canvas);
+    const world=createWorld(canvas,{quality:"low"});
+    try{
+      const s=createState(4);
+      register(s,"one","One","entrar");advance(s);advance(s);
+      world.setMap("ice",5000);
+      world.render(s,.016);
+      const mesh=world.scene.getObjectByName("gift-obstacle-batch");
+      const before=mesh.count;
+      applyGiftEvent(s,{userId:"viewer",giftId:"rose",giftName:"Rosa",repeatCount:1,simulated:true});
+      world.render(s,.016);
+      const withGift=mesh.count;
+      s.giftObstacles=[];world.render(s,.016);
+      return {before,withGift,after:mesh.count};
+    }finally{world.dispose();canvas.remove();}
+  });
+  expect(counts).toEqual({before:0,withGift:1,after:0});
+});

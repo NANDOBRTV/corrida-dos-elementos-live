@@ -95,3 +95,41 @@ body[data-view="live"] .live-minimap{height:146px!important;gap:1px}
   body[data-view="live"] .live-minimap{height:123px!important}
   body[data-view="live"] .live-minimap-road{height:80px!important}
 }
+
+/* v3.3 — MAPA SOLTO: sem quadrado exterior/interior, somente rota e pins. */
+body[data-view="live"] .live-minimap{
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  border-radius:0!important;
+  padding:0!important;
+  pointer-events:none;
+  width:94px!important;
+  height:132px!important;
+  display:flex;
+  align-items:stretch;
+  justify-content:center;
+}
+body[data-view="live"] .live-minimap-road{
+  width:94px!important;
+  height:132px!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+}
+body[data-view="live"] .live-minimap-road:after{display:none!important}
+body[data-view="live"] .live-mini-finish,
+body[data-view="live"] .live-mini-start,
+body[data-view="live"] #liveMiniMapName{display:none!important}
+body[data-view="live"] .live-course-svg{width:100%;height:100%}
+body[data-view="live"] #liveCoursePath{
+  stroke:#f4fdff;stroke-width:7;
+  filter:drop-shadow(0 1px 2px #132637)
+}
+@media(max-height:680px){
+  body[data-view="live"] .live-minimap{height:112px!important}
+  body[data-view="live"] .live-minimap-road{height:112px!important}
+}

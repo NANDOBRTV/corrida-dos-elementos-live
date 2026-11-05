@@ -320,12 +320,14 @@ export function createStudioScene(canvas,{quality="balanced",
             {x:.085,y:.026,z:2.6},line.heading);
         }
       }
-      if(meter<0&&meter>=-4){
-        // Two start-gate columns, not long guardrails hiding the forest.
+      if(meter>=4&&meter<8){
+        // Two monumental voxel gate pillars, just outside the start line.
+        // They must be INSIDE the camera frustum at 9:16 (unlike the old
+        // x=12.9m posts which were entirely off-screen).
         for(const side of [-1,1]){
-          const atWall=roadsidePoint(meter,side*12.9);
-          put(walls,ws++,{x:atWall.x,y:atWall.y+13.5,z:atWall.z},
-            {x:2.15,y:27.0,z:2.0},atWall.heading);
+          const atWall=roadsidePoint(meter,side*10.45);
+          put(walls,ws++,{x:atWall.x,y:atWall.y+11.9,z:atWall.z},
+            {x:2.35,y:23.8,z:2.3},atWall.heading);
         }
       }
     }
@@ -460,29 +462,34 @@ export function createStudioScene(canvas,{quality="balanced",
     }
     const runners=state.active.filter(r=>r.status==="running");
     if(!runners.length){spotlight.count=0;return;}
-    // Highlight a clear leader without faking a present from a real user.
-    const leader=runners.reduce((a,b)=>Number(b.progress)>Number(a.progress)?b:a);
-    const p=poses.get(leader.id);
+    // The reference marks a visible member of the peloton, not a tiny
+    // distant leader. Follow a stable mid-pack ID during each round, without
+    // altering the authoritative classification or pretending there was a gift.
+    const ranked=[...runners].sort((a,b)=>
+      Number(b.progress)-Number(a.progress)||
+      String(a.id).localeCompare(String(b.id)));
+    const featured=ranked[Math.floor(ranked.length*.53)];
+    const p=poses.get(featured.id);
     if(!p){spotlight.count=0;return;}
     const t=Math.max(0,Number(state.raceMs)||0);
     const pulse=.94+.06*Math.sin(t*.008);
     let n=0;
     for(let k=0;k<18;k++){
       const angle=Math.PI*2*k/18;
-      const radius=1.22*pulse;
+      const radius=1.62*pulse;
       put(spotlight,n,{x:p.x+Math.cos(angle)*radius,
         y:p.y+.12,z:p.z+Math.sin(angle)*radius},
-        {x:.48,y:.14,z:.19},-angle);
+        {x:.68,y:.16,z:.24},-angle);
       spotlight.setColorAt(n++,new THREE.Color(k%3===0?0xffad44:0xf06537));
     }
     for(let k=0;k<10;k++){
       const a=Math.PI*2*k/10+t*.00027;
-      const radius=1.45+((k*7)%3)*.19;
+      const radius=1.75+((k*7)%3)*.20;
       const cycle=(t*.0015+k*.37)%1;
-      const height=.35+cycle*4.6;
+      const height=.35+cycle*6.3;
       put(spotlight,n,{x:p.x+Math.cos(a)*radius,
         y:p.y+height,z:p.z+Math.sin(a)*radius},
-        {x:.07,y:.55+cycle*.5,z:.07});
+        {x:.09,y:.8+cycle*.5,z:.09});
       spotlight.setColorAt(n++,new THREE.Color(k%3===0?0xfff3aa:0xffffff));
     }
     spotlight.count=n;

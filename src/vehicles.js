@@ -36,7 +36,7 @@ const motorcycles=[
  ["nmax160","NMAX 160","scooter",.88,2.35,.90]
 ];
 const aliases={
-  "s-10":"s10","s 10":"s10","chevrolet s10":"s10",
+  "scada":"strada","s-10":"s10","s 10":"s10","chevrolet s10":"s10",
   "cg":"cg160","cg 160":"cg160","titan":"cg160","titan 160":"cg160",
   "biz":"biz125","biz 125":"biz125","bros":"bros160",
   "bros 160":"bros160","xre":"xre300","xre 300":"xre300",
@@ -86,7 +86,11 @@ export function parseVehicleChoice(comment){
 }
 export function vehicleForBot(index){
   // Deterministic demo filler, not a random real-user assignment.
-  return VEHICLES[((Math.trunc(index)%VEHICLES.length)+VEHICLES.length)%VEHICLES.length];
+  const slot=((Math.trunc(index)%VEHICLES.length)+VEHICLES.length)%VEHICLES.length;
+  // Two cars followed by one motorcycle: every demo grid already includes
+  // both types; all 20 cars and 10 motorcycles appear once every 30 slots.
+  return slot%3===2?VEHICLES[CAR_COUNT+Math.floor(slot/3)]:
+    VEHICLES[Math.floor(slot/3)*2+(slot%3)];
 }
 export function vehicleById(id){
   return resolveVehicle(id);

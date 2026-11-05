@@ -220,3 +220,47 @@ test("1080x1920 landscape-free 9:16 portrait renders Ice, Forest and winner podi
   });
   await unmount(page);
 });
+
+
+test("Reference visual: tall starting pillars, colorful voxel accessories and mid-pack light-ring",async({page})=>{
+  await page.setViewportSize({width:390,height:693});
+  const mounted=await mount(page,{width:390,height:693,phase:"LOBBY"});
+  expect(mounted.stats.runners).toBe(100);
+  const results=await page.evaluate(()=>{
+    const data=window.__studioTest;
+    const scene=data.scene;
+    const walls=scene.scene.getObjectByName("studio-start-walls");
+    const avatarMesh=scene.scene.getObjectByName("studio-100-runner-voxel-batch");
+    const halo=scene.scene.getObjectByName("studio-leader-spotlight-ring");
+    const before={wallCount:walls.count,avatarPartsPerRunner:scene.limits.avatarParts,
+      spotlight:halo.count};
+    data.state.phase="RUNNING";
+    for(let index=0;index<data.state.active.length;index++){
+      const r=data.state.active[index];
+      r.progress=70+(index%12)*1.2;
+      r.status="running";
+    }
+    data.state.raceMs=8500;
+    scene.update(data.state,1/30);
+    return {...before,ringParts:halo.count,
+      ringColor:halo.instanceColor!==null,
+      triangles:scene.stats().triangles,
+      drawCalls:scene.stats().drawCalls,
+      avatarInstances:avatarMesh.count,
+      cameraCount:scene.stats().cameraCount
+    };
+  });
+  expect(results.wallCount).toBeGreaterThanOrEqual(2);
+  expect(results.avatarPartsPerRunner).toBeGreaterThanOrEqual(28);
+  expect(results.spotlight).toBe(0);
+  expect(results.ringParts).toBeGreaterThanOrEqual(25);
+  expect(results.ringColor).toBe(true);
+  expect(results.avatarInstances).toBe(100*results.avatarPartsPerRunner);
+  expect(results.cameraCount).toBe(1);
+  expect(results.drawCalls).toBeLessThan(30);
+  expect(results.triangles).toBeLessThan(55000);
+  await page.locator("#studio-v5-scene-test").screenshot({
+    path:"test-results/reference-new-voxel-spotlight.png"
+  });
+  await unmount(page);
+});

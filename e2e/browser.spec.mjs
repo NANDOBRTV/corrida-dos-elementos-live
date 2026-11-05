@@ -778,6 +778,7 @@ test("v4.0.2 Ice stays snow-free over the W asphalt and starts with a frontal ca
       });
       const ground=world.scene.getObjectByName("winter-terrain-floor");
       const groundTop=ground.position.y+ground.scale.y/2;
+      const staging=world.scene.getObjectByName("starting-grid-asphalt");
       let minRoadHeight=Infinity;
       for(let d=0;d<=400;d+=2)minRoadHeight=Math.min(minRoadHeight,trackCenter(d).y+.078);
       const snowParticles=Boolean(world.scene.getObjectByName("biome-weather-particles"));
@@ -787,6 +788,8 @@ test("v4.0.2 Ice stays snow-free over the W asphalt and starts with a frontal ca
       const orbitRadius=Math.hypot(world.camera.position.x-first.x,
         world.camera.position.z-first.z);
       return {front,pack,topIds:leaders.map(r=>r.id),groundTop,minRoadHeight,
+        stagingWidth:staging.scale.x,stagingLength:staging.scale.z,
+        stagingRoadTop:staging.position.y+staging.scale.y/2,
         snowParticles,orbitRadius};
     }finally{avatars.clear();world.dispose();canvas.remove();}
   });
@@ -800,6 +803,9 @@ test("v4.0.2 Ice stays snow-free over the W asphalt and starts with a frontal ca
   expect(second.every(r=>r.relative<-2.4&&r.relative>-3.0)).toBe(true);
   expect(third.every(r=>r.relative<-5&&r.relative>-5.6)).toBe(true);
   expect(observed.groundTop).toBeLessThan(observed.minRoadHeight);
+  expect(observed.stagingLength).toBeGreaterThan(48);
+  expect(observed.stagingWidth).toBeGreaterThan(10);
+  expect(observed.stagingRoadTop).toBeGreaterThan(observed.groundTop);
   expect(observed.snowParticles).toBe(false);
   expect(observed.orbitRadius).toBeGreaterThan(12);
 });

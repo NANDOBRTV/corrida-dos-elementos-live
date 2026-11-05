@@ -1,9 +1,9 @@
 import * as THREE from "three";
-import { TRACK_LENGTH, PREVIOUS_TRACK_LENGTH, STREAM_TILE_LENGTH, biome, laneX } from "./config.js";
+import { TRACK_LENGTH, PREVIOUS_TRACK_LENGTH, STREAM_TILE_LENGTH, biome, laneX, LANES, LANE_WIDTH } from "./config.js";
 import {activeGiftObstacles,MAX_ACTIVE_GIFT_OBSTACLES} from "./gift-obstacles.js";
 import {QUALITY_SETTINGS} from "./performance.js";
 import {trackCenter,trackPoint,trackBounds,COURSE_MILESTONES} from "./track-path.js";
-import {visualStartingDistance,gridTrackPoint} from "./start-grid.js";
+import {visualStartingDistance,gridTrackPoint,GRID_COLUMNS,GRID_ROW_GAP} from "./start-grid.js";
 import {createCameraDirector} from "./camera-director.js";
 import {snowbankProfile,clearOfWTrack} from "./snow-clearance.js";
 
@@ -294,20 +294,23 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     const start=trackCenter(0);
     courseStart.position.set(start.x,start.y,start.z);
     courseStart.rotation.y=start.heading;
-    // 50 participants make 17 staggered rows, extending ~42m BEHIND 0m.
-    // Their staging area must also be dark asphalt, never exposed snow.
-    const staging=block(courseStart,0,.07,-25,11.7,.12,52,
+    // Video reference: ten avatars across each row, five rows for 50 players.
+    // The dark 21m-wide staging strip keeps everyone on snow-free asphalt.
+    const staging=block(courseStart,0,.07,-25,20.2,.12,52,
       biome(mapId).road);
     staging.name="starting-grid-asphalt";
-    for(const x of [-.925,.925])for(let row=1;row<=17;row++){
-      block(courseStart,x,.145,-row*2.65+.6,.065,.012,1.15,0xb3bcc7);
+    for(let column=1;column<GRID_COLUMNS;column++){
+      const x=(column-GRID_COLUMNS/2)*LANE_WIDTH;
+      for(let row=1;row<=5;row++){
+        block(courseStart,x,.145,-row*GRID_ROW_GAP+.6,.065,.012,1.20,0xb3bcc7);
+      }
     }
-    block(courseStart,0,.16,0,11.6,.05,.9,0xeef7ff);
+    block(courseStart,0,.16,0,19.8,.05,.9,0xeef7ff);
     const gantry=trackCenter(TRACK_LENGTH);
     finishGroup.position.set(gantry.x,gantry.y,gantry.z);
     finishGroup.rotation.y=gantry.heading;
     arch(0,0xffe7a4,finishGroup);
-    block(finishGroup,0,.14,0,11.5,.05,1.2,0xfff5c6);
+    block(finishGroup,0,.14,0,19.8,.05,1.2,0xfff5c6);
     label("CHEGADA",0,7.2,0,"#f5fbef",finishGroup);
     for(const km of COURSE_MILESTONES){
       const c=trackCenter(km);
@@ -318,9 +321,9 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       courseMilestones.add(group);
       // Checkpoint stripe and distance sign live at the unique absolute kilometer,
       // never at the start of every streamed tile.
-      block(group,0,.12,0,11.5,.045,.5,0xffe8a2);
-      block(group,8,1.9,0,.32,3.8,.32,0x36515f);
-      label(km%1000===0?"KM "+km/1000:String(km)+" m",8,4.0,0,
+      block(group,0,.12,0,19.8,.045,.5,0xffe8a2);
+      block(group,12,1.9,0,.32,3.8,.32,0x36515f);
+      label(km%1000===0?"KM "+km/1000:String(km)+" m",12,4.0,0,
         "#fff2b3",group);
     }
   }
@@ -485,15 +488,15 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     // Bend lanes, shoulders, barriers and scenery along the same W circuit.
     // Older 150m/300m snapshots retain their straight layout.
     if(curvedCourse){
-      makeRibbon("course-shoulder",-10,10,-.055,settings.id==="ice"?0x66798e:0x728e6b);
-      makeRibbon("course-asphalt",-5.85,5.85,.078,settings.road);
+      makeRibbon("course-shoulder",-11.6,11.6,-.055,settings.id==="ice"?0x66798e:0x728e6b);
+      makeRibbon("course-asphalt",-9.45,9.45,.078,settings.road);
       for(const side of [-1,1]){
-        makeRibbon("course-edge-"+side,side*5.80,side*6.19,.22,settings.trim);
-        makeRibbon("course-guardrail-"+side,side*6.15,side*6.50,.37,
+        makeRibbon("course-edge-"+side,side*9.40,side*9.82,.22,settings.trim);
+        makeRibbon("course-guardrail-"+side,side*10.15,side*10.55,.37,
           settings.id==="ice"?0xdbe9f3:0xb7a077);
       }
       for(let z=10;z<renderedLength;z+=24)for(const side of [-1,1])
-        block(root,side*6.25,.45,z,.15,.78,.17,0x718897);
+        block(root,side*10.35,.45,z,.15,.78,.17,0x718897);
     }else{
       block(root,0,.025,renderedLength/2,11.7,.1,renderedLength+4,settings.road);
     }
@@ -514,8 +517,12 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       block(root,-6.0,.26,renderedLength/2,.38,.44,renderedLength+4,settings.trim);
       block(root,6.0,.26,renderedLength/2,.38,.44,renderedLength+4,settings.trim);
     }
-    for(const x of [-3.7,-1.85,0,1.85,3.7]) for(let z=5;z<renderedLength;z+=7.5){
-      block(root,x,.086,z,.08,.02,2.2,0xece5c3);
+    // Thin dashed lane dividers keep 10 competitors readable without
+    // adding dynamic geometry (GPU batching handles the static stripes).
+    for(let divider=1;divider<LANES;divider++){
+      const x=(divider-LANES/2)*LANE_WIDTH;
+      for(let z=5;z<renderedLength;z+=10)
+        block(root,x,.086,z,.07,.02,2.0,0xece5c3);
     }
     // One start/finish location on the continuous 400m circuit.
     if(curvedCourse) addCourseMilestones();
@@ -564,25 +571,25 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     const overview=Math.min(1,Math.max(0,(yawDelta-.22)/1.30));
     // Camera remains anchored to the pack's own tangent, not a different arm
     // of a hairpin. This keeps 50 avatars in frame during 180° turns.
-    const backDistance=27+overview*47;
-    const height=13.7+overview*53;
+    const backDistance=26+overview*40;
+    const height=13+overview*50;
     const forwardDistance=12+overview*13;
     const forwardX=Math.sin(center.heading),forwardZ=Math.cos(center.heading);
     positionTarget.set(center.x-forwardX*backDistance,
       center.y+height,center.z-forwardZ*backDistance);
     lookTarget.set(center.x+forwardX*forwardDistance,
       center.y+1.5,center.z+forwardZ*forwardDistance);
-    // Countdown + the first seconds of the race are shot FROM IN FRONT of
-    // the starting grid, looking back at the first three leaders and the rows
-    // of three behind them. Blend into the moving chase camera afterwards.
+    // From opening the registration lobby until the countdown reaches zero:
+    // one stable frontal wide camera, all 10 columns within the portrait frame.
+    // At GO, cut immediately behind the pack, matching the reference video.
     const opening=race.phase==="LOBBY"||race.phase==="COUNTDOWN"?1:0;
     if(opening>0){
       const first=curvedCourse?trackCenter(z):{x:0,y:0,z,heading:0};
       const forwardX=Math.sin(first.heading),forwardZ=Math.cos(first.heading);
       const sideX=Math.cos(first.heading),sideZ=-Math.sin(first.heading);
-      const gridDepth=Math.ceil(active.length/3)*2.65;
-      const frontDistance=27+Math.min(15,gridDepth*.28);
-      const frontHeight=14+Math.min(14,gridDepth*.3);
+      const gridDepth=Math.ceil(active.length/GRID_COLUMNS)*GRID_ROW_GAP;
+      const frontDistance=30+Math.min(3,gridDepth*.18);
+      const frontHeight=8.8+Math.min(2,gridDepth*.10);
       // Move AROUND the runners on a half-circle, not straight THROUGH them
       // as the opening frontal shot transitions into the chase camera.
       const orbitAngle=(1-opening)*Math.PI;
@@ -591,7 +598,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       closePosition.set(first.x+forwardX*front+sideX*side,
         first.y+opening*frontHeight+(1-opening)*height,
         first.z+forwardZ*front+sideZ*side);
-      const lookAhead=(1-opening)*forwardDistance-opening*Math.min(19,gridDepth*.42);
+      const lookAhead=(1-opening)*forwardDistance-opening*Math.min(9,gridDepth*.55);
       closeLook.set(first.x+forwardX*lookAhead,first.y+1.5,
         first.z+forwardZ*lookAhead);
       positionTarget.copy(closePosition);
@@ -600,7 +607,10 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     // Close-ups only take control after the opening shot, and keep the
     // existing randomized 0–10-second interval between selections.
     const focus=director.update(race);
-    visibleCloseup=opening<.01?focus:null;
+    // Protect the first three seconds after GO for a clear rear shot.
+    // Manual spotlight requested by the operator is still allowed immediately.
+    const protectStart=race.phase==="RUNNING"&&(Number(race.raceMs)||0)<3000&&!focus?.manual;
+    visibleCloseup=opening<.01&&!protectStart?focus:null;
     if(visibleCloseup&&visibleCloseup.blend>0){
       const point=curvedCourse?trackPoint(visibleCloseup.progress,laneX(visibleCloseup.lane)):
         {x:laneX(focus.lane),y:0,z:focus.progress,heading:0};

@@ -44,8 +44,15 @@ if(showcase){
   const names=["Luna","Bia","Nina","Raio","Theo","Mika","Sol","Zara","Ravi","Lua",
     "Kai","Pip","Ari","Max","Mel","Nox","Ivo","Eva","Léo","Cris"];
   for(let i=0;i<50;i++)register(state,"preview-"+i,names[i%names.length]+" "+(Math.floor(i/names.length)+1),"entrar");
-  advance(state);advance(state); // Just the visual demo, never the authoritative Render motor.
   const params=new URLSearchParams(window.location.search);
+  const intro=params.get("intro");
+  if(intro==="full"){
+    // 60-second lobby followed by 5-second visible countdown and GO.
+  }else if(intro==="countdown"){
+    advance(state); // Run a five-second countdown before GO.
+  }else{
+    advance(state);advance(state); // Existing instant-running demo.
+  }
   const previewKm={
     hairpin:95,hairpin1:95,hairpin2:215,hairpin3:325
   }[params.get("section")||""]??null;
@@ -208,8 +215,17 @@ function renderHud() {
   byId("arenaMessage").textContent=state.phase==="LOBBY"?"PRÓXIMA LARGADA":state.phase==="COUNTDOWN"?"PORTÕES FECHADOS":state.phase==="RUNNING"?"CORREDORES NA PISTA":"PÓDIO FINAL";
   byId("arenaElapsed").textContent=toTime(state.phase==="RUNNING"?state.raceMs:state.phaseMs);
   byId("raceChip").textContent=selectedPreviewMap?"PRÉVIA • NÃO OFICIAL":"CORRIDA AUTOMÁTICA";
-  byId("countdownOverlay").hidden=state.phase!=="COUNTDOWN";
-  if(state.phase==="COUNTDOWN")byId("countdownOverlay").textContent=String(countdown(state));
+  const lobby=state.phase==="LOBBY",counting=state.phase==="COUNTDOWN";
+  const go=state.phase==="RUNNING"&&state.raceMs<1100;
+  byId("startBanner").hidden=!(lobby||counting);
+  if(lobby||counting){
+    byId("startBannerLabel").textContent=lobby?"INSCRIÇÕES ABERTAS":"LARGADA EM";
+    byId("startBannerSeconds").textContent=String(countdown(state));
+    byId("startBannerCount").textContent=state.active.length+"/50";
+  }
+  byId("countdownOverlay").hidden=!(counting||go);
+  if(counting||go)byId("countdownOverlay").textContent=go?"GO!":String(countdown(state));
+  byId("countdownOverlay").classList.toggle("go",go);
   const isResults=state.phase==="RESULTS";
   byId("resultsOverlay").hidden=!isResults;
   if(isResults) {

@@ -3,7 +3,7 @@ import {readFile,stat} from "node:fs/promises";
 import {fileURLToPath} from "node:url";
 import {dirname,join,extname,resolve,sep} from "node:path";
 import {timingSafeEqual,randomBytes} from "node:crypto";
-import {createState,addDemo,register,rank,advance,tick,turbo,focusRunner,configureNextLaps,validateSavedState,migrateSavedState} from "../src/engine.js";
+import {createState,addDemo,register,rank,advance,tick,turbo,focusRunner,configureNextLaps,arrangeStartingGrid,validateSavedState,migrateSavedState} from "../src/engine.js";
 import {openStorage} from "./storage.js";
 import {startTikTokBridge} from "./tiktok.js";
 import {applyGiftEvent,createGiftDeduplicator} from "../src/gifts.js";
@@ -64,6 +64,7 @@ export async function createApp(opts={}){
     phase:recovered?loaded.phase:null};
   if(recovered){
     state=normalized;
+    if(state.phase==="LOBBY"||state.phase==="COUNTDOWN")arrangeStartingGrid(state);
     if(biomeMigrated)console.log("[game] Migração dos mapas concluída: Gelo e Floresta, rodada",state.round);
     state.accumulator=0;
     console.log("[game] Estado recuperado do armazenamento: rodada",state.round);

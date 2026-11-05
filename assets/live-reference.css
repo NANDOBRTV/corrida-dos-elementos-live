@@ -242,3 +242,6 @@ body[data-view="live"] .live-minimap small{font-size:8px}
   body[data-view="live"] .live-timer-card{width:110px}
   body[data-view="live"] .rank-name{font-size:8px}
 }
+
+/* Full-width start lineup: ten avatars per row, five rows maximum. */
+body[data-view="live"][data-phase="countdown"] .call-to-action{display:none!important}

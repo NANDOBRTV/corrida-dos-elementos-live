@@ -1,4 +1,4 @@
-import {TRACK_LENGTH} from "./config.js";
+import {TRACK_LENGTH,LANES} from "./config.js";
 // Obstáculos existem SOMENTE após presente aceito pelo servidor ou presente simulado.
 // Não há geração periódica. Valores/quantidade de moedas não afetam o resultado.
 export const MAX_ACTIVE_GIFT_OBSTACLES=8;
@@ -9,7 +9,7 @@ export function activeGiftObstacles(state){
   const clock=Number(state.raceMs)||0;
   return state.giftObstacles.filter(h=>h&&h.round===state.round&&
     Number.isFinite(h.z)&&h.z>=0&&h.z<=(state.trackLength||TRACK_LENGTH)&&
-    Number.isInteger(h.lane)&&h.lane>=0&&h.lane<5&&h.expiresAt>clock);
+    Number.isInteger(h.lane)&&h.lane>=0&&h.lane<LANES&&h.expiresAt>clock);
 }
 export function spawnGiftObstacle(state,{simulated=false}={}){
   if(state?.phase!=="RUNNING"||!Array.isArray(state?.active))return null;
@@ -27,7 +27,7 @@ export function spawnGiftObstacle(state,{simulated=false}={}){
   if(z<=middle+2)return null;
   const obstacle={
     id:"gift-"+state.round+"-"+sequence,
-    z,lane:sequence%5,
+    z,lane:sequence%LANES,
     kind:state.mapId==="ice"?"ice":"log",
     round:state.round,
     expiresAt:(Number(state.raceMs)||0)+GIFT_OBSTACLE_LIFETIME_MS,

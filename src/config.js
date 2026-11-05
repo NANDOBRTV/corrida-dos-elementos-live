@@ -6,8 +6,8 @@ export const PREVIOUS_TRACK_LENGTH = 300;
 export const STREAM_TILE_LENGTH = 300;
 export const LONG_RACE_TIMEOUT = 1_500_000; // maximum running time for multi-lap events
 export const LEGACY_TRACK_LENGTH = 150;
-export const LANES = 5;
-export const LANE_WIDTH = 1.85;
+export const LANES = 10;
+export const LANE_WIDTH = 1.75;
 export const PHASE_TIMES = Object.freeze({ LOBBY: 60000, COUNTDOWN: 5000, RUNNING: 85000, RESULTS: 10000 });
 // Dois mapas definitivos. Um cenário 3D é carregado por corrida.
 export const BIOME_ORDER = Object.freeze(["ice", "forest"]);
@@ -21,7 +21,7 @@ export function mapForRound(round) {
   return BIOME_ORDER[(Math.max(1, Math.trunc(Number(round) || 1)) - 1) % BIOME_ORDER.length];
 }
 export function biome(id) { return BIOMES[id] || BIOMES.forest; }
-export function laneX(index) { return (index - 2) * LANE_WIDTH; }
+export function laneX(index) { return (index - (LANES-1)/2) * LANE_WIDTH; }
 // Kept for legacy integrations only. Automatic procedural hazards are disabled.
 const NO_AUTOMATIC_OBSTACLES=Object.freeze([]);
 export function obstaclesFor(){return NO_AUTOMATIC_OBSTACLES;}

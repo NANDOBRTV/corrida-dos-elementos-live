@@ -1,3 +1,13 @@
+## Versão 4.1 — largada e enquadramento com base no vídeo enviado
+
+A referência de 66 segundos mostra cerca de **10 corredores lado a lado** na primeira fileira, ampla pista ocupando ~80% da tela vertical, câmera frontal fixa, contagem central grande e uma troca imediata para câmera traseira no "GO!". A versão web agora usa **10 faixas (10×1,75m)**, asfalto com 18,9m de largura e **até cinco fileiras para 50 jogadores**; 1º–10º na frente, depois 11º–20º etc. Os três primeiros continuam na fileira da frente. O tempo oficial de inscrição mantém **60 segundos**, seguido por **5 segundos com contagem 5,4,3,2,1** e "GO!" grande por 1 segundo.
+
+Durante lobby e countdown a câmera permanece frontal, com plano aberto baixo e pista larga enquadrada; no instante em que a corrida passa para RUNNING, a câmera corta para trás. A câmera de corrida mantém as perspectivas dinâmicas e os closes aleatórios de 0 a 10 segundos, preservando o close manual do operador. Para demonstrar só a largada local sem 60 segundos de espera, abra `?view=live&showcase=1&intro=countdown`; para ver todo o minuto, use `intro=full`. São previews locais fictícios; não enviam eventos TikTok nem mexem no PostgreSQL.
+
+A neve permanece ao lado da pista, sem cobrir o asfalto do cenário de Gelo. Foi mantida a distância de **400m por volta**, e a escolha de voltas do operador continua funcionando.
+
+---
+
 ## Versão 4.0.3 — 60s para inscrições, câmera atrás na largada e close manual
 
 O **LOBBY agora permanece aberto por 60 segundos**, seguido por 5 segundos de contagem regressiva. Durante esse tempo, até 50 espectadores podem entrar na corrida; a largada ocorre automaticamente ao fim da contagem. A câmera mostra a frente da grade com 1º–3º na primeira fila, 4º–6º atrás etc., e **corta imediatamente para uma visão por trás dos corredores no instante da largada**, sem manter um close frontal por mais 6,5 segundos.

@@ -1,7 +1,7 @@
-// Fixed three-column front-row grid. This never modifies official race progress.
+// Reference-video inspired 10-wide front-row grid. This never modifies official race progress.
 import {trackCenter,trackPoint} from "./track-path.js";
-export const GRID_COLUMNS=3;
-export const GRID_ROW_GAP=2.65;
+export const GRID_COLUMNS=10;
+export const GRID_ROW_GAP=2.85;
 export function gridPosition(r,index=0){
   return Number.isInteger(r?.gridPosition)&&r.gridPosition>=1&&r.gridPosition<=50?
     r.gridPosition:index+1;
@@ -11,7 +11,7 @@ export function gridRow(r,index=0){
 }
 export function visualStartingDistance(r,index=0){
   const progress=Math.max(0,Number(r?.progress)||0);
-  // The first three are on the front line; groups of three follow behind.
+  // The first ten are on the front line; rows of ten follow behind.
   // Easing the staging offsets over the first 80m preserves authoritative pace.
   const staging=Math.max(0,1-progress/80);
   return progress-gridRow(r,index)*GRID_ROW_GAP*staging;
@@ -29,6 +29,6 @@ export function gridTrackPoint(distance,lateral=0,height=0){
 export function startingGrid(runners){
   return [...runners].sort((a,b)=>a.id.localeCompare(b.id)).map((r,i)=>({
     id:r.id,position:i+1,row:Math.floor(i/GRID_COLUMNS),
-    lane:1+i%GRID_COLUMNS
+    lane:i%GRID_COLUMNS
   }));
 }

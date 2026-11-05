@@ -26,7 +26,7 @@ export function createState(seed=127492) {
 export function buildRunner(person,index,seed) {
   const rng=randomFrom(hash(person.id+"|"+seed));
   return {
-    id:person.id, name:person.name, ...(person.robloxUserId?{robloxUserId:person.robloxUserId,robloxUsername:person.robloxUsername}:{}), lane:1+index%3,gridPosition:index+1,progress:0,
+    id:person.id, name:person.name, ...(person.robloxUserId?{robloxUserId:person.robloxUserId,robloxUsername:person.robloxUsername}:{}), lane:index%LANES,gridPosition:index+1,progress:0,
     baseSpeed:5.05+rng()*1.65, speed:0, status:"waiting",
     vehicleKind:"foot",vehicleUntil:0,
     finishTime:null, slowUntil:0, turboUntil:0, passed:[], color:RUNNER_COLORS[index%RUNNER_COLORS.length]

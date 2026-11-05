@@ -1,6 +1,7 @@
 // Broadcast spotlight: 0–10s randomized pause BETWEEN camera closeups.
 // Official raceMs drives the clock, so pauses/reconnects cannot speed up the cuts.
 // Camera animation only: race physics, gifts and results never change.
+import {LANES} from "./config.js";
 export const CLOSEUP_WAIT_MIN_MS=0;
 export const CLOSEUP_WAIT_MAX_MS=10000;
 export const CLOSEUP_DURATION_MS=3200;
@@ -23,7 +24,7 @@ export function closeupWaitMs(race,index){
 export function eligibleForCloseup(race){
   const active=Array.isArray(race?.active)?race.active:[];
   const running=active.filter(r=>r&&r.status==="running"&&typeof r.id==="string"&&
-    Number.isFinite(r.progress)&&r.progress>=0&&Number.isInteger(r.lane)&&r.lane>=0&&r.lane<5);
+    Number.isFinite(r.progress)&&r.progress>=0&&Number.isInteger(r.lane)&&r.lane>=0&&r.lane<LANES);
   if(!running.length)return [];
   const distances=running.map(r=>r.progress).sort((a,b)=>a-b);
   const middle=distances[Math.floor(distances.length*.45)];

@@ -185,3 +185,41 @@ body[data-view="live"] #liveLapInfo{
 .manual-camera-controls button{width:100%;min-height:38px}
 .manual-camera-controls button:disabled{opacity:.55;cursor:not-allowed}
 .manual-camera-controls p{font-size:12px}
+
+/* v4.1 — Broadcast opening patterned after the user's 66-second sample. */
+body[data-view="live"] .start-banner[hidden]{display:none!important}
+body[data-view="live"] .start-banner{
+  position:absolute;z-index:8;top:10%;left:50%;transform:translateX(-50%);
+  width:max-content;max-width:88%;min-width:175px;
+  padding:8px 17px;border-radius:12px;
+  display:flex;align-items:center;gap:4px;flex-direction:column;
+  color:#fff;text-align:center;
+  background:rgba(13,23,35,.88);border:1px solid #ffffff74;
+  box-shadow:0 3px 14px #0a14215e;pointer-events:none;
+}
+body[data-view="live"] .start-banner>span{
+  font-size:12px;font-weight:900;letter-spacing:.5px
+}
+body[data-view="live"] .start-banner strong{
+  font:900 31px/1 "Barlow Condensed",Impact,sans-serif;
+  font-variant-numeric:tabular-nums;color:#ffc574
+}
+body[data-view="live"] .start-banner small{
+  font-size:10px;letter-spacing:.2px;font-weight:700;color:#e6f1fc
+}
+body[data-view="live"] .countdown{
+  z-index:9;font-size:clamp(115px,30vw,170px)!important;
+  font-weight:900!important;line-height:1!important;
+  -webkit-text-stroke:2.5px #132133;
+  text-shadow:0 4px 2px #0f2030b0,0 0 15px #ffffffe8!important;
+  color:#fff!important;pointer-events:none;
+}
+body[data-view="live"] .countdown.go{
+  color:#8bff5f!important;font-size:clamp(90px,25vw,145px)!important;
+  -webkit-text-stroke:3px #0c2e18;letter-spacing:-4px
+}
+body[data-view="live"][data-phase="countdown"] .call-to-action{display:none!important}
+@media(max-width:359px){
+  body[data-view="live"] .start-banner{top:11%;padding:6px 11px}
+  body[data-view="live"] .start-banner strong{font-size:25px}
+}

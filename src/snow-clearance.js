@@ -1,13 +1,13 @@
 // World-space winter dressing must never overlap the drivable asphalt.
 // Values are in visual-world meters; physics and gift obstacles are unaffected.
 import {trackCenter,trackPoint,COURSE_LENGTH} from "./track-path.js";
-export const ROAD_HALF_WIDTH=5.85;
+export const ROAD_HALF_WIDTH=9.45;
 export const SNOW_BUFFER=2.4;
 export const SNOW_NEAR_ROAD=ROAD_HALF_WIDTH+SNOW_BUFFER;
 export function snowbankProfile(side,variation){
   const v=Math.max(0,Math.min(6,Math.trunc(variation)||0));
   const width=2.1+v*.2;
-  const center=11.3+v*.38;
+  const center=14.4+v*.38;
   return {x:(side<0?-1:1)*center,width,depth:5.3+v*.35,top:.14};
 }
 export function roadsideClearance(profile){

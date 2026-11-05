@@ -317,7 +317,17 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
       "car-gol":.62,"car-civic":.61,"car-opala":.52
     }[id]??null;
   }
-  function renderVehicle(vehicle,userId,root,progress=0,running=false){
+  function renderVehicle(vehicle,userId,root,progress=0,running=false,
+    hiddenByPremium=false){
+    if(hiddenByPremium&&vehicle.kind==="car"){
+      // Counts describe all competitors even when a high-fidelity asset
+      // replaces this player's procedural draw calls for the camera.
+      renderedCars++;totalWheels+=4;
+      if(isHeroCar(vehicle.id)){
+        heroModels++;heroIds.add(vehicle.id);
+      }
+      return;
+    }
     const paint=new THREE.Color(paintFor(userId));
     const profile=pickProfile(vehicle.shape);
     const w=vehicle.width,l=vehicle.length;

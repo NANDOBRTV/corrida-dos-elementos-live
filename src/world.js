@@ -10,7 +10,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   const sceneDetail=i=>profile.sceneStep===1||i%4<2;
   const scene=new THREE.Scene();
   const finishGroup=new THREE.Group();finishGroup.name="absolute-finish-line";scene.add(finishGroup);
-  const camera=new THREE.PerspectiveCamera(58,1,.1,360);
+  const camera=new THREE.PerspectiveCamera(58,1,.1,700);
   // Third-person chase perspective for the vertical race format.
   camera.position.set(0,12.2,-24);
   const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:"low-power"});
@@ -148,10 +148,11 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   function courseMatrix(original,base,target=new THREE.Matrix4()){
     original.decompose(reusablePosition,reusableRotation,reusableScale);
     const p=trackPoint(base+reusablePosition.z,reusablePosition.x,reusablePosition.y);
-    const localZ=p.z-base;
+    const origin=trackCenter(base);
+    const localZ=p.z-origin.z;
     baseRotation.setFromAxisAngle(upAxis,p.heading);
     reusableRotation.premultiply(baseRotation);
-    return target.compose(new THREE.Vector3(p.x,p.y,localZ),reusableRotation,reusableScale);
+    return target.compose(new THREE.Vector3(p.x-origin.x,p.y,localZ),reusableRotation,reusableScale);
   }
   function batchStaticScenery(){
     root.updateWorldMatrix(true,true);
@@ -198,7 +199,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     curvedSingles=singles;
   }
   function makeRibbon(name,left,right,y,color){
-    const step=5,segments=Math.ceil(renderedLength/step);
+    const step=4,segments=Math.ceil(renderedLength/step);
     const positions=new Float32Array((segments+1)*6);
     const normals=new Float32Array(positions.length);
     const indices=[];
@@ -222,6 +223,9 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   }
   function updateCurvedCourse(base){
     if(!curvedCourse)return;
+    const origin=trackCenter(base);
+    root.position.set(origin.x,0,origin.z);
+    root.userData.baseDistance=base;
     for(const r of ribbons){
       const attr=r.mesh.geometry.attributes.position;
       const arr=attr.array;
@@ -229,8 +233,8 @@ export function createWorld(canvas,{quality="balanced"}={}) {
         const dist=base+Math.min(renderedLength,i*r.step);
         const left=trackPoint(dist,r.left,r.y),right=trackPoint(dist,r.right,r.y);
         const j=i*6;
-        arr[j]=left.x;arr[j+1]=left.y;arr[j+2]=left.z-base;
-        arr[j+3]=right.x;arr[j+4]=right.y;arr[j+5]=right.z-base;
+        arr[j]=left.x-origin.x;arr[j+1]=left.y;arr[j+2]=left.z-origin.z;
+        arr[j+3]=right.x-origin.x;arr[j+4]=right.y;arr[j+5]=right.z-origin.z;
       }
       attr.needsUpdate=true;
     }
@@ -245,11 +249,11 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   }
   function addCourseMilestones(){
     const start=trackCenter(0);
-    courseStart.position.set(start.x,start.y,0);
+    courseStart.position.set(start.x,start.y,start.z);
     courseStart.rotation.y=start.heading;
     block(courseStart,0,.12,0,11.6,.06,.9,0xeef7ff);
     const gantry=trackCenter(5000);
-    finishGroup.position.set(gantry.x,gantry.y,5000);
+    finishGroup.position.set(gantry.x,gantry.y,gantry.z);
     finishGroup.rotation.y=gantry.heading;
     arch(0,0xffe7a4,finishGroup);
     block(finishGroup,0,.14,0,11.5,.05,1.2,0xfff5c6);
@@ -257,7 +261,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     for(const km of COURSE_MILESTONES){
       const c=trackCenter(km);
       const group=new THREE.Group();
-      group.position.set(c.x,c.y,km);
+      group.position.set(c.x,c.y,c.z);
       group.rotation.y=c.heading;
       group.name="checkpoint-"+km;
       courseMilestones.add(group);
@@ -324,7 +328,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       for(let j=0;j<3&&count<150;j++){
         const v=curvedCourse?trackPoint(z-.85-j*.72,laneX(r.lane),.22+.08*(j%2)):
           {x:laneX(r.lane),y:.22+.08*(j%2),z:z-.85-j*.72,heading:0};
-        trailTransform.position.set(v.x,v.y,v.z-root.position.z);
+        trailTransform.position.set(v.x-root.position.x,v.y,v.z-root.position.z);
         trailTransform.scale.set(.20-j*.035,.10,.75);
         trailTransform.rotation.set(0,v.heading,0);
         trailTransform.updateMatrix();
@@ -351,9 +355,10 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     }
     weather.geometry.attributes.position.needsUpdate=true;
     // Drift follows the race without rebuilding or reallocating geometry.
-    weather.position.z=Math.max(0,Math.min(renderedLength,z-root.position.z));
-    const p=curvedCourse?trackCenter(z):{x:0,y:0};
-    weather.position.x=p.x;weather.position.y=p.y;
+    const p=curvedCourse?trackCenter(z):{x:0,y:0,z};
+    weather.position.z=p.z-root.position.z;
+    weather.position.x=p.x-root.position.x;
+    weather.position.y=p.y;
   }
   function clearMap() {
     for(const owner of [root,finishGroup,courseStart,courseMilestones])while(owner.children.length){
@@ -383,17 +388,40 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     curvedCourse=targetLength===TRACK_LENGTH;
     // 5km is a logical distance, NOT the amount of geometry allocated.
     renderedLength=targetLength===TRACK_LENGTH?streamingLength:targetLength;
-    root.position.z=0;
+    root.position.set(0,0,0);root.userData.baseDistance=0;
     scene.background=new THREE.Color(settings.sky);
-    scene.fog=new THREE.Fog(settings.fog,30,109);
+    scene.fog=new THREE.Fog(settings.fog,curvedCourse?85:30,curvedCourse?300:109);
     const ambient=new THREE.HemisphereLight(settings.sky,settings.ground,1.7);
     scene.add(ambient);
     const sun=new THREE.DirectionalLight(0xfff1d2,2.4);
     sun.position.set(-17,34,20);sun.castShadow=true;sun.shadow.mapSize.set(512,512);
     sun.shadow.camera.left=-24;sun.shadow.camera.right=24;sun.shadow.camera.top=35;sun.shadow.camera.bottom=-35;
     scene.add(sun);
-    const ground=block(root,0,-.25,renderedLength/2,180,.5,renderedLength+100,settings.ground);
-    ground.userData.noCourseWarp=true;
+    if(curvedCourse){
+      // Overlapping terraces surround the road, rotating with every switchback.
+      // Only 600m of meshes remain on the GPU, even on the 5km mountain track.
+      for(let dz=30;dz<renderedLength;dz+=60){
+        block(root,0,-2.4,dz,125,4.6,80,settings.ground);
+        for(const side of [-1,1]){
+          const bump=((dz*7+(side+2)*13)%5);
+          const cliff=side*(36+bump*5);
+          block(root,cliff,4+bump*2,dz,42,11+bump*4,38,
+            settings.id==="ice"?0xe1eaf3:0x617e60);
+          block(root,cliff,10+bump*2,dz,45,2.3,40,
+            settings.id==="ice"?0xf4f7fc:0x86b583);
+          if(dz%120===30)for(let j=0;j<5;j++){
+            const x=side*(65+j*8);
+            block(root,x,11+(j%3)*4,dz+(j-2)*10,18,18+(j%3)*8,17,
+              settings.id==="ice"?0xd2dce9:0x527d59);
+            block(root,x,20+(j%3)*5,dz+(j-2)*10,19,1.4,18,
+              settings.id==="ice"?0xf3f7fd:0xa3c6a1);
+          }
+        }
+      }
+    }else{
+      const ground=block(root,0,-.25,renderedLength/2,180,.5,renderedLength+100,settings.ground);
+      ground.userData.noCourseWarp=true;
+    }
     // Curve the 5 lanes, shoulders and guardrails with a single deterministic
     // world-space route. Legacy 150/300m snapshots keep their straight courses.
     if(curvedCourse){
@@ -463,19 +491,20 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       // Two matching 300m tiles overlap before/after each shift, so 5km
       // never creates 5km of geometry (or triggers a rebuild every frame).
       const nextBase=Math.max(0,Math.floor(Math.max(0,z-200)/STREAM_TILE_LENGTH)*STREAM_TILE_LENGTH);
-      if(root.position.z!==nextBase){
-        root.position.z=nextBase;
-        updateCurvedCourse(nextBase);
-      }
+      if(root.userData.baseDistance!==nextBase)updateCurvedCourse(nextBase);
     }
     const alpha=1-Math.exp(-2.9*Math.min(dt,.2));
-    const behind=curvedCourse?trackCenter(Math.max(0,z-24)):{x:0,y:0};
-    const ahead=curvedCourse?trackCenter(Math.min(currentLength,z+12)):{x:0,y:0};
-    positionTarget.set(behind.x,12.2+behind.y,Math.max(-24,z-24));
-    lookTarget.set(ahead.x,1.4+ahead.y,Math.min(currentLength+10,z+12));
+    const near=curvedCourse?trackCenter(Math.max(0,z-65)):{x:0,y:0,z:Math.max(-24,z-24),heading:0};
+    const far=curvedCourse?trackCenter(Math.min(currentLength,z+75)):{x:0,y:0,z:z+12,heading:0};
+    const yawDelta=curvedCourse?Math.abs(far.heading-near.heading):0;
+    const overview=Math.min(1,Math.max(0,(yawDelta-.22)/1.3));
+    const back=curvedCourse?trackCenter(Math.max(0,z-48-overview*45)):near;
+    const ahead=curvedCourse?trackCenter(Math.min(currentLength,z+38+overview*58)):far;
+    positionTarget.set(back.x,back.y+20+overview*72,back.z);
+    lookTarget.set(ahead.x,ahead.y+1.8,ahead.z);
     // Network recovery and benchmark jumps can move several kilometers.
     // Avoid rendering an empty transient frame between streamed tiles.
-    if(Math.abs(camera.position.z-positionTarget.z)>160){
+    if(camera.position.distanceTo(positionTarget)>170){
       camera.position.copy(positionTarget);
       cameraTarget.copy(lookTarget);
     }else{
@@ -494,7 +523,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
         const finish= Math.max(0,leader.progress-Math.floor(index/5)*1.48*stagger);
         const ring=curvedCourse?trackPoint(finish,laneX(leader.lane),.12):
           {x:laneX(leader.lane),y:.12,z:finish};
-        focusRing.position.set(ring.x,ring.y,ring.z-root.position.z);
+        focusRing.position.set(ring.x-root.position.x,ring.y,ring.z-root.position.z);
       }
     }
     renderer.render(scene,camera);

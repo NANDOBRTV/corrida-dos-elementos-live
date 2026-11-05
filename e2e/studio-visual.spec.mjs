@@ -2,7 +2,7 @@ import {test,expect} from "@playwright/test";
 import {
   STUDIO_CAMERA,STUDIO_COURSE_TOTAL,studioCourseAt,studioRunnerPose,
   studioCrowdPoses,studioPositionOnCourse,cameraTargetFor,
-  advanceStudioCamera,studioVisibleNameplates
+  studioCameraShot,STUDIO_SHOTS,advanceStudioCamera,studioVisibleNameplates
 } from "../src/studio-camera.js";
 import {createStudioState,studioJoin,studioFillBots,studioAdvance,
   studioTick} from "../src/studio-engine.js";
@@ -66,20 +66,29 @@ test("When GO fires, player bodies retain spacing without modifying official dis
   studioTick(s,500);
   expect(studioCrowdPoses(s).size).toBe(100);
 });
-test("Single stable camera stays behind the peloton, gently looking downward",()=>{
+test("One camera alternates 10-second deterministic vehicle closeups and top three",()=>{
   const s=hundred({phase:"RUNNING"});
-  const p=cameraTargetFor(s);
-  expect(p.mode).toBe("CHASE");
-  expect(p.leaderId).toBe(null);
-  const center=studioCourseAt(0);
-  const dx=Math.sin(center.heading),dz=Math.cos(center.heading);
-  const behind=(p.position.x-center.x)*dx+(p.position.z-center.z)*dz;
-  expect(behind).toBeLessThan(-STUDIO_CAMERA.followDistance);
-  expect(p.position.y).toBeGreaterThan(p.target.y+5);
-  for(const raceMs of [0,10000,30000,90000,180000]){
+  const check=(raceMs,expected)=>{
     s.raceMs=raceMs;
-    expect(cameraTargetFor(s)).toEqual(p);
-  }
+    const shot=studioCameraShot(s);
+    const target=cameraTargetFor(s);
+    expect(shot.mode).toBe(expected);
+    expect(target.mode).toBe(expected);
+    expect(Number.isFinite(target.position.x+target.position.y+
+      target.position.z+target.target.x+target.target.y+target.target.z))
+      .toBe(true);
+    return shot;
+  };
+  const first=check(0,"VEHICLE_CLOSEUP");
+  expect(first.featuredId).toBeTruthy();
+  expect(check(9999,"VEHICLE_CLOSEUP").featuredId).toBe(first.featuredId);
+  const leaders=check(10000,"TOP_THREE");
+  expect(leaders.focusIds).toHaveLength(3);
+  expect(new Set(leaders.focusIds).size).toBe(3);
+  expect(check(17999,"TOP_THREE").focusIds).toEqual(leaders.focusIds);
+  expect(check(18000,"VEHICLE_CLOSEUP").featuredId).toBeTruthy();
+  expect(STUDIO_SHOTS.closeupMs).toBe(10000);
+  expect(STUDIO_SHOTS.topThreeMs).toBe(8000);
   expect(STUDIO_CAMERA.fovPortrait).toBeGreaterThan(70);
 });
 test("Frame-based smoothing is deterministic and never cuts to random or aerial shot",()=>{
@@ -91,8 +100,8 @@ test("Frame-based smoothing is deterministic and never cuts to random or aerial 
     const a=advanceStudioCamera(first,s,1/60);
     const b=advanceStudioCamera(first,s,1/60);
     expect(a).toEqual(b);
-    expect(a.mode).toBe("CHASE");
-    expect(a.leaderId).toBe(null);
+    expect(["VEHICLE_CLOSEUP","TOP_THREE"]).toContain(a.mode);
+    expect(a.leaderId).toBeTruthy();
     const total=Math.hypot(next.position.x-first.position.x,
       next.position.y-first.position.y,next.position.z-first.position.z);
     const moved=Math.hypot(a.position.x-first.position.x,
@@ -100,14 +109,14 @@ test("Frame-based smoothing is deterministic and never cuts to random or aerial 
     expect(moved).toBeLessThanOrEqual(total+.001);
   }
 });
-test("Winner-only close appears in RESULTS; at most 12 ranked nameplate anchors",()=>{
+test("Podium winner closes RESULTS; named anchors can cover all visible vehicles",()=>{
   const state=hundred({phase:"RUNNING"});
   state.active.forEach((r,i)=>{r.progress=300+i;});
   const before=studioVisibleNameplates(state,{featuredId:state.active[0].id});
   expect(before.length).toBe(13);
   expect(new Set(before.map(x=>x.id)).size).toBe(13);
   expect(before[0].rank).toBe(1);
-  expect(cameraTargetFor(state).mode).toBe("CHASE");
+  expect(cameraTargetFor(state).mode).toBe("VEHICLE_CLOSEUP");
   studioAdvance(state);
   expect(state.phase).toBe("RESULTS");
   const shot=cameraTargetFor(state);

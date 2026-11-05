@@ -188,10 +188,15 @@ function avatarChip(profile,name,color){
   holder.textContent=shortName(name,1).toUpperCase();
   if(source){
     const img=document.createElement("img");
-    img.src=source;img.alt="";
+    img.alt="";
     img.referrerPolicy="no-referrer";
-    img.loading="lazy";
-    img.addEventListener("load",()=>{holder.textContent="";holder.append(img);},{once:true});
+    // Images not attached to the DOM cannot load while marked lazy.
+    // Load eagerly, install the handler first, then set src so the 32px
+    // cached portrait renders in ranking / viewer chips immediately.
+    img.loading="eager";
+    img.decoding="async";
+    img.addEventListener("load",()=>holder.replaceChildren(img),{once:true});
+    img.src=source;
   }
   return holder;
 }

@@ -1,3 +1,11 @@
+## Versão 3.4 — close-up automático a cada 10 segundos
+
+Na corrida de 5.000 metros, a câmera 3D destaca um corredor aleatório a cada **10 segundos de tempo oficial de corrida**, acompanha seu rosto/roupa em um enquadramento próximo por **3,2 segundos** e retorna suavemente à visão normal do pelotão. A seleção usa uma semente estável e evita repetir o mesmo corredor duas vezes seguidas; somente corredores em movimento e dentro da região visível da pista podem ser selecionados. Durante o close, aparece um pequeno identificador com nome e distância. Fora de RUNNING, sem corredores ou após a chegada, o efeito não é ativado.
+
+A animação usa **a câmera existente**, sem novos modelos e sem novas chamadas de desenho: somente altera posição e alvo da câmera. Os resultados oficiais, velocidade, presentes, obstáculos, filas e distância não são modificados. Em testes, a prévia de 50 corredores também recebe o close após 10 segundos.
+
+---
+
 ### Ponte Roblox Studio e presentes
 
 A resposta privada `/api/roblox/participants` agora inclui apenas os obstáculos ativos dos presentes. Os scripts nativos espelham a posição na mesma curva do circuito, removem os objetos expirados e marcam cores diferentes para simulações. Nada aparece sem evento de presente. A física continua sendo calculada no servidor Node; o script precisa de validação no Roblox Studio antes de uso real.

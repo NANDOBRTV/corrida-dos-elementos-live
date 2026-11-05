@@ -3,6 +3,7 @@ import { TRACK_LENGTH, PREVIOUS_TRACK_LENGTH, STREAM_TILE_LENGTH, biome, laneX }
 import {activeGiftObstacles,MAX_ACTIVE_GIFT_OBSTACLES} from "./gift-obstacles.js";
 import {QUALITY_SETTINGS} from "./performance.js";
 import {trackCenter,trackPoint,COURSE_MILESTONES} from "./track-path.js";
+import {createCameraDirector} from "./camera-director.js";
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
 const octahedronGeometry=new THREE.OctahedronGeometry(1,0);
@@ -48,6 +49,9 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   const cameraTarget=new THREE.Vector3(0,1,10);
   const positionTarget=new THREE.Vector3();
   const lookTarget=new THREE.Vector3();
+  const director=createCameraDirector();
+  const closePosition=new THREE.Vector3();
+  const closeLook=new THREE.Vector3();
   function material(color,emissive=0) {
     const key=String(color)+"/"+emissive;
     if(!materials.has(key)) materials.set(key,new THREE.MeshStandardMaterial({
@@ -408,6 +412,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     const targetLength=[150,PREVIOUS_TRACK_LENGTH,TRACK_LENGTH].includes(length)?length:TRACK_LENGTH;
     if(mapId===settings.id&&currentLength===targetLength)return;
     clearMap();mapId=settings.id;currentLength=targetLength;
+    director.reset();
     curvedCourse=targetLength===TRACK_LENGTH;
     // 5km is a logical distance, NOT the amount of geometry allocated.
     renderedLength=targetLength===TRACK_LENGTH?streamingLength:targetLength;
@@ -523,7 +528,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       const nextBase=Math.max(0,Math.floor(Math.max(0,z-200)/STREAM_TILE_LENGTH)*STREAM_TILE_LENGTH);
       if(root.userData.baseDistance!==nextBase)updateCurvedCourse(nextBase);
     }
-    const alpha=1-Math.exp(-2.9*Math.min(dt,.2));
+    const alpha=1-Math.exp(-5.8*Math.min(dt,.2));
     const center=curvedCourse?trackCenter(z):{x:0,y:0,z,heading:0};
     const before=curvedCourse?trackCenter(Math.max(0,z-72)):center;
     const after=curvedCourse?trackCenter(Math.min(currentLength,z+72)):center;
@@ -539,6 +544,21 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       center.y+height,center.z-forwardZ*backDistance);
     lookTarget.set(center.x+forwardX*forwardDistance,
       center.y+1.5,center.z+forwardZ*forwardDistance);
+    // Every 10 seconds, smoothly feature one running avatar for 3.2 seconds.
+    // Reuse the same camera and scene; no new 3D assets or draw calls.
+    const focus=director.update(race);
+    if(focus&&focus.blend>0){
+      const point=curvedCourse?trackPoint(focus.progress,laneX(focus.lane)):
+        {x:laneX(focus.lane),y:0,z:focus.progress,heading:0};
+      const fx=Math.sin(point.heading),fz=Math.cos(point.heading);
+      const sideX=Math.cos(point.heading),sideZ=-Math.sin(point.heading);
+      // Camera is ahead of the avatar, looking back at their face and clothes.
+      closePosition.set(point.x+fx*5.8+sideX*2.0,
+        point.y+3.65,point.z+fz*5.8+sideZ*2.0);
+      closeLook.set(point.x,point.y+1.8,point.z);
+      positionTarget.lerp(closePosition,focus.blend);
+      lookTarget.lerp(closeLook,focus.blend);
+    }
     // Network recovery and benchmark jumps can move several kilometers.
     // Avoid rendering an empty transient frame between streamed tiles.
     if(camera.position.distanceTo(positionTarget)>170){
@@ -569,5 +589,6 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   function dispose(){
     clearMap();boxGeometry.dispose();octahedronGeometry.dispose();renderer.dispose();
   }
-  return { scene, renderer, setMap, resize, render, dispose, quality:profile.name, setRenderScale,getRenderScale };
+  return { scene, renderer, camera, getCameraFocus:()=>director.current(),
+    setMap, resize, render, dispose, quality:profile.name, setRenderScale,getRenderScale };
 }

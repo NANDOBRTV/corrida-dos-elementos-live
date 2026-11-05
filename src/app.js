@@ -216,6 +216,13 @@ function renderHud() {
   if(latest)recent.textContent="🏁 Último vencedor: "+latest.winner.name+
     " • Rodada #"+String(latest.round)+" • "+(latest.winner.timeMs/1000).toFixed(2)+"s";
   byId("latestEvent").textContent=state.messages?.[0]?.text||"Aguardando eventos.";
+  const featured=world?.getCameraFocus();
+  const featuredLabel=byId("cameraSpotlight");
+  featuredLabel.hidden=document.body.dataset.view!=="live"||!featured||featured.blend<.05;
+  if(!featuredLabel.hidden){
+    byId("cameraSpotlightName").textContent=featured.name;
+    byId("cameraSpotlightProgress").textContent=Math.floor(featured.progress)+" m";
+  }
   const gifts=Array.isArray(state.gifts)?state.gifts.slice(0,3):[];
   const feed=byId("giftFeed");
   feed.hidden=gifts.length===0;

@@ -133,3 +133,32 @@ body[data-view="live"] #liveCoursePath{
   body[data-view="live"] .live-minimap{height:112px!important}
   body[data-view="live"] .live-minimap-road{height:112px!important}
 }
+
+/* v3.4 — nameplate accompanies the camera close-up only, no permanent HUD box. */
+.camera-spotlight[hidden]{display:none!important}
+body[data-view="live"] .camera-spotlight{
+  position:absolute;z-index:8;bottom:23%;left:50%;
+  transform:translateX(-50%);
+  display:flex;align-items:center;flex-direction:column;gap:2px;
+  width:max-content;max-width:60%;padding:5px 12px;
+  pointer-events:none;text-align:center;
+  border-radius:13px;
+  border:1px solid #f7fcffae;
+  background:#14263cbe;box-shadow:0 3px 15px #050c2057;
+  text-shadow:0 1px 3px #0008;
+  color:#f8ffff;
+}
+body[data-view="live"] .camera-spotlight span{
+  font-size:9px;letter-spacing:1px;font-weight:800;color:#f1e29f
+}
+body[data-view="live"] .camera-spotlight strong{
+  display:block;max-width:100%;font-size:16px;
+  font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+}
+body[data-view="live"] .camera-spotlight small{
+  font-size:10px;color:#c6e8f5;font-weight:700
+}
+@media(max-height:680px){
+  body[data-view="live"] .camera-spotlight{bottom:27%;padding:4px 9px}
+  body[data-view="live"] .camera-spotlight strong{font-size:13px}
+}

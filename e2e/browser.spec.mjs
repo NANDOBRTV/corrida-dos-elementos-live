@@ -687,3 +687,42 @@ test("v3.3 only gift events create 3D obstacles; no generated track obstacles",a
   });
   expect(counts).toEqual({before:0,withGift:1,after:0});
 });
+
+test("v3.4 10-second camera spotlight follows a random runner then returns to pack",async({page})=>{
+  await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
+  await expect(page.locator("#playerCount")).toHaveText("50",{timeout:25_000});
+  const outcome=await page.evaluate(async()=>{
+    const {createWorld}=await import("/src/world.js");
+    const {createState,register,advance}=await import("/src/engine.js");
+    const canvas=document.createElement("canvas");
+    canvas.style.cssText="position:absolute;left:-9999px;width:300px;height:600px";
+    document.body.append(canvas);
+    const world=createWorld(canvas,{quality:"low"});
+    const state=createState(77);
+    for(let i=0;i<20;i++)register(state,"guest-"+i,"Guest "+i,"entrar");
+    advance(state);advance(state);
+    state.active.forEach((r,i)=>{r.progress=360+(i%5)*1.1;});
+    const rows=[];
+    try{
+      world.setMap("ice",5000);
+      for(const ms of [9000,10000,10800,12000,13200,20800]){
+        state.raceMs=ms;
+        world.render(state,.22);
+        const detail=world.getCameraFocus();
+        const cam=world.camera.position;
+        rows.push({ms,focused:detail?.id||null,slot:detail?.slot||0,blend:detail?.blend||0,
+          pos:[cam.x,cam.y,cam.z],visible:detail!==null});
+      }
+    }finally{world.dispose();canvas.remove();}
+    return {rows,spotlightElement:!!document.getElementById("cameraSpotlight")};
+  });
+  expect(outcome.spotlightElement).toBe(true);
+  expect(outcome.rows[0].focused).toBe(null);
+  expect(outcome.rows[1].slot).toBe(1);
+  expect(outcome.rows[2].blend).toBeGreaterThan(.95);
+  expect(outcome.rows[3].focused).toBeTruthy();
+  expect(outcome.rows[4].focused).toBe(null);
+  expect(outcome.rows[5].slot).toBe(2);
+  expect(outcome.rows[5].focused).not.toBe(outcome.rows[1].focused);
+  expect(outcome.rows.every(r=>r.pos.every(Number.isFinite))).toBe(true);
+});

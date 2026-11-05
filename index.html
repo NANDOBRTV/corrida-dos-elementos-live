@@ -44,6 +44,11 @@
 
       <section class="arena" aria-label="Pista 3D da corrida">
         <canvas id="raceCanvas" aria-label="Cenário 3D com corredores voxel animados"></canvas>
+        <div class="camera-spotlight" id="cameraSpotlight" hidden aria-live="off">
+          <span>📸 CLOSE DO CORREDOR</span>
+          <strong id="cameraSpotlightName">Participante</strong>
+          <small id="cameraSpotlightProgress">0 m</small>
+        </div>
         <div id="perfOverlay" class="perf-overlay" hidden aria-live="off">Medindo FPS...</div>
         <div class="arena-top">
           <div class="state-pill"><span class="status-led"></span> <span id="phaseName">LOBBY ABERTO</span></div>

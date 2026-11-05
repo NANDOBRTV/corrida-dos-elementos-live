@@ -11,6 +11,31 @@ export const REALISTIC_PARTS=Object.freeze({
 const pickProfile=shape=>shape==="classic-round"?"classic":
   shape==="sedan-old"?"sedan":
   REALISTIC_PROFILES.includes(shape)?shape:"hatch";
+// Styling cues are intentionally tuned per real model family, instead of
+// renaming one generic mesh 20 times. These are dimensional interpretations,
+// not copyrighted/official manufacturer CAD files.
+export const CAR_STYLE_HINTS=Object.freeze({
+ "car-civic":    {cabin:.52,height:.61,offset:-.075,lights:"slim"},
+ "car-gol":      {cabin:.63,height:.66,offset:-.015,lights:"rect"},
+ "car-uno":      {cabin:.72,height:.80,offset:-.015,lights:"vertical"},
+ "car-strada":   {cabin:.51,height:.71,offset:.195,lights:"rect"},
+ "car-palio":    {cabin:.65,height:.69,offset:0,lights:"round"},
+ "car-corsa":    {cabin:.64,height:.68,offset:.025,lights:"rect"},
+ "car-onix":     {cabin:.62,height:.67,offset:.015,lights:"slim"},
+ "car-hb20":     {cabin:.61,height:.68,offset:.005,lights:"slim"},
+ "car-corolla":  {cabin:.55,height:.68,offset:-.035,lights:"slim"},
+ "car-fiesta":   {cabin:.63,height:.69,offset:0,lights:"round"},
+ "car-ka":       {cabin:.70,height:.71,offset:0,lights:"round"},
+ "car-saveiro":  {cabin:.46,height:.64,offset:.19,lights:"rect"},
+ "car-s10":      {cabin:.48,height:.79,offset:.20,lights:"rect"},
+ "car-hilux":    {cabin:.47,height:.82,offset:.21,lights:"rect"},
+ "car-duster":   {cabin:.74,height:.88,offset:0,lights:"rect"},
+ "car-renegade": {cabin:.76,height:.91,offset:-.02,lights:"round"},
+ "car-fusca":    {cabin:.67,height:.79,offset:-.035,lights:"round"},
+ "car-monza":    {cabin:.54,height:.66,offset:-.065,lights:"rect"},
+ "car-opala":    {cabin:.49,height:.63,offset:-.09,lights:"rect"},
+ "car-santana":  {cabin:.52,height:.64,offset:-.07,lights:"rect"}
+});
 const clamp=(value,a,b)=>Math.max(a,Math.min(b,value));
 function hash(str){
   let h=2166136261;
@@ -216,13 +241,10 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
     if(vehicle.kind==="car"){
       renderedCars++;
       const high=profile==="suv"||profile==="pickup";
-      const cabinScale=profile==="pickup"?.52:
-        profile==="suv"?.70:profile==="compact"?.60:
-        profile==="hatch"?.63:profile==="classic"?.58:.56;
-      const cabinCenter=profile==="pickup"?.17:
-        profile==="sedan"?-.07:profile==="muscle"?-.11:0;
-      const cabinHeight=profile==="suv"?.85:
-        profile==="pickup"?.70:profile==="compact"?.76:.66;
+      const hint=CAR_STYLE_HINTS[vehicle.id]||{};
+      const cabinScale=hint.cabin??.59;
+      const cabinCenter=hint.offset??0;
+      const cabinHeight=hint.height??.70;
       push(body.get(profile),root,0,.35,0,w,.78+(high?.13:0),l,paint);
       // Window bottoms nest INTO the body (no floating glass shells).
       const glassY=.79;
@@ -231,12 +253,13 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
       push(roofs,root,0,glassY+cabinHeight*.98,cabinCenter,
         w*.73,.085,l*cabinScale*.70,paint);
       const classic=profile==="classic";
-      const sport=profile==="muscle"||vehicle.id==="car-civic";
+      const sport=hint.lights==="slim";
+      const upright=hint.lights==="vertical";
       for(const side of [-1,1]){
         // Different profiles receive differently sized light assemblies.
         push(headlights,root,side*w*.35,high?.86:.73,l*.49,
-          classic?.32:sport?.39:.31,
-          classic?.28:sport?.12:.18,.11);
+          classic?.32:sport?.45:upright?.23:.31,
+          classic?.28:sport?.11:upright?.29:.18,.11);
         push(taillights,root,side*w*.37,high?.91:.74,-l*.49,
           profile==="compact"?.22:.34,profile==="compact"?.39:.16,.1);
       }

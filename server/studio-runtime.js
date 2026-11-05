@@ -157,8 +157,11 @@ async function parseBody(req){
   }
 }
 function compactRunner(r){
-  // Public spectator feeds expose vehicle labels, not the chat sender's name.
-  return {id:r.id,name:r.name,vehicleId:r.vehicleId??"car-uno",
+  // The viewer explicitly chose a car on a public chat. Show their safe
+  // public @handle above it; never send the provider's raw private userId.
+  return {id:r.id,name:r.name,
+    driverName:bounded(r.driverName??(r.isBot?"BOT":"Participante"),28),
+    vehicleId:r.vehicleId??"car-uno",
     vehicleKind:r.vehicleKind??"car",
     color:r.color,lane:r.lane,
     gridPosition:r.gridPosition,progress:Math.round(r.progress*10)/10,

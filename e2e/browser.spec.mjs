@@ -824,3 +824,54 @@ test("v4.0.2 live preview opens in a front-facing three-column starting formatio
   expect(event.phase).toBe("running");
   expect(event.overflow).toBeLessThanOrEqual(1);
 });
+
+test("v4.0.3 Android operator can manually spotlight a chosen active participant",async({page,request})=>{
+  await reset(request);
+  await start(page,"?view=operator&quality=low");
+  await expect(page.locator("#focusRunnerSelect")).toBeVisible();
+  await expect(page.locator("#focusRunnerButton")).toBeDisabled();
+  const stateBefore=await (await request.get("/api/state")).json();
+  expect(stateBefore.state.phase).toBe("LOBBY");
+  const runner=stateBefore.state.active[0];
+  expect(runner).toBeTruthy();
+  await action(request,"advance");
+  await action(request,"advance");
+  await expect(page.locator("#focusRunnerButton")).toBeEnabled({timeout:25000});
+  await page.locator("#focusRunnerSelect").selectOption(runner.id);
+  await page.locator("#adminKey").fill(ADMIN);
+  await page.locator("#focusRunnerButton").click();
+  await expect(page.locator("#manualFocusStatus")).toContainText("Close manual",{timeout:12000});
+  const after=await (await request.get("/api/state")).json();
+  expect(after.state.manualCamera.id).toBe(runner.id);
+  expect(after.state.manualCamera.untilRaceMs-after.state.manualCamera.startRaceMs).toBe(5000);
+  expect(after.state.active.find(r=>r.id===runner.id).baseSpeed).toBe(runner.baseSpeed);
+});
+test("v4.0.3 camera switches from front to behind the pack on the exact start frame",async({page})=>{
+  await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
+  const positions=await page.evaluate(async()=>{
+    const {createWorld}=await import("/src/world.js");
+    const {createState,register,advance}=await import("/src/engine.js");
+    const {trackCenter}=await import("/src/track-path.js");
+    const canvas=document.createElement("canvas");
+    canvas.style.cssText="position:absolute;left:-9999px;width:320px;height:620px";
+    document.body.append(canvas);
+    const world=createWorld(canvas,{quality:"low"});
+    const state=createState(13);
+    for(let i=0;i<9;i++)register(state,"p"+i,"Player "+i,"entrar");
+    advance(state);
+    try{
+      world.setMap("ice",400);
+      const origin=trackCenter(0),dx=Math.sin(origin.heading),dz=Math.cos(origin.heading);
+      const signed=()=>((world.camera.position.x-origin.x)*dx+
+        (world.camera.position.z-origin.z)*dz);
+      world.render(state,.016);
+      const countdown=signed();
+      advance(state);
+      world.render(state,.016);
+      return {countdown,launched:signed(),phase:state.phase};
+    }finally{world.dispose();canvas.remove();}
+  });
+  expect(positions.countdown).toBeGreaterThan(15);
+  expect(positions.launched).toBeLessThan(-15);
+  expect(positions.phase).toBe("RUNNING");
+});

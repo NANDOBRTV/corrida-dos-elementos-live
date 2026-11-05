@@ -571,17 +571,25 @@ export function createWorld(canvas,{quality="balanced"}={}) {
         ?Math.min(1,Math.max(0,(6500-(Number(race.raceMs)||0))/1800))
         :0;
     if(opening>0){
-      const first=curvedCourse?trackCenter(Math.max(0,Math.min(z,35))):{x:0,y:0,z,heading:0};
+      const first=curvedCourse?trackCenter(z):{x:0,y:0,z,heading:0};
       const forwardX=Math.sin(first.heading),forwardZ=Math.cos(first.heading);
+      const sideX=Math.cos(first.heading),sideZ=-Math.sin(first.heading);
       const gridDepth=Math.ceil(active.length/3)*2.65;
       const frontDistance=27+Math.min(15,gridDepth*.28);
       const frontHeight=14+Math.min(14,gridDepth*.3);
-      closePosition.set(first.x+forwardX*frontDistance,first.y+frontHeight,
-        first.z+forwardZ*frontDistance);
-      closeLook.set(first.x-forwardX*Math.min(19,gridDepth*.42),
-        first.y+1.4,first.z-forwardZ*Math.min(19,gridDepth*.42));
-      positionTarget.lerp(closePosition,opening);
-      lookTarget.lerp(closeLook,opening);
+      // Move AROUND the runners on a half-circle, not straight THROUGH them
+      // as the opening frontal shot transitions into the chase camera.
+      const orbitAngle=(1-opening)*Math.PI;
+      const radius=opening*frontDistance+(1-opening)*backDistance;
+      const front=Math.cos(orbitAngle)*radius,side=Math.sin(orbitAngle)*radius;
+      closePosition.set(first.x+forwardX*front+sideX*side,
+        first.y+opening*frontHeight+(1-opening)*height,
+        first.z+forwardZ*front+sideZ*side);
+      const lookAhead=(1-opening)*forwardDistance-opening*Math.min(19,gridDepth*.42);
+      closeLook.set(first.x+forwardX*lookAhead,first.y+1.5,
+        first.z+forwardZ*lookAhead);
+      positionTarget.copy(closePosition);
+      lookTarget.copy(closeLook);
     }
     // Close-ups only take control after the opening shot, and keep the
     // existing randomized 0–10-second interval between selections.

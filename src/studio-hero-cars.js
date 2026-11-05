@@ -156,18 +156,18 @@ export function heroIsWithLadder(id){
 export function roofLadderParts(id){
   if(!heroIsWithLadder(id))return [];
   const parts=[
-    {name:"left-rail",p:[-.40,1.68,0],s:[.065,.065,1.77],tilt:0},
-    {name:"right-rail",p:[.40,1.68,0],s:[.065,.065,1.77],tilt:0}
+    {name:"left-rail",p:[-.40,1.50,0],s:[.065,.065,1.77],tilt:0},
+    {name:"right-rail",p:[.40,1.50,0],s:[.065,.065,1.77],tilt:0}
   ];
   for(let i=0;i<12;i++){
     parts.push({
       name:"rung-"+String(i+1),
-      p:[0,1.695,-.79+i*(1.58/11)],s:[.88,.053,.060],tilt:0
+      p:[0,1.515,-.79+i*(1.58/11)],s:[.88,.053,.060],tilt:0
     });
   }
   for(const x of [-.39,.39])for(const z of [-.63,.63]){
     parts.push({name:"mount-"+String(x)+"-"+String(z),
-      p:[x,1.575,z],s:[.095,.19,.11],tilt:0});
+      p:[x,1.413,z],s:[.095,.19,.11],tilt:0});
   }
   return parts;
 }

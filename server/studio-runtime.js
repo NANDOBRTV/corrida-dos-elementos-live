@@ -3,6 +3,7 @@
 // This module never accepts untrusted public gameplay mutations.
 import {timingSafeEqual} from "node:crypto";
 import {LIVE_STUDIO,BIOME_ORDER} from "../src/config.js";
+import {resolveVehicle} from "../src/vehicles.js";
 import {
   createStudioState,studioJoin,studioGift,studioLike,studioFollow,
   studioSetDistance,studioAdvance,studioFillBots,studioTick,
@@ -55,7 +56,9 @@ export function validateStudioCheckpoint(value){
   for(const r of v.active){
     if(!isObject(r)||typeof r.id!=="string"||r.id.length<1||
       r.id.length>128||seen.has(r.id)||typeof r.name!=="string"||
-      r.name.length>28||!isInt(r.lane,0,9)||
+      r.name.length>28||
+      (r.vehicleId!==undefined&&!resolveVehicle(r.vehicleId))||
+      !isInt(r.lane,0,9)||
       !isInt(r.gridPosition,1,100)||
       !["waiting","running","finished"].includes(r.status)||
       !isNum(r.progress)||r.progress<0||r.progress>v.distance||
@@ -70,7 +73,9 @@ export function validateStudioCheckpoint(value){
   for(const item of v.next){
     const id=item?.id??item?.userId;
     if(!isObject(item)||typeof id!=="string"||!id||id.length>128||
-      nextIds.has(id))throw Error("Checkpoint V5 inválido: fila");
+      nextIds.has(id)||
+      (item.vehicleId!==undefined&&!resolveVehicle(item.vehicleId)))
+      throw Error("Checkpoint V5 inválido: fila");
     nextIds.add(id);
   }
   if(!Array.isArray(value.dedupe)||value.dedupe.length>MAX_EVENTS||
@@ -152,7 +157,9 @@ async function parseBody(req){
   }
 }
 function compactRunner(r){
-  return {id:r.id,name:r.name,color:r.color,lane:r.lane,
+  return {id:r.id,name:r.name,vehicleId:r.vehicleId??"car-uno",
+    vehicleKind:r.vehicleKind??"car",driverName:r.driverName??null,
+    color:r.color,lane:r.lane,
     gridPosition:r.gridPosition,progress:Math.round(r.progress*10)/10,
     status:r.status,finishMs:r.finishMs,isBot:r.isBot,
     speed:Math.round(r.speed*100)/100,
@@ -167,8 +174,11 @@ function normalizeEvent(data){
   const name=bounded(data.name??data.displayName??"Espectador",28);
   if(type!=="like"&&!userId)return null;
   return {type,eventId,userId,name,
-    ...(type==="join"?{robloxUserId:Number.isSafeInteger(data.robloxUserId)&&
-      data.robloxUserId>0?data.robloxUserId:null}:{}),
+    ...(type==="join"?{
+      vehicleId:typeof data.vehicleId==="string"?
+        bounded(data.vehicleId,80):null,
+      robloxUserId:Number.isSafeInteger(data.robloxUserId)&&
+        data.robloxUserId>0?data.robloxUserId:null}:{}),
     ...(type==="like"?{count:data.count}:{}),
     ...(type==="gift"?{giftName:bounded(data.giftName??"Presente",40),
       coins:data.coins}:{}),
@@ -276,7 +286,9 @@ export function createStudioRuntime({
         nextCount:state.next.length,
         results:state.results.slice(0,100),
         leaderboard:standings.slice(0,5).map((r,i)=>({
-          id:r.id,name:r.name,position:i+1,meters:Math.floor(r.progress),
+          id:r.id,name:r.name,vehicleId:r.vehicleId??"car-uno",
+          vehicleKind:r.vehicleKind??"car",position:i+1,
+          meters:Math.floor(r.progress),
           color:r.color,isBot:r.isBot
         })),
         messages:state.messages.slice(0,5),effects:state.effects.slice(0,60),
@@ -317,7 +329,8 @@ export function createStudioRuntime({
     let result;
     switch(event.type){
       case "join":result=studioJoin(state,{
-        userId:event.userId,name:event.name,robloxUserId:event.robloxUserId
+        userId:event.userId,name:event.name,vehicleId:event.vehicleId,
+        robloxUserId:event.robloxUserId
       });break;
       case "like":result=studioLike(state,{
         userId:event.userId,count:event.count

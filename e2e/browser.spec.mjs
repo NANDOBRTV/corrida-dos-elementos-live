@@ -740,3 +740,81 @@ test("v4.0 no random cars or motorcycles; one accepted present adds a temporary 
   expect(result.kind).toBe("moto");
   expect(result.until).toBe(12000);
 });
+
+test("v4.0.2 Ice stays snow-free over the W asphalt and starts with a frontal camera",async({page})=>{
+  await page.goto("/?view=live&quality=low&showcase=1&biome=ice&v=4.0.2",{
+    waitUntil:"domcontentloaded"
+  });
+  await expect(page.locator("#playerCount")).toHaveText("50",{timeout:25000});
+  const observed=await page.evaluate(async()=>{
+    const {createWorld}=await import("/src/world.js");
+    const {createAvatars}=await import("/src/avatars.js");
+    const {trackCenter}=await import("/src/track-path.js");
+    const {createState,register,advance,rank}=await import("/src/engine.js");
+    const canvas=document.createElement("canvas");
+    canvas.style.cssText="position:absolute;left:-9999px;width:350px;height:700px";
+    document.body.append(canvas);
+    const world=createWorld(canvas,{quality:"low"});
+    const avatars=createAvatars(world.scene,{quality:"low"});
+    const s=createState(71);
+    for(const id of ["z9","c8","a1","b3","t7","d0","f4","e5","x6"])
+      register(s,id,id,"entrar");
+    advance(s); // Countdown must show the runners facing the camera.
+    const leaders=rank(s.active).slice(0,3);
+    try{
+      world.setMap("ice",400);
+      avatars.sync(s.active,0,"COUNTDOWN");
+      avatars.animate(s.active,"COUNTDOWN",.016,10);
+      world.render(s,.016);
+      const first=trackCenter(0);
+      const direction={x:Math.sin(first.heading),z:Math.cos(first.heading)};
+      const front=(world.camera.position.x-first.x)*direction.x+
+        (world.camera.position.z-first.z)*direction.z;
+      const pack=s.active.map((r,i)=>{
+        const object=world.scene.getObjectByName("blocky-runner-"+i);
+        return {id:r.id,position:r.gridPosition,lane:r.lane,
+          relative:(object.position.x-first.x)*direction.x+
+                   (object.position.z-first.z)*direction.z};
+      });
+      const ground=world.scene.getObjectByName("winter-terrain-floor");
+      const groundTop=ground.position.y+ground.scale.y/2;
+      let minRoadHeight=Infinity;
+      for(let d=0;d<=400;d+=2)minRoadHeight=Math.min(minRoadHeight,trackCenter(d).y+.078);
+      const snowParticles=Boolean(world.scene.getObjectByName("biome-weather-particles"));
+      // Mid-transition camera must swing AROUND, rather than clip through the pack.
+      s.phase="RUNNING";s.raceMs=5550;
+      for(let j=0;j<20;j++)world.render(s,.2);
+      const orbitRadius=Math.hypot(world.camera.position.x-first.x,
+        world.camera.position.z-first.z);
+      return {front,pack,topIds:leaders.map(r=>r.id),groundTop,minRoadHeight,
+        snowParticles,orbitRadius};
+    }finally{avatars.clear();world.dispose();canvas.remove();}
+  });
+  expect(observed.front).toBeGreaterThan(15);
+  const leaders=observed.pack.filter(r=>r.position<=3);
+  expect(leaders.map(r=>r.id).sort()).toEqual([...observed.topIds].sort());
+  expect(leaders.map(r=>r.lane).sort()).toEqual([1,2,3]);
+  expect(leaders.every(r=>Math.abs(r.relative)<.5)).toBe(true);
+  const second=observed.pack.filter(r=>r.position>=4&&r.position<=6);
+  const third=observed.pack.filter(r=>r.position>=7&&r.position<=9);
+  expect(second.every(r=>r.relative<-2.4&&r.relative>-3.0)).toBe(true);
+  expect(third.every(r=>r.relative<-5&&r.relative>-5.6)).toBe(true);
+  expect(observed.groundTop).toBeLessThan(observed.minRoadHeight);
+  expect(observed.snowParticles).toBe(false);
+  expect(observed.orbitRadius).toBeGreaterThan(12);
+});
+test("v4.0.2 live preview opens in a front-facing three-column starting formation",async({page})=>{
+  await page.goto("/?view=live&quality=low&showcase=1&biome=ice&v=4.0.2",{
+    waitUntil:"domcontentloaded"
+  });
+  await expect(page.locator("#playerCount")).toHaveText("50",{timeout:25000});
+  await page.waitForTimeout(700);
+  await page.screenshot({path:join(root,"reference-ice-clean-road-frontal-grid.png"),fullPage:true});
+  const event=await page.evaluate(()=>({
+    phase:document.body.dataset.phase,
+    snowNotice:document.getElementById("liveWeatherTag").textContent,
+    overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth
+  }));
+  expect(event.phase).toBe("running");
+  expect(event.overflow).toBeLessThanOrEqual(1);
+});

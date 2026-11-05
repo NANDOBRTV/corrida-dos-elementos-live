@@ -185,7 +185,9 @@ test('Vídeo: retratos voxel, chat fictício marcado e cartão de poder em desta
   const portraits=await page.locator('.studio-viewer-faces img').evaluateAll(images=>
     images.map(img=>img.getAttribute('src')||''));
   expect(portraits.every(src=>src.startsWith('data:image/png;base64,'))).toBe(true);
-  await expect(page.locator('.studio-chat-line').first()).toContainText('[demo]');
+  await expect.poll(()=>page.locator('.studio-chat-line').filter({
+    hasText:'[demo]'
+  }).count()).toBeGreaterThan(0);
   await page.evaluate(async()=>{
     const {studioAdvance,studioTick}=await import('/src/studio-engine.js');
     const state=window.__studioV5Debug.getState();

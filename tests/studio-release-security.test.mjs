@@ -95,7 +95,7 @@ test("Release: persistencia de eventos, fila e protecao contra replay apos reini
     eventId:"late-join"};
   const queued=await send(first,"event",next);
   assert.equal(queued.status,200);
-  assert.equal(queued.json.queue,"proxima");
+  assert.equal(queued.json.queue,"próxima");
   const before=(await first.request("/api/studio/state")).json.state;
   assert.equal(before.phase,"RUNNING");
   assert.equal(before.active.length,100);

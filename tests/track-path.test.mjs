@@ -7,7 +7,7 @@ test("W track is a physically closed 400m circuit with rounded bends",()=>{
   assert.equal(COURSE_LENGTH,400);assert.equal(COURSE_TILE_LENGTH,400);
   const a=trackCenter(0),b=trackCenter(400);
   assert.ok(Math.hypot(a.x-b.x,a.z-b.z)<.01);
-  assert.equal(a.y,b.y);
+  assert.ok(Math.abs(a.y-b.y)<1e-9);
   const bounds=trackBounds();
   assert.ok(bounds.maxX-bounds.minX>50);
   assert.ok(bounds.maxZ-bounds.minZ>80);

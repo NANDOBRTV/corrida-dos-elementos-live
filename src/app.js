@@ -1,5 +1,5 @@
 import { BIOMES, BIOME_ORDER, TRACK_LENGTH, mapForRound, biome } from "./config.js";
-import { createState, addDemo, register, rank, tick, countdown, advance, turbo, validateSavedState, migrateSavedState, raceLength } from "./engine.js";
+import { createState, addDemo, register, rank, tick, countdown, advance, turbo, configureNextLaps, validateSavedState, migrateSavedState, raceLength } from "./engine.js";
 import { createWorld } from "./world.js";
 import { createAvatars } from "./avatars.js";
 import { connectRemote } from "./remote.js";
@@ -11,7 +11,7 @@ import {qualityFromUrl,QUALITY_SETTINGS,shouldRender} from "./performance.js";
 import {createFrameMonitor,gradePerformance} from "./metrics.js";
 import {createAdaptiveQuality} from "./adaptive.js";
 import {connectionMessage} from "./connection.js";
-import {trackCenter,trackBounds,COURSE_LENGTH} from "./track-path.js";
+import {trackCenter,trackBounds,COURSE_LENGTH,lapDistance,currentLap} from "./track-path.js";
 
 const STORAGE_KEY="elemental-race-browser-v1";
 const byId=id=>document.getElementById(id);
@@ -47,7 +47,7 @@ if(showcase){
   advance(state);advance(state); // Just the visual demo, never the authoritative Render motor.
   const params=new URLSearchParams(window.location.search);
   const previewKm={
-    hairpin:1620,hairpin1:1620,hairpin2:2610,hairpin3:3600
+    hairpin:95,hairpin1:95,hairpin2:215,hairpin3:325
   }[params.get("section")||""]??null;
   if(previewKm!==null){
     for(let i=0;i<state.active.length;i++){
@@ -74,7 +74,7 @@ try {
   avatars=createAvatars(world.scene,{quality:graphics});
   displayedMap=state.mapId;
   displayedLength=raceLength(state);
-  world.setMap(displayedMap,displayedLength);
+  world.setMap(displayedMap,displayedLength>=COURSE_LENGTH?COURSE_LENGTH:displayedLength);
   world.resize();
 } catch(err) {
   console.error("WebGL initialization failed",err);
@@ -100,7 +100,7 @@ function queueNames(rows) {
   if(!rows.length)return '<span style="color:#819f8b">Nenhum inscrito</span>';
   return rows.slice(0,50).map(r=>escapeHTML(r.name)+" <span style=\"opacity:.5\">("+escapeHTML(r.id)+")</span>").join("<br>");
 }
-// The 9:16 minimap draws the actual 5km switchbacks, not a straight bar.
+// Linha em W no minimapa, sem fundo, seguindo a pista real de 400m.
 const miniBounds=trackBounds(10);
 function miniPoint(distance){
   const p=trackCenter(Math.max(0,Math.min(COURSE_LENGTH,distance)));
@@ -113,7 +113,7 @@ function initMiniCourse(){
   const svg=byId("liveCourseSvg");
   if(!svg)return;
   const commands=[];
-  for(let d=0;d<=COURSE_LENGTH;d+=12){
+  for(let d=0;d<=COURSE_LENGTH;d+=1){
     const p=miniPoint(d);
     commands.push((commands.length?"L":"M")+p.x.toFixed(2)+" "+p.y.toFixed(2));
   }
@@ -137,6 +137,8 @@ function renderHud() {
   const leadProgress=leading.length?Math.max(0,Number(leading[0].progress)||0):0;
   byId("liveTimer").textContent=toTime(state.raceMs);
   byId("liveRemaining").textContent=Math.max(0,Math.ceil(distance-leadProgress))+" m até a chegada";
+  const laps=Number.isInteger(state.laps)?state.laps:Math.max(1,Math.round(distance/COURSE_LENGTH));
+  byId("liveLapInfo").textContent="VOLTA "+currentLap(leadProgress,laps)+"/"+laps+" · 400 m/volta";
   byId("liveRaceCount").textContent=state.active.length+"/50 corredores";
   const realLikes=Number.isSafeInteger(state.observedLikes)?state.observedLikes:0;
   const testLikes=Number.isSafeInteger(state.simulatedLikes)?state.simulatedLikes:0;
@@ -147,8 +149,8 @@ function renderHud() {
   mapWidget.dataset.biome=m.id;
   const mapLeader=byId("liveMapDot");
   mapLeader.hidden=leading.length===0;
-  byId("liveCourseSvg").style.display=distance===COURSE_LENGTH?"block":"none";
-  if(distance===COURSE_LENGTH)mapPin(mapLeader,leadProgress);
+  byId("liveCourseSvg").style.display=distance>=COURSE_LENGTH?"block":"none";
+  if(distance>=COURSE_LENGTH)mapPin(mapLeader,lapDistance(leadProgress,distance));
   else {mapLeader.style.left="50%";mapLeader.style.top="auto";
     mapLeader.style.bottom=Math.min(100,leadProgress/distance*100)+"%";}
   mapLeader.title=leading.length?leading[0].name+" · "+Math.floor(leadProgress)+"m":"";
@@ -158,7 +160,7 @@ function renderHud() {
     marker.hidden=!racer;
     if(racer){
       const progress=Math.max(0,Math.min(distance,Number(racer.progress)||0));
-      if(distance===COURSE_LENGTH)mapPin(marker,progress);
+      if(distance>=COURSE_LENGTH)mapPin(marker,lapDistance(progress,distance));
       else {marker.style.left=i===1?"27%":"73%";marker.style.top="auto";
         marker.style.bottom=(progress/distance*100)+"%";}
       marker.title=racer.name+" · "+Math.floor(progress)+"m";
@@ -176,6 +178,8 @@ function renderHud() {
   byId("roundNumber").textContent="#"+String(state.round).padStart(3,"0");
   byId("playerCount").textContent=String(state.active.length);
   byId("phaseTime").textContent=countdown(state)+"s";
+  byId("lapSettingStatus").textContent="Corrida atual: "+(state.laps??1)+
+    " volta(s). Próxima configurada: "+(state.nextLaps??1)+" volta(s).";
   byId("phaseName").textContent=(state.paused?"⏸ ":"")+({
     LOBBY:"LOBBY ABERTO",COUNTDOWN:"PREPARE-SE",RUNNING:"CORRIDA EM ANDAMENTO",RESULTS:"RESULTADOS"
   }[state.phase]);
@@ -249,11 +253,19 @@ function updateWorld(dt,now) {
   const wanted=selectedPreviewMap||state.mapId;
   const length=raceLength(state);
   if(wanted!==displayedMap||length!==displayedLength){
-    world.setMap(wanted,length);displayedMap=wanted;displayedLength=length;world.resize();
+    world.setMap(wanted,length>=COURSE_LENGTH?COURSE_LENGTH:length);
+    displayedMap=wanted;displayedLength=length;world.resize();
   }
-  avatars.sync(state.active);
-  avatars.animate(state.active,state.phase,dt,now);
-  world.render(state,dt);
+  // Map every lap to the same physical W-shaped circuit, without touching
+  // the authoritative total distance, live ranking or PostgreSQL state.
+  const visual=length>=COURSE_LENGTH?{
+    ...state,trackLength:COURSE_LENGTH,
+    active:state.active.map(r=>({...r,progress:lapDistance(r.progress,length)})),
+    giftObstacles:(state.giftObstacles||[]).map(h=>({...h,z:lapDistance(h.z,length)}))
+  }:state;
+  avatars.sync(visual.active,state.raceMs,state.phase);
+  avatars.animate(visual.active,state.phase,dt,now);
+  world.render(visual,dt);
 }
 function onFrame(now) {
   const delta=Math.min(Math.max(now-lastFrame,0),120);
@@ -444,6 +456,17 @@ byId("togglePause").addEventListener("click",async()=>{
   }
   state.paused=!state.paused;
   feedback(state.paused?"Motor pausado neste navegador.":"Motor retomado neste navegador.");
+  renderHud();persist();
+});
+byId("saveNextLaps").addEventListener("click",async()=>{
+  const laps=Number(byId("nextLapCount").value);
+  if(remoteMode){
+    const result=await adminRequest("set-next-laps",{laps});
+    if(result)feedback(laps+" volta(s) de 400m configuradas para "+result.applies+".");
+    return;
+  }
+  const result=configureNextLaps(state,laps);
+  feedback(result.ok?laps+" volta(s) configuradas para "+result.applies+".":result.reason,result.ok);
   renderHud();persist();
 });
 byId("nextPhase").addEventListener("click",async()=>{

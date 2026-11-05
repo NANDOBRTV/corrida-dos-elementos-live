@@ -279,7 +279,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     courseStart.position.set(start.x,start.y,start.z);
     courseStart.rotation.y=start.heading;
     block(courseStart,0,.12,0,11.6,.06,.9,0xeef7ff);
-    const gantry=trackCenter(5000);
+    const gantry=trackCenter(TRACK_LENGTH);
     finishGroup.position.set(gantry.x,gantry.y,gantry.z);
     finishGroup.rotation.y=gantry.heading;
     arch(0,0xffe7a4,finishGroup);
@@ -414,8 +414,9 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     clearMap();mapId=settings.id;currentLength=targetLength;
     director.reset();
     curvedCourse=targetLength===TRACK_LENGTH;
-    // 5km is a logical distance, NOT the amount of geometry allocated.
-    renderedLength=targetLength===TRACK_LENGTH?streamingLength:targetLength;
+    // A 400m lap fits in memory as one complete circuit; legacy races
+    // also reuse the same 400m circuit without loading repeated geometry.
+    renderedLength=targetLength===TRACK_LENGTH?TRACK_LENGTH:targetLength;
     root.position.set(0,0,0);root.userData.baseDistance=0;
     scene.background=new THREE.Color(settings.sky);
     scene.fog=new THREE.Fog(settings.fog,curvedCourse?85:30,curvedCourse?300:109);
@@ -456,8 +457,8 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       const ground=block(root,0,-.25,renderedLength/2,180,.5,renderedLength+100,settings.ground);
       ground.userData.noCourseWarp=true;
     }
-    // Curve the 5 lanes, shoulders and guardrails with a single deterministic
-    // world-space route. Legacy 150/300m snapshots keep their straight courses.
+    // Bend lanes, shoulders, barriers and scenery along the same W circuit.
+    // Older 150m/300m snapshots retain their straight layout.
     if(curvedCourse){
       makeRibbon("course-shoulder",-10,10,-.055,settings.id==="ice"?0xe7eef5:0x728e6b);
       makeRibbon("course-asphalt",-5.85,5.85,.078,settings.road);
@@ -488,7 +489,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     for(const x of [-3.7,-1.85,0,1.85,3.7]) for(let z=5;z<renderedLength;z+=7.5){
       block(root,x,.086,z,.08,.02,2.2,0xece5c3);
     }
-    // Only one finish at the true 5,000m mark, not at each streamed tile.
+    // One start/finish location on the continuous 400m circuit.
     if(curvedCourse) addCourseMilestones();
     else{
       arch(targetLength,0xffe7a4);
@@ -523,10 +524,9 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     const middle=distances.length?distances[Math.floor(distances.length*.45)]:0;
     const z=Math.min(currentLength,middle);
     if(currentLength===TRACK_LENGTH){
-      // Two matching 300m tiles overlap before/after each shift, so 5km
-      // never creates 5km of geometry (or triggers a rebuild every frame).
-      const nextBase=Math.max(0,Math.floor(Math.max(0,z-200)/STREAM_TILE_LENGTH)*STREAM_TILE_LENGTH);
-      if(root.userData.baseDistance!==nextBase)updateCurvedCourse(nextBase);
+      // A full 400m closed circuit is rendered once; no streaming roll
+      // or scenery rebuild on each additional lap.
+      if(root.userData.baseDistance!==0)updateCurvedCourse(0);
     }
     const alpha=1-Math.exp(-5.8*Math.min(dt,.2));
     const center=curvedCourse?trackCenter(z):{x:0,y:0,z,heading:0};

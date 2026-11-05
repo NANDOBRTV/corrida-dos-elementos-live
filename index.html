@@ -56,7 +56,8 @@
         </div>
         <div class="live-timer-card" aria-label="Tempo e distância da corrida">
           <strong id="liveTimer">0:00</strong>
-          <span id="liveRemaining">5.000 m até a chegada</span>
+          <span id="liveRemaining">400 m até a chegada</span>
+          <small id="liveLapInfo">VOLTA 1/1 · 400 m/volta</small>
           <small id="liveRaceCount">0/50 corredores</small>
         </div>
         <div class="live-minimap" aria-label="Progresso da pista">
@@ -113,8 +114,8 @@
       </section>
       <div class="live-power-rail" aria-label="Habilidades simuladas">
         <div>🚀 <span>JETPACK VISUAL</span></div>
-        <div>🏎️ <span>KART VISUAL</span></div>
-        <div>🏍️ <span>MOTO VISUAL</span></div>
+        <div>🏎️ <span>CARRO • PRESENTE</span></div>
+        <div>🏍️ <span>MOTO • PRESENTE</span></div>
       </div>
       <div class="gift-feed" id="giftFeed" aria-label="Presentes recentes" hidden></div>
       <div class="next-line"><span id="nextMapText">PRÓXIMA: 🌲 FLORESTA</span><strong id="nextQueueCount">0 NA FILA</strong></div>
@@ -149,6 +150,23 @@
       </form>
       <div class="message-response" id="joinResponse" role="status" aria-live="polite">Digite entrar para testar a inscrição.</div>
 
+      <div class="preview-map-box lap-controls">
+        <label for="nextLapCount">QUANTIDADE DE VOLTAS DA PRÓXIMA CORRIDA</label>
+        <select id="nextLapCount">
+          <option value="1">1 volta · 400 m</option>
+          <option value="2">2 voltas · 800 m</option>
+          <option value="3">3 voltas · 1.200 m</option>
+          <option value="4">4 voltas · 1.600 m</option>
+          <option value="5">5 voltas · 2.000 m</option>
+          <option value="6">6 voltas · 2.400 m</option>
+          <option value="7">7 voltas · 2.800 m</option>
+          <option value="8">8 voltas · 3.200 m</option>
+          <option value="9">9 voltas · 3.600 m</option>
+          <option value="10">10 voltas · 4.000 m</option>
+        </select>
+        <button type="button" id="saveNextLaps" class="soft-button">🏁 SALVAR VOLTAS</button>
+        <p id="lapSettingStatus">Corrida atual: 1 volta. Próxima: 1 volta.</p>
+      </div>
       <div class="operator-actions">
         <button id="togglePause" class="soft-button">⏸ PAUSAR MOTOR</button>
         <button id="nextPhase" class="soft-button">⏭ AVANÇAR FASE</button>

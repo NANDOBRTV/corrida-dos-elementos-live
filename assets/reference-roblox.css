@@ -162,3 +162,20 @@ body[data-view="live"] .camera-spotlight small{
   body[data-view="live"] .camera-spotlight{bottom:27%;padding:4px 9px}
   body[data-view="live"] .camera-spotlight strong{font-size:13px}
 }
+
+/* v4.0: lightweight floating white W line, no map background. */
+body[data-view="live"] .live-minimap,
+body[data-view="live"] .live-minimap-road{
+  background:transparent!important;border:0!important;border-radius:0!important;
+  box-shadow:none!important;backdrop-filter:none!important;
+}
+body[data-view="live"] .live-course-svg{background:transparent!important}
+body[data-view="live"] #liveCoursePath{
+  stroke:#fff!important;stroke-width:6!important;fill:none!important;
+  stroke-linecap:round;stroke-linejoin:round;
+}
+body[data-view="live"] #liveLapInfo{
+  font-size:10px;font-weight:800;color:#fae8a9;letter-spacing:.25px
+}
+.lap-controls select{width:100%;max-width:100%}
+.lap-controls button{margin-top:8px}

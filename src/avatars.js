@@ -73,7 +73,8 @@ export function createAvatars(scene,{quality="balanced"}={}) {
     // Small original outfit variations, with no additional draw calls or geometry.
     const appearance=appearanceForRunner(r.id);
     const style=appearance.variant;
-    const vehicleKind=appearance.vehicle;
+    const vehicleKind=r.vehicleKind==="kart"||r.vehicleKind==="moto"
+      ?r.vehicleKind:appearance.vehicle;
     // Referência visual: roupas, acessórios e proporções de avatares humanoides blocados.
     // Modelos originais; nenhum asset/modelo oficial de outro jogo é importado.
     const skin=[0xf4caa5,0x986244,0xf6d6b4,0xc38a61,0x6e4735][style];
@@ -201,11 +202,15 @@ export function createAvatars(scene,{quality="balanced"}={}) {
     scene.add(group);
     return {group,body,arms,legs,parts,vehicleKind,lastX:laneX(r.lane),lastZ:visualProgress(r,index),label,labelKey:r.name.slice(0,14)+"|"+r.color};
   }
-  function sync(runners) {
+  function sync(runners,raceMs=0,phase="LOBBY") {
     const ids=new Set(runners.map(r=>r.id));
     let changed=false;
     for(const [id,item] of meshes){
-      if(!ids.has(id)){
+      const r=runners.find(x=>x.id===id);
+      const expected=r&&phase==="RUNNING"&&r.vehicleUntil>raceMs&&
+        (r.vehicleKind==="kart"||r.vehicleKind==="moto")
+        ?r.vehicleKind:appearanceForRunner(id).vehicle;
+      if(!ids.has(id)||item.vehicleKind!==expected){
         changed=true;
         scene.remove(item.group);
         item.group.traverse(obj=>{
@@ -222,7 +227,10 @@ export function createAvatars(scene,{quality="balanced"}={}) {
     for(let i=0;i<runners.length;i++){
       const r=runners[i];
       if(!meshes.has(r.id)){
-        meshes.set(r.id,build(r,i));
+        const effective=r&&phase==="RUNNING"&&r.vehicleUntil>raceMs&&
+          (r.vehicleKind==="kart"||r.vehicleKind==="moto")
+          ?r.vehicleKind:appearanceForRunner(r.id).vehicle;
+        meshes.set(r.id,build({...r,vehicleKind:effective},i));
         changed=true;
       }
     }

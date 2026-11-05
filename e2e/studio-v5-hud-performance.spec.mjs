@@ -170,3 +170,35 @@ test('Vídeo referência: prévia com 20 participantes mantém capacidade 100',a
     ()=>window.__studioV5Debug?.getState()?.active?.length)).toBe(20);
   await expect(page.locator('#studioRunnerCount')).toHaveText('20/100');
 });
+
+
+test('Vídeo: retratos voxel, chat fictício marcado e cartão de poder em destaque',async({page})=>{
+  await page.setViewportSize({width:390,height:693});
+  const pageErrors=[];page.on('pageerror',error=>pageErrors.push(error.message));
+  await page.goto('/?view=live&studioPreview=1&quality=low&crowd=20',{
+    waitUntil:'domcontentloaded'
+  });
+  await expect(page.locator('#studioLive')).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>
+    window.__studioV5Debug?.getSceneStats()?.runners)).toBe(20);
+  await expect.poll(()=>page.locator('.studio-viewer-faces img').count()).toBeGreaterThan(0);
+  const portraits=await page.locator('.studio-viewer-faces img').evaluateAll(images=>
+    images.map(img=>img.getAttribute('src')||''));
+  expect(portraits.every(src=>src.startsWith('data:image/png;base64,'))).toBe(true);
+  await expect(page.locator('.studio-chat-line').first()).toContainText('[demo]');
+  await page.evaluate(async()=>{
+    const {studioAdvance,studioTick}=await import('/src/studio-engine.js');
+    const state=window.__studioV5Debug.getState();
+    studioAdvance(state);studioAdvance(state);studioTick(state,8500);
+  });
+  await expect(page.locator('#studioFeatureCard')).toBeVisible();
+  await expect(page.locator('#studioFeatureLabel')).toContainText('DEMONSTRAÇÃO');
+  await expect(page.locator('#studioFeatureAvatar')).toHaveCSS(
+    'background-image',/data:image\/png;base64/
+  );
+  await expect(page.locator('#studioRunnerCount')).toHaveText('20/100');
+  await expect.poll(()=>page.evaluate(()=>
+    window.__studioV5Debug?.getSceneStats()?.spotlightParts))
+    .toBeGreaterThan(20);
+  expect(pageErrors).toEqual([]);
+});

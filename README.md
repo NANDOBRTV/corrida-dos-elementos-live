@@ -1,3 +1,11 @@
+## Versão 3.4.1 — close-ups em intervalos aleatórios de 0 a 10 segundos
+
+Em vez de um corte fixo a cada 10 segundos, **após cada destaque de 3,2 segundos** a câmera aguarda um tempo pseudoaleatório entre **0 e 10 segundos** até destacar outro corredor. Espera zero significa que o próximo close começa imediatamente após o anterior, sem sobreposição. Os intervalos são derivados da rodada e do índice do destaque, permanecendo estáveis com a mesma corrida mesmo após recarregamento ou reconexão. O tempo é contado no relógio oficial da corrida; resultados, ausência de corredores e lobby desativam o efeito.
+
+A mesma regra de intervalo está preparada para a câmera Roblox Studio, que ainda requer execução e validação dentro da experiência Roblox. Não há alteração no motor físico, ranking ou presentes.
+
+---
+
 ### Close-up na versão Roblox Studio
 
 A câmera opcional no Roblox Studio também foi preparada para destacar a cada 10 segundos um avatar real aleatório que esteja correndo. O script recebe `RaceMs`, `RacePhase` e `RaceRound` por atributos replicados, aproxima durante 3,2 segundos e retorna à câmera geral. Nenhuma chave secreta vai para o script do cliente. **Ainda não houve validação dentro do Roblox Studio**; a versão web no Render é testada separadamente.

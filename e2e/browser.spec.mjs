@@ -688,12 +688,13 @@ test("v3.3 only gift events create 3D obstacles; no generated track obstacles",a
   expect(counts).toEqual({before:0,withGift:1,after:0});
 });
 
-test("v3.4 10-second camera spotlight follows a random runner then returns to pack",async({page})=>{
+test("v3.4.1 randomized 0–10 second pauses between spotlight cuts",async({page})=>{
   await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
   await expect(page.locator("#playerCount")).toHaveText("50",{timeout:25_000});
   const outcome=await page.evaluate(async()=>{
     const {createWorld}=await import("/src/world.js");
     const {createState,register,advance}=await import("/src/engine.js");
+    const {closeupWaitMs,CLOSEUP_DURATION_MS}=await import("/src/camera-director.js");
     const canvas=document.createElement("canvas");
     canvas.style.cssText="position:absolute;left:-9999px;width:300px;height:600px";
     document.body.append(canvas);
@@ -705,7 +706,10 @@ test("v3.4 10-second camera spotlight follows a random runner then returns to pa
     const rows=[];
     try{
       world.setMap("ice",5000);
-      for(const ms of [9000,10000,10800,12000,13200,20800]){
+      const first=closeupWaitMs(state,0);
+      const second=first+CLOSEUP_DURATION_MS+closeupWaitMs(state,1);
+      for(const ms of [first,first+900,first+2600,
+        first+CLOSEUP_DURATION_MS,second,second+900]){
         state.raceMs=ms;
         world.render(state,.22);
         const detail=world.getCameraFocus();
@@ -717,12 +721,12 @@ test("v3.4 10-second camera spotlight follows a random runner then returns to pa
     return {rows,spotlightElement:!!document.getElementById("cameraSpotlight")};
   });
   expect(outcome.spotlightElement).toBe(true);
-  expect(outcome.rows[0].focused).toBe(null);
-  expect(outcome.rows[1].slot).toBe(1);
-  expect(outcome.rows[2].blend).toBeGreaterThan(.95);
-  expect(outcome.rows[3].focused).toBeTruthy();
-  expect(outcome.rows[4].focused).toBe(null);
-  expect(outcome.rows[5].slot).toBe(2);
-  expect(outcome.rows[5].focused).not.toBe(outcome.rows[1].focused);
+  expect(outcome.rows[0].slot).toBe(1);
+  expect(outcome.rows[1].blend).toBeGreaterThan(.95);
+  expect(outcome.rows[2].focused).toBeTruthy();
+  expect(outcome.rows[3].focused).toBe(null);
+  expect(outcome.rows[4].slot).toBe(2);
+  expect(outcome.rows[5].blend).toBeGreaterThan(.95);
+  expect(outcome.rows[4].focused).not.toBe(outcome.rows[0].focused);
   expect(outcome.rows.every(r=>r.pos.every(Number.isFinite))).toBe(true);
 });

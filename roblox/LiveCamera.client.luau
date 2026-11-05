@@ -65,14 +65,20 @@ local function animator(model)
   animated[model]=found
   return found
 end
--- A different native avatar gets a close-up every 10 seconds of race time.
+-- 0–10 seconds of random pause BETWEEN 3.2s camera close-ups.
 -- Camera only: does not change race mechanics, NPC physics or chat events.
 local lastRaceMs=-1
 local syncClock=os.clock()
 local currentRound=-1
-local lastSlot=0
+local shotIndex=0
+local shotStart=0
+local shotSelected=false
 local lastFeatured=nil
 local featuredId=nil
+local function randomWait(round,sequence)
+  -- Same deterministic interval for every frame of the current local round.
+  return Random.new(round*7937+sequence*10949+271828):NextInteger(0,10000)
+end
 local function smoothstep(x)
   local t=math.clamp(x,0,1)
   return t*t*(3-2*t)
@@ -137,7 +143,8 @@ RunService:BindToRenderStep("RaceLiveCamera",Enum.RenderPriority.Camera.Value+1,
   local round=folder:GetAttribute("RaceRound") or 0
   local serverMs=folder:GetAttribute("RaceMs") or 0
   if round~=currentRound then
-    currentRound=round;lastSlot=0;lastFeatured=nil;featuredId=nil
+    currentRound=round;shotIndex=0;shotStart=randomWait(round,0)
+    shotSelected=false;lastFeatured=nil;featuredId=nil
     lastRaceMs=-1
   end
   if serverMs~=lastRaceMs then
@@ -146,14 +153,18 @@ RunService:BindToRenderStep("RaceLiveCamera",Enum.RenderPriority.Camera.Value+1,
   end
   if phase=="RUNNING" then
     local raceMs=serverMs+math.min(2,os.clock()-syncClock)*1000
-    local slot=math.floor(raceMs/10000)
-    if slot>=1 and slot~=lastSlot then
-      lastSlot=slot
-      featuredId=chooseFeatured(models,center,slot,round)
+    while raceMs>=shotStart+3200 do
+      shotIndex+=1
+      shotStart+=3200+randomWait(round,shotIndex)
+      shotSelected=false;featuredId=nil
+    end
+    local elapsed=raceMs-shotStart
+    if elapsed>=0 and not shotSelected then
+      shotSelected=true
+      featuredId=chooseFeatured(models,center,shotIndex+1,round)
       if featuredId then lastFeatured=featuredId end
     end
-    local elapsed=raceMs-slot*10000
-    if slot>=1 and featuredId and elapsed>=0 and elapsed<3200 then
+    if featuredId and elapsed>=0 and elapsed<3200 then
       local focused
       for _,model in ipairs(models) do
         if model:GetAttribute("RobloxUserId")==featuredId and
@@ -181,7 +192,8 @@ RunService:BindToRenderStep("RaceLiveCamera",Enum.RenderPriority.Camera.Value+1,
       end
     end
   else
-    lastSlot=0;featuredId=nil
+    shotIndex=0;shotStart=randomWait(round,0)
+    shotSelected=false;lastFeatured=nil;featuredId=nil
   end
   local alpha=1-math.exp(-5.8*math.min(.12,dt))
   if (cam.CFrame.Position-desired.Position).Magnitude>180 then

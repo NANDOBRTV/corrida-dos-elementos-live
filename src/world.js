@@ -544,7 +544,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       center.y+height,center.z-forwardZ*backDistance);
     lookTarget.set(center.x+forwardX*forwardDistance,
       center.y+1.5,center.z+forwardZ*forwardDistance);
-    // Every 10 seconds, smoothly feature one running avatar for 3.2 seconds.
+    // After each close-up, wait 0–10 random seconds before featuring another runner.
     // Reuse the same camera and scene; no new 3D assets or draw calls.
     const focus=director.update(race);
     if(focus&&focus.blend>0){

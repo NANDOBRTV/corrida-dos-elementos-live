@@ -606,3 +606,32 @@ test("v3.2 mobile minimap actually outlines three mountain hairpins",async({page
   expect(observed.width).toBeGreaterThan(40);
   expect(observed.markers).toBe(3);
 });
+
+test("v3.2 hairpin showcase opens inside the U-turn without changing the real server",async({page,request})=>{
+  const before=await (await request.get("/api/state")).json();
+  const errors=[];page.on("pageerror",err=>errors.push(err.message));
+  await page.goto("/?view=live&quality=low&showcase=1&section=hairpin&biome=ice",{waitUntil:"domcontentloaded"});
+  await expect(page.locator("#playerCount")).toHaveText("50",{timeout:25_000});
+  await expect(page.locator("#remoteMode")).toContainText("PRÉVIA VISUAL LOCAL");
+  await expect(page.locator("#phaseName")).toContainText("CORRIDA EM ANDAMENTO");
+  await page.waitForTimeout(1000);
+  const info=await page.evaluate(async()=>{
+    const {trackCenter}=await import("/src/track-path.js");
+    const a=trackCenter(1400),b=trackCenter(1770);
+    return {turn:Math.abs(b.heading-a.heading),
+      progress:document.getElementById("liveRemaining").textContent,
+      map:document.getElementById("liveMiniMapName").textContent,
+      path:document.getElementById("liveCoursePath").getAttribute("d")?.length,
+      overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth};
+  });
+  expect(info.turn).toBeGreaterThan(3);
+  expect(info.progress).toContain("m até a chegada");
+  expect(info.map).toContain("GELO");
+  expect(info.path).toBeGreaterThan(2000);
+  expect(info.overflow).toBeLessThanOrEqual(1);
+  await page.screenshot({path:join(root,"reference-hairpin-50-runners.png"),fullPage:true});
+  const after=await (await request.get("/api/state")).json();
+  expect(after.state.round).toBe(before.state.round);
+  expect(after.state.active.length).toBe(before.state.active.length);
+  expect(errors).toEqual([]);
+});

@@ -1,3 +1,9 @@
+### Demonstração instantânea do cotovelo
+
+Abra `/?view=live&quality=low&showcase=1&section=hairpin&biome=ice` para visualizar imediatamente 50 corredores fictícios na primeira curva em U. Para testar outras curvas use `section=hairpin2` e `section=hairpin3`; para conferir a Floresta, use `biome=forest`. Essas URLs funcionam somente como **prévia local**, sem inscrições, presentes ou mudanças no PostgreSQL.
+
+---
+
 ### Mesma pista no Roblox Studio
 
 Atualizados os arquivos `roblox/LiveRace.server.luau` e `roblox/LiveCamera.client.luau` com as **três curvas de 180° idênticas às do navegador**, encostas acompanhando a estrada, marcas de distância, chegada definitiva e câmera aérea automática nos cotovelos. Esta é uma implementação de código preparada para o Roblox Studio; ainda não houve execução dentro da plataforma.

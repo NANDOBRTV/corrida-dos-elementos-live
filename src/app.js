@@ -45,6 +45,23 @@ if(showcase){
     "Kai","Pip","Ari","Max","Mel","Nox","Ivo","Eva","Léo","Cris"];
   for(let i=0;i<50;i++)register(state,"preview-"+i,names[i%names.length]+" "+(Math.floor(i/names.length)+1),"entrar");
   advance(state);advance(state); // Just the visual demo, never the authoritative Render motor.
+  const params=new URLSearchParams(window.location.search);
+  const previewKm={
+    hairpin:1620,hairpin1:1620,hairpin2:2610,hairpin3:3600
+  }[params.get("section")||""]??null;
+  if(previewKm!==null){
+    for(let i=0;i<state.active.length;i++){
+      const runner=state.active[i];
+      // Spectators see the switchback immediately; no stored scores are touched.
+      runner.progress=previewKm+Math.floor(i/5)*3.1;
+      runner.status="running";
+    }
+    state.raceMs=3000;
+    state.phaseMs=3000;
+    state.messages.unshift({text:"[PRÉVIA] Curva fechada da serra — 50 corredores fictícios",at:state.round});
+  }
+  const biomeDemo=params.get("biome");
+  if(biomeDemo==="ice"||biomeDemo==="forest")state.mapId=biomeDemo;
 } else if(!remoteMode&&state.round===1&&state.active.length===0&&state.next.length===0&&state.phase==="LOBBY")addDemo(state,10);
 state.paused=Boolean(state.paused);
 let selectedPreviewMap="";

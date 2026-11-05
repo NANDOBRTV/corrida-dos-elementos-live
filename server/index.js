@@ -3,7 +3,7 @@ import {readFile,stat} from "node:fs/promises";
 import {fileURLToPath} from "node:url";
 import {dirname,join,extname,resolve,sep} from "node:path";
 import {timingSafeEqual,randomBytes} from "node:crypto";
-import {createState,addDemo,register,rank,advance,tick,turbo,configureNextLaps,validateSavedState,migrateSavedState} from "../src/engine.js";
+import {createState,addDemo,register,rank,advance,tick,turbo,focusRunner,configureNextLaps,validateSavedState,migrateSavedState} from "../src/engine.js";
 import {openStorage} from "./storage.js";
 import {startTikTokBridge} from "./tiktok.js";
 import {applyGiftEvent,createGiftDeduplicator} from "../src/gifts.js";
@@ -285,6 +285,13 @@ export async function createApp(opts={}){
         else if(action==="set-next-laps"){
           const result=mutation(()=>configureNextLaps(state,data.laps));
           if(!result.ok){sendJson(res,400,{ok:false,error:result.reason});return;}
+          outcome=result;
+        }
+        else if(action==="camera-focus"){
+          const userId=typeof data.userId==="string"?data.userId:"";
+          const result=focusRunner(state,userId);
+          if(!result.ok){sendJson(res,400,{ok:false,error:result.reason});return;}
+          revision++;notify();
           outcome=result;
         }
         else if(action==="turbo") {

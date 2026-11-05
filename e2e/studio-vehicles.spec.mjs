@@ -80,3 +80,47 @@ test("Prévia: o usuário digita CG 160 no simulador de chat e entra exatamente 
   expect(record.vehicleKind).toBe("motorcycle");
   await expect(page.locator("#studioRunnerCount")).toHaveText("20/100");
 });
+
+
+test("Câmera 10s de close, depois top 3; mini lista e @usuário sobre o carro",async({page})=>{
+  const errors=[];page.on("pageerror",e=>errors.push(e.message));
+  await page.setViewportSize({width:390,height:693});
+  await page.goto("/?view=live&studioPreview=1&quality=low&crowd=30",
+    {waitUntil:"domcontentloaded"});
+  await expect.poll(()=>page.evaluate(()=>
+    window.__studioV5Debug?.getSceneStats()?.runners)).toBe(30);
+  await page.evaluate(async()=>{
+    const {studioAdvance,studioTick}=await import("/src/studio-engine.js");
+    const state=window.__studioV5Debug.getState();
+    studioAdvance(state);studioAdvance(state);studioTick(state,1500);
+  });
+  await expect(page.locator(".studio-vehicle-mini")).toBeVisible();
+  await expect.poll(()=>page.locator("#studioVehicleList li").count()).toBe(7);
+  await expect.poll(()=>page.evaluate(()=>
+    window.__studioV5Debug.getCameraShot().mode)).toBe("VEHICLE_CLOSEUP");
+  const closeup=await page.evaluate(()=>{
+    const state=window.__studioV5Debug.getState();
+    const shot=window.__studioV5Debug.getCameraShot();
+    const car=state.active.find(r=>r.id===shot.featuredId);
+    car.driverName="@pilotoTeste";
+    return {id:car.id,model:car.name,kind:car.vehicleKind};
+  });
+  expect(closeup.kind).toBe("car");
+  await expect.poll(()=>page.locator(".studio-nameplate").filter({
+    hasText:"@pilotoTeste"
+  }).count(),{timeout:10000}).toBeGreaterThan(0);
+  const first=await page.evaluate(()=>window.__studioV5Debug.getCameraShot());
+  await page.evaluate(()=>{window.__studioV5Debug.getState().raceMs=10300;});
+  await expect.poll(()=>page.evaluate(()=>
+    window.__studioV5Debug.getCameraShot().mode)).toBe("TOP_THREE");
+  const leaders=await page.evaluate(()=>window.__studioV5Debug.getCameraShot());
+  expect(leaders.focusIds).toHaveLength(3);
+  expect(first.featuredId).not.toBe(null);
+  await expect(page.locator("#studioCameraLabel")).toContainText("3 PRIMEIROS");
+  await page.evaluate(()=>{window.__studioV5Debug.getState().raceMs=18300;});
+  await expect.poll(()=>page.evaluate(()=>
+    window.__studioV5Debug.getCameraShot().mode)).toBe("VEHICLE_CLOSEUP");
+  await expect(page.locator("#studioCameraLabel")).toContainText("CLOSE");
+  expect(errors).toEqual([]);
+  await page.screenshot({path:"test-results/closeup-username-mini-list.png"});
+});

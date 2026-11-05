@@ -476,3 +476,17 @@ body.studio-live-active{
 .studio-live-active .studio-stage[data-phase="results"] .studio-camera-label{
   display:none!important;
 }
+
+
+/* Always available CC BY attribution for the premium car GLBs. */
+.studio-live-active .studio-credits-link{
+  position:absolute;z-index:16;left:3%;bottom:4.8%;
+  font:700 1.55cqw/1.2 system-ui,sans-serif;
+  text-decoration:underline;text-underline-offset:.15cqw;
+  background:rgba(12,18,33,.65);color:#e7ebf9;
+  border-radius:.55cqw;padding:.4cqw .7cqw;
+  pointer-events:auto;
+}
+.studio-live-active .studio-credits-link:focus-visible{
+  outline:.5cqw solid #f4cf6f;outline-offset:.3cqw;
+}

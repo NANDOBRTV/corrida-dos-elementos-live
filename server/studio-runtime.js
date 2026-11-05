@@ -203,7 +203,10 @@ export function createStudioRuntime({
       healthy:Boolean(store?.enabled)&&!lastWriteError,
       recovered:Boolean(restored),savedAt:lastWriteSuccess,
       dirty:Boolean(store?.enabled)&&revision!==savedRevision,
-      error:lastWriteError,writeFailures};
+      // Public health endpoints must never expose raw PostgreSQL errors,
+      // which may contain hostnames, SQL details or connection secrets.
+      error:lastWriteError?"Persistência temporariamente indisponível":null,
+      writeFailures};
   }
   function checkpointSnapshot(){
     pruneDedupe();

@@ -292,11 +292,12 @@ export function createStudioScene(canvas,{quality="balanced",
             {x:.085,y:.026,z:2.6},line.heading);
         }
       }
-      if(meter<50&&i%3===0){
+      if(meter<0&&meter>=-4){
+        // Two start-gate columns, not long guardrails hiding the forest.
         for(const side of [-1,1]){
-          const atWall=roadsidePoint(meter,side*12.3);
-          put(walls,ws++,{x:atWall.x,y:atWall.y+1.35,z:atWall.z},
-            {x:.9,y:2.9,z:11.6},atWall.heading);
+          const atWall=roadsidePoint(meter,side*12.9);
+          put(walls,ws++,{x:atWall.x,y:atWall.y+13.5,z:atWall.z},
+            {x:2.15,y:27.0,z:2.0},atWall.heading);
         }
       }
     }
@@ -345,7 +346,7 @@ export function createStudioScene(canvas,{quality="balanced",
       mesh.count=count;mesh.instanceMatrix.needsUpdate=true;
     }
     const base=studioCourseAt(start+145);
-    ground.position.set(base.x,base.y-.48,base.z);
+    ground.position.set(base.x,base.y-.20,base.z);
     if(crowns.instanceColor)crowns.instanceColor.needsUpdate=true;
     courseBuilds++;previousCourseBucket=Math.floor(center/8);
   }

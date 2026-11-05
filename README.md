@@ -1,3 +1,9 @@
+### Roblox Studio — pista 3D sinuosa, 5 km
+
+A versão opcional para Roblox Studio também ganhou o mesmo percurso matemático, com estrada dividida em trechos que fazem curvas, sinalização a cada 500m, faixas, árvores acompanhando o caminho, pórtico de chegada na posição de 5.000m e câmera que acompanha as curvas. Os personagens Roblox verdadeiros são criados pela API nativa **somente dentro da experiência Roblox**. Esses scripts não foram executados em Studio e não substituem o jogo WebGL do Render.
+
+---
+
 ## Versão 3.1 — circuito sinuoso de 5.000 metros
 
 A pista 3D deixou de ser apenas uma reta: o jogo agora gera **curvas para a esquerda e para a direita, subidas leves, bordas acompanhando a estrada, guardrails e placas a cada 500m**, com chegada única no marco de 5.000m. A câmera segue o contorno da estrada e os corredores, obstáculos e efeitos permanecem alinhados às faixas. Os cenários de Gelo e Floresta reaproveitam apenas dois trechos de 300m em GPU para manter o orçamento gráfico do Android. O motor de corrida e a progressão persistida não foram modificados; os percursos legados de 150m/300m continuam compatíveis.

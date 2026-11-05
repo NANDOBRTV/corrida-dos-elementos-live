@@ -49,3 +49,17 @@ test("Visual curves never alter authoritative physics or the 5km win condition",
   assert.deepEqual(race,before);
   assert.equal(race.trackLength,5000);
 });
+
+test("Roblox Studio source has curved segmented road, exact official finish and chase camera",async()=>{
+  const {readFile}=await import("node:fs/promises");
+  const server=await readFile(new URL("../roblox/LiveRace.server.luau",import.meta.url),"utf8");
+  const cam=await readFile(new URL("../roblox/LiveCamera.client.luau",import.meta.url),"utf8");
+  for(const c of ["27*math.sin(s/172)+10*math.sin(s/69)","coursePosition","for z=10,290,20",
+    "FinishStripe","FINISH_5000","for dist=500,4500,500"]){
+    assert.ok(server.includes(c),"Roblox course missing "+c);
+  }
+  assert.ok(server.includes("model:PivotTo(CFrame.new(pos)"));
+  assert.ok(cam.includes("centerAt(center-34)"));
+  assert.ok(cam.includes("centerAt(center+12)"));
+  assert.ok(cam.includes("27*math.sin(s/172)+10*math.sin(s/69)"));
+});

@@ -3,6 +3,16 @@ local RunService=game:GetService("RunService")
 local workspace=game:GetService("Workspace")
 local cam=workspace.CurrentCamera
 local folder=workspace:WaitForChild("RaceAvatars",30)
+-- The spectator camera follows the exact same curve as the Roblox race track.
+local function centerAt(distance)
+  local s=math.clamp(tonumber(distance) or 0,0,5000)
+  local t=math.min(1,s/140)
+  local smooth=t*t*(3-2*t)
+  local x=smooth*(27*math.sin(s/172)+10*math.sin(s/69))
+  local y=.72*math.sin(s/115)^2+.32*math.sin(s/46)^2
+  return x,y
+end
+
 if not folder then return end
 cam.CameraType=Enum.CameraType.Scriptable
 cam.FieldOfView=62
@@ -49,7 +59,12 @@ RunService:BindToRenderStep("RaceLiveCamera",Enum.RenderPriority.Camera.Value+1,
   end
   table.sort(positions)
   local center=positions[math.max(1,math.floor(#positions*.48))] or 0
-  local desired=CFrame.lookAt(Vector3.new(0,16,center-34),Vector3.new(0,2,center+12))
+  local bx,by=centerAt(center-34)
+  local fx,fy=centerAt(center+12)
+  local desired=CFrame.lookAt(
+    Vector3.new(bx,16+by,center-34),
+    Vector3.new(fx,2+fy,center+12)
+  )
   local alpha=1-math.exp(-2.5*math.min(.12,dt))
   if (cam.CFrame.Position-desired.Position).Magnitude>180 then
     cam.CFrame=desired

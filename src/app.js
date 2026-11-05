@@ -11,6 +11,7 @@ import {qualityFromUrl,QUALITY_SETTINGS,shouldRender} from "./performance.js";
 import {createFrameMonitor,gradePerformance} from "./metrics.js";
 import {createAdaptiveQuality} from "./adaptive.js";
 import {connectionMessage} from "./connection.js";
+import {trackCenter,trackBounds,COURSE_LENGTH} from "./track-path.js";
 
 const STORAGE_KEY="elemental-race-browser-v1";
 const byId=id=>document.getElementById(id);
@@ -82,6 +83,34 @@ function queueNames(rows) {
   if(!rows.length)return '<span style="color:#819f8b">Nenhum inscrito</span>';
   return rows.slice(0,50).map(r=>escapeHTML(r.name)+" <span style=\"opacity:.5\">("+escapeHTML(r.id)+")</span>").join("<br>");
 }
+// The 9:16 minimap draws the actual 5km switchbacks, not a straight bar.
+const miniBounds=trackBounds(10);
+function miniPoint(distance){
+  const p=trackCenter(Math.max(0,Math.min(COURSE_LENGTH,distance)));
+  const scaleX=80/Math.max(1,miniBounds.maxX-miniBounds.minX);
+  const scaleZ=120/Math.max(1,miniBounds.maxZ-miniBounds.minZ);
+  return {x:10+(p.x-miniBounds.minX)*scaleX,
+    y:130-(10+(p.z-miniBounds.minZ)*scaleZ)};
+}
+function initMiniCourse(){
+  const svg=byId("liveCourseSvg");
+  if(!svg)return;
+  const commands=[];
+  for(let d=0;d<=COURSE_LENGTH;d+=12){
+    const p=miniPoint(d);
+    commands.push((commands.length?"L":"M")+p.x.toFixed(2)+" "+p.y.toFixed(2));
+  }
+  const end=miniPoint(COURSE_LENGTH);
+  commands.push("L"+end.x.toFixed(2)+" "+end.y.toFixed(2));
+  byId("liveCoursePath").setAttribute("d",commands.join(" "));
+}
+function mapPin(marker,distance){
+  const p=miniPoint(distance);
+  marker.style.left=p.x+"%";
+  marker.style.top=(p.y/140*100)+"%";
+  marker.style.bottom="auto";
+}
+
 function renderHud() {
   const m=biome(state.mapId);
   const distance=raceLength(state);
@@ -101,7 +130,10 @@ function renderHud() {
   mapWidget.dataset.biome=m.id;
   const mapLeader=byId("liveMapDot");
   mapLeader.hidden=leading.length===0;
-  mapLeader.style.bottom=Math.min(100,leadProgress/distance*100)+"%";
+  byId("liveCourseSvg").style.display=distance===COURSE_LENGTH?"block":"none";
+  if(distance===COURSE_LENGTH)mapPin(mapLeader,leadProgress);
+  else {mapLeader.style.left="50%";mapLeader.style.top="auto";
+    mapLeader.style.bottom=Math.min(100,leadProgress/distance*100)+"%";}
   mapLeader.title=leading.length?leading[0].name+" · "+Math.floor(leadProgress)+"m":"";
   for(let i=1;i<=2;i++){
     const marker=byId("liveMapRival"+(i+1));
@@ -109,7 +141,9 @@ function renderHud() {
     marker.hidden=!racer;
     if(racer){
       const progress=Math.max(0,Math.min(distance,Number(racer.progress)||0));
-      marker.style.bottom=(progress/distance*100)+"%";
+      if(distance===COURSE_LENGTH)mapPin(marker,progress);
+      else {marker.style.left=i===1?"27%":"73%";marker.style.top="auto";
+        marker.style.bottom=(progress/distance*100)+"%";}
       marker.title=racer.name+" · "+Math.floor(progress)+"m";
     }
   }
@@ -554,3 +588,5 @@ if(!showcase)void connectRemote({
     byId("remoteStatus").textContent="Simulador local — para servidor compartilhado, abra a URL do Render";
   }
 }).catch(e=>console.error("Falha ao identificar o Render",e));
+
+initMiniCourse();

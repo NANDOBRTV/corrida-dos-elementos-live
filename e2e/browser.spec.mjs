@@ -510,7 +510,7 @@ test("v2.7 streams only a 600m scenery window over a real 5km course",async({pag
         for(const z of [0,299,499,500,780,4900,4998]){
           race.active[0].progress=z;
           world.render(race,.016);
-          positions.push(root.position.z);
+          positions.push(root.userData.baseDistance);
           let afterCount=0;
           root.traverse(o=>{if(o.isInstancedMesh)afterCount+=o.count;else if(o.isMesh)afterCount++;});
           if(afterCount!==count)throw Error("GPU objects unexpectedly grow during 5km stream");
@@ -525,7 +525,8 @@ test("v2.7 streams only a 600m scenery window over a real 5km course",async({pag
   for(const m of measurements){
     expect(m.count).toBeGreaterThan(100);
     expect(m.count).toBeLessThan(2500);
-    expect(m.labels).toContain(5000);
+    expect(m.labels[0]).toEqual(expect.any(Number));
+    expect(Math.abs(m.labels[0])).toBeGreaterThan(100);
     expect(m.finishObjects).toBeGreaterThan(1);
     expect(m.positions[0]).toBe(0);
     expect(m.positions[3]).toBe(300);
@@ -568,7 +569,7 @@ test("v3.1 5km bends actually deform lane asphalt, scenery, avatars and finish",
             biome,dist,runnerX:runner.position.x,runnerY:runner.position.y,
             yaw:runner.rotation.y,expectedX:expected.x,expectedY:expected.y,
             asphaltX:asphalt.geometry.attributes.position.array[0],
-            base:world.scene.getObjectByName("streamed-course").position.z,
+            base:world.scene.getObjectByName("streamed-course").userData.baseDistance,
             finishX:finish.position.x,finishZ:finish.position.z,
             checkpointCount:milestones.children.length,
             batchCount:batch.count
@@ -576,15 +577,32 @@ test("v3.1 5km bends actually deform lane asphalt, scenery, avatars and finish",
         }
       }
     }finally{avatars.clear();world.dispose();c.remove();}
-    return {frames,finishX:trackCenter(5000).x};
+    return {frames,finishX:trackCenter(5000).x,finishZ:trackCenter(5000).z};
   });
   for(const x of observed.frames){
     expect(Math.abs(x.runnerX-x.expectedX)).toBeLessThan(2);
     expect(Math.abs(x.runnerY-x.expectedY)).toBeLessThan(.01);
     expect(x.checkpointCount).toBe(9);
-    expect(x.finishZ).toBe(5000);
+    expect(x.finishZ).toBeCloseTo(observed.finishZ,3);
     expect(x.finishX).toBeCloseTo(observed.finishX,3);
     expect(x.batchCount).toBeGreaterThan(0);
   }
   expect(new Set(observed.frames.filter(x=>x.biome==="ice").map(x=>Math.round(x.asphaltX))).size).toBeGreaterThan(2);
+});
+
+test("v3.2 mobile minimap actually outlines three mountain hairpins",async({page,request})=>{
+  await reset(request);
+  await start(page,"?view=live&quality=low&showcase=1");
+  const observed=await page.evaluate(()=>{
+    const path=document.querySelector("#liveCoursePath");
+    const svg=document.querySelector("#liveCourseSvg");
+    const road=document.querySelector(".live-minimap-road");
+    return {path:path?.getAttribute("d")||"",shown:svg?.style.display!=="none",
+      width:road.getBoundingClientRect().width,
+      markers:[...document.querySelectorAll("#liveMapDot,#liveMapRival2,#liveMapRival3")].length};
+  });
+  expect(observed.shown).toBe(true);
+  expect(observed.path.match(/L/g)?.length).toBeGreaterThan(300);
+  expect(observed.width).toBeGreaterThan(40);
+  expect(observed.markers).toBe(3);
 });

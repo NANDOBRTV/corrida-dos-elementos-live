@@ -47,7 +47,9 @@ test("Auto bots on disconnected broadcast and infinite repeat after 8-second pod
   assert.equal(s.active.length,100);
   assert.ok(s.active.every(r=>r.isBot));
   studioTick(s,3000);assert.equal(s.phase,"RUNNING");
-  for(let i=0;i<4&&s.phase==="RUNNING";i++)studioTick(s,60000);
+  // Step precisely: long jumps can legitimately pass through the podium
+  // and into the following lobby, which is a feature rather than a failure.
+  for(let i=0;i<2500&&s.phase==="RUNNING";i++)studioTick(s,100);
   assert.equal(s.phase,"RESULTS");
   assert.equal(s.results.length,100);
   assert.ok(studioRank(s.active)[0].progress>=1199);

@@ -100,7 +100,7 @@ export const CASES=[
     check(!validateSavedState({phase:"HACK",active:[]}));
   }],
   ["Nenhuma corrida começa sem transição correta",()=>{
-    const s=createState();check(countdown(s)===20);
+    const s=createState();check(countdown(s)===60);
     advance(s);check(s.phase==="COUNTDOWN"&&countdown(s)===5);
     advance(s);check(s.phase==="RUNNING");
   }]

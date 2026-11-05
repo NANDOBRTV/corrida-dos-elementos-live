@@ -167,5 +167,5 @@ test("Release: a tela Studio V5 nao exibe marcas de outros aplicativos",async()=
   const {readFileSync}=await import("node:fs");
   const source=readFileSync(new URL("../src/studio-ui.js",import.meta.url),"utf8");
   assert.doesNotMatch(source,/ROBLOX|TIKTOK|INSTAGRAM|YOUTUBE/i);
-  assert.match(source,/COMENTE ENTRAR \+ USUÁRIO/);
+  assert.match(source,/DIGITE O MODELO: CIVIC, GOL OU CG 160/);
 });

@@ -195,7 +195,7 @@ export async function createApp(opts={}){
       }
       const participants=state.active.filter(r=>Number.isSafeInteger(r.robloxUserId)&&r.robloxUserId>0)
         .map(r=>({userId:r.robloxUserId,username:r.robloxUsername,
-          lane:r.lane,progress:r.progress,speed:r.speed,status:r.status,turboUntil:r.turboUntil,
+          lane:r.lane,gridPosition:r.gridPosition,progress:r.progress,speed:r.speed,status:r.status,turboUntil:r.turboUntil,
           vehicleKind:r.vehicleKind,vehicleUntil:r.vehicleUntil}));
       const obstacles=activeGiftObstacles(state).map(h=>({
         id:h.id,z:h.z,lane:h.lane,kind:h.kind,simulated:h.simulated,expiresAt:h.expiresAt

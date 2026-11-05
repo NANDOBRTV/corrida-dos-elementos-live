@@ -168,3 +168,20 @@ test("Optional Roblox native scripts mirror the 400m W spline and lap wrap",asyn
   assert.ok(server.includes("RaceTotalProgress"));
   assert.ok(server.includes("for z=10,190,20"));
 });
+
+test("Roblox Studio optional bridge mirrors the 10-wide reference grid and front-to-rear GO",async()=>{
+  const {readFile}=await import("node:fs/promises");
+  const [server,camera,feed]=await Promise.all([
+    readFile(new URL("../roblox/LiveRace.server.luau",import.meta.url),"utf8"),
+    readFile(new URL("../roblox/LiveCamera.client.luau",import.meta.url),"utf8"),
+    readFile(new URL("../server/index.js",import.meta.url),"utf8")
+  ]);
+  assert.ok(server.includes("row*2.85"));
+  assert.ok(server.includes("/10)"));
+  assert.ok(server.includes("lane-4.5"));
+  assert.ok(server.includes("0,9"));
+  assert.ok(camera.includes('phase=="LOBBY" or phase=="COUNTDOWN"'));
+  assert.ok(camera.includes('previousPhase=="COUNTDOWN"'));
+  assert.ok(camera.includes("lane-4.5"));
+  assert.ok(feed.includes("gridPosition:r.gridPosition"));
+});

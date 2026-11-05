@@ -77,6 +77,7 @@ end
 -- 0–10 seconds of random pause BETWEEN 3.2s camera close-ups.
 -- Camera only: does not change race mechanics, NPC physics or chat events.
 local lastRaceMs=-1
+local previousPhase=nil
 local syncClock=os.clock()
 local currentRound=-1
 local shotIndex=0
@@ -142,13 +143,23 @@ RunService:BindToRenderStep("RaceLiveCamera",Enum.RenderPriority.Camera.Value+1,
   local nx,ny,nz,nh=centerAt(center-65)
   local fx,fy,fz,fh=centerAt(center+75)
   local overview=math.clamp((math.abs(fh-nh)-.22)/1.3,0,1)
-  local bx,by,bz=centerAt(center-48-overview*45)
-  local ax,ay,az=centerAt(center+38+overview*58)
-  local desired=CFrame.lookAt(
-    Vector3.new(bx,by+20+overview*72,bz),
-    Vector3.new(ax,ay+1.8,az)
-  )
   local phase=folder:GetAttribute("RacePhase")
+  local cx,cy,cz,heading=centerAt(center)
+  local dx,dz=math.sin(heading),math.cos(heading)
+  local back=26+overview*40
+  local height=13+overview*50
+  local desired=CFrame.lookAt(
+    Vector3.new(cx-dx*back,cy+height,cz-dz*back),
+    Vector3.new(cx+dx*12,cy+1.5,cz+dz*12)
+  )
+  if phase=="LOBBY" or phase=="COUNTDOWN" then
+    local sx,sy,sz,sh=centerAt(0)
+    local fx,fz=math.sin(sh),math.cos(sh)
+    desired=CFrame.lookAt(
+      Vector3.new(sx+fx*20,sy+8.5,sz+fz*20),
+      Vector3.new(sx-fx*8,sy+1.5,sz-fz*8)
+    )
+  end
   local round=folder:GetAttribute("RaceRound") or 0
   local serverMs=folder:GetAttribute("RaceMs") or 0
   if round~=currentRound then
@@ -184,8 +195,8 @@ RunService:BindToRenderStep("RaceLiveCamera",Enum.RenderPriority.Camera.Value+1,
       if focused then
         local progress=focused:GetAttribute("RaceProgress") or center
         local x,y,z,yaw=centerAt(progress)
-        local lane=math.clamp(tonumber(focused:GetAttribute("RaceLane")) or 2,0,4)
-        local side=(lane-2)*4
+        local lane=math.clamp(tonumber(focused:GetAttribute("RaceLane")) or 4,0,9)
+        local side=(lane-4.5)*1.75
         local px=x+side*math.cos(yaw)
         local pz=z-side*math.sin(yaw)
         local fx=math.sin(yaw)
@@ -205,9 +216,13 @@ RunService:BindToRenderStep("RaceLiveCamera",Enum.RenderPriority.Camera.Value+1,
     shotSelected=false;lastFeatured=nil;featuredId=nil
   end
   local alpha=1-math.exp(-5.8*math.min(.12,dt))
-  if (cam.CFrame.Position-desired.Position).Magnitude>180 then
+  -- Start at the video-style FRONT view; switch instantly BEHIND at GO.
+  local started=(previousPhase=="LOBBY" or previousPhase=="COUNTDOWN") and phase=="RUNNING"
+  if started or previousPhase==nil or
+     (cam.CFrame.Position-desired.Position).Magnitude>180 then
     cam.CFrame=desired
   else
     cam.CFrame=cam.CFrame:Lerp(desired,alpha)
   end
+  previousPhase=phase
 end)

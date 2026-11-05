@@ -32,3 +32,6 @@ O script server também gera uma pista 3D leve, com **Gelo e Floresta**, árvore
 
 ## Versão 4.0 — W e voltas
 O script server e a câmera de espectador usam a mesma lista de pontos e a mesma interpolação Catmull-Rom do jogo web. Cada volta mede 400m, com sinalização aos 100, 200 e 300m e pórtico aos 400m. O progresso total de voltas continua vindo do servidor Render; a posição física da câmera e dos NPCs usa a distância módulo 400. As mudanças de veículos após presentes são incluídas no feed privado. Estes scripts continuam **sem validação em um Roblox Studio real**.
+
+## Versão 4.1 — alinhamento opcional da largada nativa
+A ponte envia a posição de cada corredor para cinco fileiras de dez avatares, utilizando as dez faixas do circuito web (centros separados por 1,75 studs). A câmera Roblox Studio apresenta a grade frontal no lobby e na contagem e corta diretamente para trás no começo da corrida. Os closes continuam durante a prova. São scripts sincronizados **no repositório**, ainda não executados nem validados em uma experiência Roblox Studio real.

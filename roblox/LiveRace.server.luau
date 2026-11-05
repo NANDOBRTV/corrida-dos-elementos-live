@@ -300,7 +300,7 @@ local function syncGiftObstacles(snapshot)
           piece.Parent=giftObstacleFolder
           giftObstacleParts[entry.id]=piece
         end
-        local point,yaw=coursePosition(entry.z,(entry.lane-2)*4,.75)
+        local point,yaw=coursePosition(entry.z,(entry.lane-4.5)*1.75,.75)
         piece.CFrame=CFrame.new(point)*CFrame.Angles(0,yaw,0)
       end
     end
@@ -357,7 +357,7 @@ RunService.Heartbeat:Connect(function(dt)
   for _,entry in ipairs(latest.participants) do
     local model=current[tostring(entry.userId)]
     if model then
-      local lane=math.clamp(tonumber(entry.lane) or 2,0,4)
+      local lane=math.clamp(tonumber(entry.lane) or 4,0,9)
       local moving=entry.status=="running"
       -- Predict only visual motion between two authorized 2-second snapshots.
       -- This never alters the Render result or accumulated race distance.
@@ -369,7 +369,18 @@ RunService.Heartbeat:Connect(function(dt)
       model:SetAttribute("RaceTotalProgress",progress)
       model:SetAttribute("RunnerMoving",moving)
       model:SetAttribute("RaceLane",lane)
-      local pos,yaw=coursePosition(progress,(lane-2)*4,2.8+bob)
+      local lateral=(lane-4.5)*1.75
+      local pos,yaw=coursePosition(progress,lateral,2.8+bob)
+      if latest.phase=="LOBBY" or latest.phase=="COUNTDOWN" then
+        local row=math.floor((math.max(1,tonumber(entry.gridPosition) or 1)-1)/10)
+        local sx,sy,sz,heading=centerAt(0)
+        pos=Vector3.new(
+          sx+lateral*math.cos(heading)-row*2.85*math.sin(heading),
+          sy+2.8+bob,
+          sz-lateral*math.sin(heading)-row*2.85*math.cos(heading)
+        )
+        yaw=heading
+      end
       -- Roblox characters face -Z locally; +pi points them toward the finish.
       model:PivotTo(CFrame.new(pos)*CFrame.Angles(0,yaw+math.pi,0))
     end

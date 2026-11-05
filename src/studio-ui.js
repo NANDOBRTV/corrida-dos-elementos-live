@@ -3,6 +3,7 @@ import {createStudioScene} from "./studio-scene.js";
 import {studioCourseAt} from "./studio-camera.js";
 import {createStudioState,studioFillBots,studioTick,studioRank,studioGift} from "./studio-engine.js";
 import {LIVE_STUDIO} from "./config.js";
+import {resolveVehicle,VEHICLES} from "./vehicles.js";
 
 const $=id=>document.getElementById(id);
 const clamp=(n,min,max)=>Math.min(max,Math.max(min,n));
@@ -82,12 +83,12 @@ const MARKUP=[
     "<div id='studioOpening' class='studio-opening' hidden>",
       "<span id='studioOpeningTitle'>INSCRIÇÕES ABERTAS</span>",
       "<strong id='studioOpeningClock'>60</strong>",
-      "<small id='studioOpeningHint'>COMENTE ENTRAR + USUÁRIO</small>",
+      "<small id='studioOpeningHint'>DIGITE O MODELO: CIVIC, GOL OU CG 160</small>",
     "</div>",
     "<div id='studioGuide' class='studio-guide'>",
-      "<strong>SEU CORREDOR VOXEL NA PISTA</strong>",
-      "<span>COMENTE <b>entrar SeuUsuario</b></span>",
-      "<small>OU PARTICIPE COM UM CORREDOR ALEATÓRIO</small>",
+      "<strong>ESCOLHA SEU VEÍCULO</strong>",
+      "<span>COMENTE <b>Civic, Gol ou CG 160</b></span>",
+      "<small>20 CARROS • 10 MOTOS • SEM SORTEIO</small>",
     "</div>",
     "<div id='studioFeatureCard' class='studio-feature-card' hidden aria-live='off'>",
       "<div class='studio-feature-avatar' id='studioFeatureAvatar'>⚡</div>",
@@ -140,41 +141,47 @@ function element(tag,className,value){
 // ranking, nameplates, viewer chips and event card. No platform assets used.
 const portraitCache=new Map();
 function voxelPortrait(name,color="#86a8d7"){
-  const key=String(name)+"|"+String(color);
+  // A sharp 32px pixel-art picture of the CHOSEN VEHICLE, never a human face.
+  const model=resolveVehicle(name);
+  const key=String(model?.id??name)+"|"+String(color);
   if(portraitCache.has(key))return portraitCache.get(key);
-  const seed=Array.from(key).reduce((h,c)=>
-    (Math.imul(h^c.charCodeAt(0),16777619))>>>0,2166136261);
-  const skins=["#f2c5a1","#b57d58","#e8b898","#ad795d","#e7d4b9"];
-  const hair=["#242633","#624230","#e6bf61","#352838","#c6d6e2"];
   const canvas=document.createElement("canvas");
   canvas.width=32;canvas.height=32;
   const ctx=canvas.getContext("2d");
   ctx.imageSmoothingEnabled=false;
-  function rect(x,y,w,h,fill){
-    ctx.fillStyle=fill;ctx.fillRect(x,y,w,h);
+  const rect=(x,y,w,h,fill)=>{ctx.fillStyle=fill;ctx.fillRect(x,y,w,h);};
+  const c=/^#[0-9a-f]{6}$/i.test(color)?color:"#d95843";
+  rect(0,0,32,32,"#26384e");
+  for(let i=0;i<5;i++)rect(i*7,0,1,32,"#718ca738");
+  if(model?.kind==="motorcycle"){
+    rect(13,3,6,5,"#22232b");rect(13,24,6,5,"#22232b");
+    rect(11,6,10,3,"#adb9c1");
+    rect(13,8,6,18,c);
+    rect(10,11,12,6,"#a7bbc9");
+    rect(12,19,8,5,"#1b2128");
+    rect(8,6,16,2,"#bec7d0");
+    rect(14,4,4,3,"#f7e8b8");
+  }else{
+    const pickup=model?.shape==="pickup";
+    const suv=model?.shape==="suv";
+    const long=/sedan|muscle/.test(model?.shape??"");
+    const width=suv?20:18;
+    const left=(32-width)/2;
+    const front=long?3:5,rear=long?29:27;
+    rect(left-3,front+4,3,6,"#13181c");
+    rect(left+width,front+4,3,6,"#13181c");
+    rect(left-3,rear-10,3,6,"#13181c");
+    rect(left+width,rear-10,3,6,"#13181c");
+    rect(left,front,width,rear-front,c);
+    rect(left+2,front+5,width-4,long?10:9,"#263a51");
+    if(!pickup)rect(left+2,rear-8,width-4,4,"#364b5f");
+    else rect(left+2,rear-10,width-4,8,"#5d6370");
+    rect(left+2,front+1,4,2,"#fff0be");
+    rect(left+width-6,front+1,4,2,"#fff0be");
+    rect(left+2,rear-2,4,2,"#fd5454");
+    rect(left+width-6,rear-2,4,2,"#fd5454");
+    rect(left+2,front+17,width-4,1,"#172c38");
   }
-  rect(0,0,32,32,typeof color==="string"&&/^#[0-9a-f]{6}$/i.test(color)?
-    color:"#6b99b7");
-  rect(2,2,28,28,"#ffffff24");
-  const skin=skins[seed%skins.length],h=hair[(seed>>>4)%hair.length];
-  const shirt=["#1d374d","#b35c75","#8f653f","#303a51","#d8e2eb"][(seed>>>7)%5];
-  rect(0,25,32,7,shirt);
-  rect(5,20,22,8,shirt);
-  rect(8,7,16,18,skin);
-  rect(7,6,18,5,h);
-  rect(7,11,3,7,h);rect(22,11,3,7,h);
-  if(seed%4===0){
-    rect(8,4,16,4,shirt);rect(5,8,21,3,shirt);
-  }else if(seed%4===1){
-    rect(4,7,4,12,shirt);rect(24,7,4,12,shirt);
-    rect(6,4,20,4,shirt);
-  }else if(seed%4===2){
-    rect(10,3,5,5,h);rect(16,2,6,6,h);
-  }
-  rect(11,15,3,3,"#101926");rect(19,15,3,3,"#101926");
-  rect(12,15,1,1,"#ffffff");rect(20,15,1,1,"#ffffff");
-  rect(14,21,5,2,"#784c45");
-  if(seed%7===0)rect(9,20,15,4,shirt);
   const result=canvas.toDataURL("image/png");
   if(portraitCache.size>=150)
     portraitCache.delete(portraitCache.keys().next().value);
@@ -307,7 +314,7 @@ export async function startStudioLive({preview=false}={}){
   $("studioFollow").addEventListener("click",()=>
     toast("Toque em Seguir no perfil do canal da transmissão."));
   $("studioJoin").addEventListener("click",()=>
-    toast("No chat da transmissão, escreva: entrar SeuUsuario"));
+    toast("No chat, escreva Civic, Gol ou CG 160; também vale entrar Civic."));
   $("studioBoost").addEventListener("click",()=>
     toast("Uma rosa enviada na transmissão ativa o turbo."));
   $("studioSprint").addEventListener("click",()=>
@@ -459,7 +466,7 @@ export async function startStudioLive({preview=false}={}){
         node.replaceChildren();
         node.append(element("b","studio-position",plate.rank));
         const avatar=avatarChip(profile(plate.id),plate.name,plate.color);
-        node.append(avatar,element("span","studio-plate-name",shortName(plate.name,12)));
+        node.append(avatar,element("span","studio-plate-name",shortName(plate.name,22)));
       }
       node.classList.toggle("studio-gold",plate.rank===1);
       node.style.left=x.toFixed(2)+"%";
@@ -520,7 +527,7 @@ export async function startStudioLive({preview=false}={}){
     if(phase==="LOBBY"){
       text(ui.openingTitle,"INSCRIÇÕES ABERTAS");
       text(ui.openingClock,openingSeconds(state));
-      text(ui.openingHint,"COMENTE ENTRAR + USUÁRIO");
+      text(ui.openingHint,"DIGITE O MODELO: CIVIC, GOL OU CG 160");
     }
     if(phase==="COUNTDOWN"){
       text(ui.openingTitle,"LARGADA EM");

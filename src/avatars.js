@@ -2,6 +2,7 @@ import * as THREE from "three";
 import {laneX} from "./config.js";
 import {rank} from "./engine.js";
 import {appearanceForRunner} from "./cosmetics.js";
+import {trackPoint} from "./track-path.js";
 
 export function createAvatars(scene,{quality="balanced"}={}) {
   const simple=quality==="low";
@@ -84,7 +85,9 @@ export function createAvatars(scene,{quality="balanced"}={}) {
     const pack=[0x393f70,0x7d4a39,0x225f65,0x5b3965,0x345a37][style];
     const group=new THREE.Group();
     group.name="blocky-runner-"+index;
-    group.position.set(laneX(r.lane),.76,visualProgress(r,index));
+    const initial=trackPoint(visualProgress(r,index),laneX(r.lane),.76);
+    group.position.set(initial.x,initial.y,initial.z);
+    group.rotation.y=initial.heading;
     const body=new THREE.Group();group.add(body);
     // First instance deliberately preserves the official player's color.
     part(body,[0,.87,0],[.92,.96,.55],r.color); // R6-like rectangular torso
@@ -233,11 +236,12 @@ export function createAvatars(scene,{quality="balanced"}={}) {
       const r=runners[i],item=meshes.get(r.id);if(!item)continue;
       const wanted=laneX(r.lane);
       item.lastX+=Math.min(1,dt*7)*(wanted-item.lastX);
-      item.group.position.x=item.lastX;
       const visualZ=visualProgress(r,i);
       if(Math.abs(item.lastZ-visualZ)>25)item.lastZ=visualZ; // Snap after reconnect or benchmark segment jump.
       item.lastZ+=Math.min(1,dt*8)*(visualZ-item.lastZ);
-      item.group.position.z=item.lastZ;
+      const route=trackPoint(item.lastZ,item.lastX,.76);
+      item.group.position.set(route.x,route.y,route.z);
+      item.group.rotation.y=route.heading;
       item.label.visible=labeled.has(r.id);
       const moving=phase==="RUNNING"&&r.status==="running";
       const t=now*.012+i*.77;

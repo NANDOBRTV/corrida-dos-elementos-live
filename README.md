@@ -1,3 +1,11 @@
+## Versão 3.1 — circuito sinuoso de 5.000 metros
+
+A pista 3D deixou de ser apenas uma reta: o jogo agora gera **curvas para a esquerda e para a direita, subidas leves, bordas acompanhando a estrada, guardrails e placas a cada 500m**, com chegada única no marco de 5.000m. A câmera segue o contorno da estrada e os corredores, obstáculos e efeitos permanecem alinhados às faixas. Os cenários de Gelo e Floresta reaproveitam apenas dois trechos de 300m em GPU para manter o orçamento gráfico do Android. O motor de corrida e a progressão persistida não foram modificados; os percursos legados de 150m/300m continuam compatíveis.
+
+O código matemático da pista está em [src/track-path.js](src/track-path.js), com testes de continuidade e enquadramento 3D. Os scripts opcionais do Roblox Studio ainda requerem validação na plataforma.
+
+---
+
 ### Roblox Studio — progresso suavizado
 
 A ponte protegida envia também a velocidade oficial do corredor. O cliente Roblox faz uma previsão visual entre consultas de 2 segundos, sem modificar a corrida no servidor, e anima braços e pernas localmente. Essa parte ainda depende de validação dentro do Roblox Studio.

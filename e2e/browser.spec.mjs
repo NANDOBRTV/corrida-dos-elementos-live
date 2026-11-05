@@ -502,7 +502,7 @@ test("v2.7 streams only a 600m scenery window over a real 5km course",async({pag
         const root=world.scene.children.find(x=>x.isGroup&&x.name!=="absolute-finish-line");
         const finish=world.scene.getObjectByName("absolute-finish-line");
         const labels=[];
-        finish.traverse(o=>{if(o.isSprite)labels.push(o.position.z)});
+        finish.traverse(o=>{if(o.isSprite)labels.push(o.position.z+finish.position.z)});
         const initial=world.scene.children.length;
         let count=0;
         root.traverse(o=>{if(o.isInstancedMesh)count+=o.count;else if(o.isMesh)count++;});
@@ -532,4 +532,59 @@ test("v2.7 streams only a 600m scenery window over a real 5km course",async({pag
     expect(m.positions[5]).toBeGreaterThanOrEqual(4500);
     expect(m.positions[6]).toBeLessThanOrEqual(4800);
   }
+});
+
+test("v3.1 5km bends actually deform lane asphalt, scenery, avatars and finish",async({page,request})=>{
+  await reset(request);
+  await start(page,"?view=operator&quality=low");
+  const observed=await page.evaluate(async()=>{
+    const {createWorld}=await import("/src/world.js");
+    const {createAvatars}=await import("/src/avatars.js");
+    const {trackPoint,trackCenter}=await import("/src/track-path.js");
+    const THREE=await import("three");
+    const c=document.createElement("canvas");
+    c.style.cssText="position:absolute;left:-9999px;top:0;width:280px;height:440px";
+    document.body.append(c);
+    const world=createWorld(c,{quality:"low"});
+    const race={phase:"RUNNING",raceMs:5000,active:[
+      {id:"curve-guest",name:"Curva",lane:3,progress:900,color:"#65d9fa",turboUntil:0,status:"running"}
+    ]};
+    const avatars=createAvatars(world.scene,{quality:"low"});
+    const frames=[];
+    try{
+      for(const biome of ["ice","forest"]){
+        world.setMap(biome,5000);
+        for(const dist of [0,300,900,1500,2700,3900,4950]){
+          race.active[0].progress=dist;
+          world.render(race,.016);
+          avatars.sync(race.active);avatars.animate(race.active,"RUNNING",.016,1000);
+          const runner=world.scene.getObjectByName("blocky-runner-0");
+          const asphalt=world.scene.getObjectByName("course-asphalt");
+          const milestones=world.scene.getObjectByName("course-milestones");
+          const finish=world.scene.getObjectByName("absolute-finish-line");
+          const expected=trackPoint(dist,1.85,.76);
+          const batch=world.scene.getObjectByName("voxel-batch");
+          frames.push({
+            biome,dist,runnerX:runner.position.x,runnerY:runner.position.y,
+            yaw:runner.rotation.y,expectedX:expected.x,expectedY:expected.y,
+            asphaltX:asphalt.geometry.attributes.position.array[0],
+            base:world.scene.getObjectByName("streamed-course").position.z,
+            finishX:finish.position.x,finishZ:finish.position.z,
+            checkpointCount:milestones.children.length,
+            batchCount:batch.count
+          });
+        }
+      }
+    }finally{avatars.clear();world.dispose();c.remove();}
+    return {frames,finishX:trackCenter(5000).x};
+  });
+  for(const x of observed.frames){
+    expect(Math.abs(x.runnerX-x.expectedX)).toBeLessThan(2);
+    expect(Math.abs(x.runnerY-x.expectedY)).toBeLessThan(.01);
+    expect(x.checkpointCount).toBe(9);
+    expect(x.finishZ).toBe(5000);
+    expect(x.finishX).toBeCloseTo(observed.finishX,3);
+    expect(x.batchCount).toBeGreaterThan(0);
+  }
+  expect(new Set(observed.frames.filter(x=>x.biome==="ice").map(x=>Math.round(x.asphaltX))).size).toBeGreaterThan(2);
 });

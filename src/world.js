@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { TRACK_LENGTH, PREVIOUS_TRACK_LENGTH, STREAM_TILE_LENGTH, biome, laneX, obstaclesFor } from "./config.js";
 import {QUALITY_SETTINGS} from "./performance.js";
+import {trackCenter,trackPoint,COURSE_MILESTONES} from "./track-path.js";
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
 const octahedronGeometry=new THREE.OctahedronGeometry(1,0);
@@ -19,13 +20,28 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   renderer.shadowMap.enabled=profile.shadows;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   const root=new THREE.Group();
+  root.name="streamed-course";
   scene.add(root);
+  const courseMilestones=new THREE.Group();
+  courseMilestones.name="course-milestones";
+  scene.add(courseMilestones);
+  const courseStart=new THREE.Group();
+  courseStart.name="course-start";
+  scene.add(courseStart);
   const materials=new Map();
   let mapId="";
   let currentLength=TRACK_LENGTH;
   let renderedLength=PREVIOUS_TRACK_LENGTH;
   const streamingLength=STREAM_TILE_LENGTH*2;
   let weather=null,focusRing=null,boostTrails=null;
+  let curvedCourse=false;
+  let ribbons=[],curvedBatches=[],curvedSingles=[];
+  const upAxis=new THREE.Vector3(0,1,0);
+  const reusableMatrix=new THREE.Matrix4();
+  const reusableRotation=new THREE.Quaternion();
+  const reusablePosition=new THREE.Vector3();
+  const reusableScale=new THREE.Vector3();
+  const baseRotation=new THREE.Quaternion();
   const trailTransform=new THREE.Object3D();
   const trailColor=new THREE.Color();
   const cameraTarget=new THREE.Vector3(0,1,10);
@@ -102,7 +118,8 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       } else {
         for(let i=0;i<48;i++)if(sceneDetail(i))pine(
           (i%2?-1:1)*(10+(i%6)*2.5),base+(i*17+7)%150,.65+(i%5)*.16);
-        block(root,17,.03,base+76,4,.06,150,0x48a4d2);
+        for(let z=0;z<150;z+=15)
+          block(root,17,.03,base+z+7.5,4,.06,15,0x48a4d2);
         for(const z of [29,70,115]){
           block(root,17,.35,base+z,7,.6,3.6,0xa07849);
           block(root,13.8,.9,base+z,.18,1,3.6,0x704e31);
@@ -126,34 +143,130 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   // Agrupa centenas de blocos voxel estáticos em InstancedMesh.
   // Renderiza cada cor/geometria em uma chamada, preservando transformações de árvores,
   // e cristais nos dois biomas. Os corredores animados são objetos separados.
+  // All props keep their original relative positions. When a 300m tile rolls
+  // forward, only cached GPU matrices change; no fresh trees or draw calls.
+  function courseMatrix(original,base,target=new THREE.Matrix4()){
+    original.decompose(reusablePosition,reusableRotation,reusableScale);
+    const p=trackPoint(base+reusablePosition.z,reusablePosition.x,reusablePosition.y);
+    const localZ=p.z-base;
+    baseRotation.setFromAxisAngle(upAxis,p.heading);
+    reusableRotation.premultiply(baseRotation);
+    return target.compose(new THREE.Vector3(p.x,p.y,localZ),reusableRotation,reusableScale);
+  }
   function batchStaticScenery(){
     root.updateWorldMatrix(true,true);
     const inverseRoot=new THREE.Matrix4().copy(root.matrixWorld).invert();
     const groups=new Map();
+    const singles=[];
     root.traverse(obj=>{
-      if(!obj.isMesh||obj.isInstancedMesh||!obj.material||
-        (obj.geometry!==boxGeometry&&obj.geometry!==octahedronGeometry))return;
-      const key=[obj.geometry.uuid,obj.material.uuid,obj.castShadow?"1":"0",obj.receiveShadow?"1":"0"].join(":");
+      if(!obj.isMesh||obj.isInstancedMesh||obj.userData?.noCourseWarp||
+        !obj.material||(obj.geometry!==boxGeometry&&obj.geometry!==octahedronGeometry))return;
+      const key=[obj.geometry.uuid,obj.material.uuid,obj.castShadow?"1":"0",
+        obj.receiveShadow?"1":"0"].join(":");
       if(!groups.has(key))groups.set(key,[]);
       groups.get(key).push(obj);
     });
     const local=new THREE.Matrix4();
     for(const group of groups.values()){
-      if(group.length<2)continue;
+      if(group.length<2){
+        if(curvedCourse){
+          const mesh=group[0];
+          const source=local.multiplyMatrices(inverseRoot,mesh.matrixWorld).clone();
+          mesh.parent.remove(mesh);root.add(mesh);
+          singles.push({mesh,source});
+        }
+        continue;
+      }
       const first=group[0];
       const instance=new THREE.InstancedMesh(first.geometry,first.material,group.length);
       instance.name="voxel-batch";
       instance.castShadow=first.castShadow&&profile.shadows;
       instance.receiveShadow=first.receiveShadow;
       instance.frustumCulled=false;
+      const sources=[];
       for(let i=0;i<group.length;i++){
         const mesh=group[i];
         local.multiplyMatrices(inverseRoot,mesh.matrixWorld);
+        sources.push(local.clone());
         instance.setMatrixAt(i,local);
         mesh.parent.remove(mesh);
       }
       instance.instanceMatrix.needsUpdate=true;
       root.add(instance);
+      if(curvedCourse)curvedBatches.push({instance,sources});
+    }
+    curvedSingles=singles;
+  }
+  function makeRibbon(name,left,right,y,color){
+    const step=5,segments=Math.ceil(renderedLength/step);
+    const positions=new Float32Array((segments+1)*6);
+    const normals=new Float32Array(positions.length);
+    const indices=[];
+    for(let i=0;i<=segments;i++){
+      normals[i*6+1]=1;normals[i*6+4]=1;
+      if(i<segments){
+        const a=2*i;
+        indices.push(a,a+2,a+1,a+1,a+2,a+3);
+      }
+    }
+    const geometry=new THREE.BufferGeometry();
+    geometry.setIndex(indices);
+    geometry.setAttribute("position",new THREE.BufferAttribute(positions,3));
+    geometry.setAttribute("normal",new THREE.BufferAttribute(normals,3));
+    const mat=new THREE.MeshStandardMaterial({color,roughness:.87,side:THREE.DoubleSide});
+    const mesh=new THREE.Mesh(geometry,mat);
+    mesh.name=name;mesh.frustumCulled=false;mesh.receiveShadow=true;
+    mesh.userData.courseRibbon=true;
+    root.add(mesh);
+    ribbons.push({mesh,left,right,y,segments,step});
+  }
+  function updateCurvedCourse(base){
+    if(!curvedCourse)return;
+    for(const r of ribbons){
+      const attr=r.mesh.geometry.attributes.position;
+      const arr=attr.array;
+      for(let i=0;i<=r.segments;i++){
+        const dist=base+Math.min(renderedLength,i*r.step);
+        const left=trackPoint(dist,r.left,r.y),right=trackPoint(dist,r.right,r.y);
+        const j=i*6;
+        arr[j]=left.x;arr[j+1]=left.y;arr[j+2]=left.z-base;
+        arr[j+3]=right.x;arr[j+4]=right.y;arr[j+5]=right.z-base;
+      }
+      attr.needsUpdate=true;
+    }
+    for(const {instance,sources} of curvedBatches){
+      for(let i=0;i<sources.length;i++)instance.setMatrixAt(i,courseMatrix(sources[i],base,reusableMatrix));
+      instance.instanceMatrix.needsUpdate=true;
+    }
+    for(const {mesh,source} of curvedSingles){
+      courseMatrix(source,base,reusableMatrix);
+      reusableMatrix.decompose(mesh.position,mesh.quaternion,mesh.scale);
+    }
+  }
+  function addCourseMilestones(){
+    const start=trackCenter(0);
+    courseStart.position.set(start.x,start.y,0);
+    courseStart.rotation.y=start.heading;
+    block(courseStart,0,.12,0,11.6,.06,.9,0xeef7ff);
+    const gantry=trackCenter(5000);
+    finishGroup.position.set(gantry.x,gantry.y,5000);
+    finishGroup.rotation.y=gantry.heading;
+    arch(0,0xffe7a4,finishGroup);
+    block(finishGroup,0,.14,0,11.5,.05,1.2,0xfff5c6);
+    label("CHEGADA",0,7.2,0,"#f5fbef",finishGroup);
+    for(const km of COURSE_MILESTONES){
+      const c=trackCenter(km);
+      const group=new THREE.Group();
+      group.position.set(c.x,c.y,km);
+      group.rotation.y=c.heading;
+      group.name="checkpoint-"+km;
+      courseMilestones.add(group);
+      // Checkpoint stripe and distance sign live at the unique absolute kilometer,
+      // never at the start of every streamed tile.
+      block(group,0,.12,0,11.5,.045,.5,0xffe8a2);
+      block(group,8,1.9,0,.32,3.8,.32,0x36515f);
+      label(km%1000===0?"KM "+km/1000:String(km)+" m",8,4.0,0,
+        "#fff2b3",group);
     }
   }
   function setupAtmosphere(id){
@@ -209,9 +322,11 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       const z=progress-stagger;
       trailColor.set(r.color||0x9dfaff);
       for(let j=0;j<3&&count<150;j++){
-        trailTransform.position.set(laneX(r.lane),.22+.08*(j%2),z-root.position.z-.85-j*.72);
+        const v=curvedCourse?trackPoint(z-.85-j*.72,laneX(r.lane),.22+.08*(j%2)):
+          {x:laneX(r.lane),y:.22+.08*(j%2),z:z-.85-j*.72,heading:0};
+        trailTransform.position.set(v.x,v.y,v.z-root.position.z);
         trailTransform.scale.set(.20-j*.035,.10,.75);
-        trailTransform.rotation.set(0,0,0);
+        trailTransform.rotation.set(0,v.heading,0);
         trailTransform.updateMatrix();
         boostTrails.setMatrixAt(count,trailTransform.matrix);
         boostTrails.setColorAt(count,trailColor);
@@ -237,13 +352,16 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     weather.geometry.attributes.position.needsUpdate=true;
     // Drift follows the race without rebuilding or reallocating geometry.
     weather.position.z=Math.max(0,Math.min(renderedLength,z-root.position.z));
+    const p=curvedCourse?trackCenter(z):{x:0,y:0};
+    weather.position.x=p.x;weather.position.y=p.y;
   }
   function clearMap() {
-    for(const owner of [root,finishGroup])while(owner.children.length){
+    for(const owner of [root,finishGroup,courseStart,courseMilestones])while(owner.children.length){
       const child=owner.children[0];owner.remove(child);
       child.traverse(obj=>{
         if(obj.isSprite){ if(obj.material?.map)obj.material.map.dispose();obj.material?.dispose(); }
         if(obj.isInstancedMesh&&typeof obj.dispose==="function")obj.dispose();
+        if(obj.userData?.courseRibbon){obj.geometry.dispose();obj.material.dispose();}
         if(obj.isPoints||obj.name==="leader-focus-ring"||obj.name==="boost-trails"){
           obj.geometry?.dispose();obj.material?.dispose();
         }
@@ -251,6 +369,9 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     }
     for(const mat of materials.values())mat.dispose();materials.clear();
     weather=null;focusRing=null;boostTrails=null;
+    ribbons=[];curvedBatches=[];curvedSingles=[];
+    finishGroup.position.set(0,0,0);finishGroup.rotation.set(0,0,0);
+    courseStart.position.set(0,0,0);courseStart.rotation.set(0,0,0);
     // Remove old biome lighting but preserve runner meshes mounted directly in the scene.
     for(const child of [...scene.children])if(child.isLight)scene.remove(child);
   }
@@ -259,6 +380,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     const targetLength=[150,PREVIOUS_TRACK_LENGTH,TRACK_LENGTH].includes(length)?length:TRACK_LENGTH;
     if(mapId===settings.id&&currentLength===targetLength)return;
     clearMap();mapId=settings.id;currentLength=targetLength;
+    curvedCourse=targetLength===TRACK_LENGTH;
     // 5km is a logical distance, NOT the amount of geometry allocated.
     renderedLength=targetLength===TRACK_LENGTH?streamingLength:targetLength;
     root.position.z=0;
@@ -270,9 +392,23 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     sun.position.set(-17,34,20);sun.castShadow=true;sun.shadow.mapSize.set(512,512);
     sun.shadow.camera.left=-24;sun.shadow.camera.right=24;sun.shadow.camera.top=35;sun.shadow.camera.bottom=-35;
     scene.add(sun);
-    block(root,0,-.2,renderedLength/2,180,.4,renderedLength+100,settings.ground);
-    // Five lanes, from 0 to the authoritative finish distance.
-    block(root,0,.025,renderedLength/2,11.7,.1,renderedLength+4,settings.road);
+    const ground=block(root,0,-.25,renderedLength/2,180,.5,renderedLength+100,settings.ground);
+    ground.userData.noCourseWarp=true;
+    // Curve the 5 lanes, shoulders and guardrails with a single deterministic
+    // world-space route. Legacy 150/300m snapshots keep their straight courses.
+    if(curvedCourse){
+      makeRibbon("course-shoulder",-10,10,-.055,settings.id==="ice"?0xe7eef5:0x728e6b);
+      makeRibbon("course-asphalt",-5.85,5.85,.078,settings.road);
+      for(const side of [-1,1]){
+        makeRibbon("course-edge-"+side,side*5.80,side*6.19,.22,settings.trim);
+        makeRibbon("course-guardrail-"+side,side*6.15,side*6.50,.37,
+          settings.id==="ice"?0xdbe9f3:0xb7a077);
+      }
+      for(let z=10;z<renderedLength;z+=24)for(const side of [-1,1])
+        block(root,side*6.25,.45,z,.15,.78,.17,0x718897);
+    }else{
+      block(root,0,.025,renderedLength/2,11.7,.1,renderedLength+4,settings.road);
+    }
     if(settings.id==="ice"){
       // Distinctive jagged snow banks at the sides of a wide grey snow raceway.
       for(let z=7;z<renderedLength;z+=14){
@@ -283,23 +419,25 @@ export function createWorld(canvas,{quality="balanced"}={}) {
         }
       }
     }
-    block(root,-6.0,.26,renderedLength/2,.38,.44,renderedLength+4,settings.trim);
-    block(root,6.0,.26,renderedLength/2,.38,.44,renderedLength+4,settings.trim);
+    if(!curvedCourse){
+      block(root,-6.0,.26,renderedLength/2,.38,.44,renderedLength+4,settings.trim);
+      block(root,6.0,.26,renderedLength/2,.38,.44,renderedLength+4,settings.trim);
+    }
     for(const x of [-3.7,-1.85,0,1.85,3.7]) for(let z=5;z<renderedLength;z+=7.5){
       block(root,x,.086,z,.08,.02,2.2,0xece5c3);
     }
     // Only one finish at the true 5,000m mark, not at each streamed tile.
-    if(targetLength===TRACK_LENGTH)arch(targetLength,0xffe7a4,finishGroup);
-    else arch(targetLength,0xffe7a4);
-    block(root,0,.09,0,11.5,.03,.65,settings.id==="ice"?0xf5faff:0xe2f2d4);
-    if(targetLength===TRACK_LENGTH)
-      block(finishGroup,0,.09,targetLength,11.5,.03,1.2,0xffecc3);
-    else block(root,0,.09,targetLength,11.5,.03,1.2,0xffecc3);
+    if(curvedCourse) addCourseMilestones();
+    else{
+      arch(targetLength,0xffe7a4);
+      block(root,0,.09,0,11.5,.03,.65,settings.id==="ice"?0xf5faff:0xe2f2d4);
+      block(root,0,.09,targetLength,11.5,.03,1.2,0xffecc3);
+    }
     scenery(settings.id);obstacleMesh(settings.id);
     setupAtmosphere(settings.id);
-    if(targetLength===TRACK_LENGTH)label("CHEGADA",0,7.2,targetLength,"#f5fbef",finishGroup);
-    else label("CHEGADA",0,7.2,targetLength);
+    if(!curvedCourse)label("CHEGADA",0,7.2,targetLength);
     batchStaticScenery();
+    updateCurvedCourse(0);
   }
   function setRenderScale(value) {
     const next=Math.max(.65,Math.min(1,Number(value)||1));
@@ -325,11 +463,16 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       // Two matching 300m tiles overlap before/after each shift, so 5km
       // never creates 5km of geometry (or triggers a rebuild every frame).
       const nextBase=Math.max(0,Math.floor(Math.max(0,z-200)/STREAM_TILE_LENGTH)*STREAM_TILE_LENGTH);
-      if(root.position.z!==nextBase)root.position.z=nextBase;
+      if(root.position.z!==nextBase){
+        root.position.z=nextBase;
+        updateCurvedCourse(nextBase);
+      }
     }
     const alpha=1-Math.exp(-2.9*Math.min(dt,.2));
-    positionTarget.set(0,12.2,Math.max(-24,z-24));
-    lookTarget.set(0,1.4,Math.min(currentLength+10,z+12));
+    const behind=curvedCourse?trackCenter(Math.max(0,z-24)):{x:0,y:0};
+    const ahead=curvedCourse?trackCenter(Math.min(currentLength,z+12)):{x:0,y:0};
+    positionTarget.set(behind.x,12.2+behind.y,Math.max(-24,z-24));
+    lookTarget.set(ahead.x,1.4+ahead.y,Math.min(currentLength+10,z+12));
     // Network recovery and benchmark jumps can move several kilometers.
     // Avoid rendering an empty transient frame between streamed tiles.
     if(Math.abs(camera.position.z-positionTarget.z)>160){
@@ -348,8 +491,10 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       if(leader){
         const index=active.indexOf(leader);
         const stagger=Math.max(0,1-Math.max(0,leader.progress)/30);
-        focusRing.position.set(laneX(leader.lane),.12,
-          Math.max(0,leader.progress-Math.floor(index/5)*1.48*stagger)-root.position.z);
+        const finish= Math.max(0,leader.progress-Math.floor(index/5)*1.48*stagger);
+        const ring=curvedCourse?trackPoint(finish,laneX(leader.lane),.12):
+          {x:laneX(leader.lane),y:.12,z:finish};
+        focusRing.position.set(ring.x,ring.y,ring.z-root.position.z);
       }
     }
     renderer.render(scene,camera);

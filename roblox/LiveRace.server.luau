@@ -8,21 +8,50 @@ local endpoint="https://corrida-dos-elementos-live.onrender.com/api/roblox/parti
 local INTERVAL=2
 local MAX_RUNNERS=50
 
--- Same parametric visual course as src/track-path.js; physics stays in Render.
-local function centerAt(distance)
-  local d=math.clamp(tonumber(distance) or 0,0,5000)
-  local function xAt(p)
-    local s=math.clamp(p,0,5000)
-    local start=math.min(1,s/140)
-    local ease=start*start*(3-2*start)
-    return ease*(27*math.sin(s/172)+10*math.sin(s/69))
+-- Exactly the same heading-profile integration as src/track-path.js (2 studs per step).
+-- Real 180-degree switchbacks; progression measures distance along the road.
+local COURSE_LENGTH=5000
+local STEP=2
+local turns={
+  {0,420,.03},{420,790,-1.55},{790,1400,-.05},
+  {1400,1770,3.10},{1770,2430,.08},
+  {2430,2810,-3.10},{2810,3420,-.06},
+  {3420,3790,3.10},{3790,4460,.07},
+  {4460,4800,-1.18},{4800,5000,-.10}
+}
+local function headingAt(distance)
+  local angle=0
+  for _,part in ipairs(turns) do
+    local start,ending,turn=part[1],part[2],part[3]
+    if distance<=start then break end
+    local t=math.min(1,(distance-start)/(ending-start))
+    angle+=turn*(1-math.cos(math.pi*t))*.5
+    if distance<ending then break end
   end
-  local low=math.max(0,d-.5)
-  local high=math.min(5000,d+.5)
-  local angle=math.atan((xAt(high)-xAt(low))/math.max(.001,high-low))
-  local y=.72*math.sin(d/115)^2+.32*math.sin(d/46)^2
-  return xAt(d),y,d,angle
+  return angle
 end
+local cx,cz,yaws={}, {},{}
+cx[1]=0;cz[1]=0
+for index=0,COURSE_LENGTH/STEP do
+  local s=index*STEP
+  yaws[index+1]=headingAt(s)
+  if index>0 then
+    local h=headingAt(s-STEP*.5)
+    cx[index+1]=cx[index]+math.sin(h)*STEP
+    cz[index+1]=cz[index]+math.cos(h)*STEP
+  end
+end
+local function centerAt(distance)
+  local d=math.clamp(tonumber(distance) or 0,0,COURSE_LENGTH)
+  local i=math.min(COURSE_LENGTH/STEP-1,math.floor(d/STEP))
+  local t=(d-i*STEP)/STEP
+  local x=cx[i+1]+(cx[i+2]-cx[i+1])*t
+  local z=cz[i+1]+(cz[i+2]-cz[i+1])*t
+  local yaw=yaws[i+1]+(yaws[i+2]-yaws[i+1])*t
+  local y=2.5*math.sin(d/185)^2+13*math.sin(d/1500)^2+3*math.sin(d/430)^2
+  return x,y,z,yaw
+end
+
 local function coursePosition(distance,lateral,height)
   local cx,cy,z,yaw=centerAt(distance)
   local offset=lateral or 0
@@ -64,13 +93,18 @@ local function addBlock(tile,x,y,z,w,h,d,color,partName)
 end
 
 for tile=1,2 do
-  addBlock(tile,0,-.6,150,130,1,300,Color3.fromRGB(234,241,249),"Ground")
-  -- 20-stud road sections can turn; one 300-stud rectangle cannot.
+  -- Terraces follow the centerline too; no giant straight ground slab.
   for z=10,290,20 do
+    addBlock(tile,0,-2.9,z,126,5,26,Color3.fromRGB(234,241,249),"Ground")
     addBlock(tile,0,0,z,22,.2,20,Color3.fromRGB(151,165,185),"Road")
     for _,side in ipairs({-1,1}) do
       addBlock(tile,side*11.2,.26,z,.4,.4,20,Color3.fromRGB(235,242,252),"Edge")
       addBlock(tile,side*13.1,0,z,2,.12,20,Color3.fromRGB(230,239,248),"Shoulder")
+      local offset=side*(30+(z%3)*5)
+      addBlock(tile,offset,5+(z%4)*2,z,24,11+(z%4)*3,28,
+        Color3.fromRGB(212,222,236),"Cliff")
+      addBlock(tile,offset,11+(z%4)*2,z,27,2,28,
+        Color3.fromRGB(249,251,254),"CliffSnow")
     end
   end
   for z=8,298,16 do
@@ -106,13 +140,8 @@ local function repositionTrack(snapshot)
   for tile=1,2 do
     for _,item in ipairs(tileParts[tile]) do
       if base~=nil then
-        if item.kind=="Ground" then
-          -- Wide, straight ground remains below the sinuous road.
-          item.part.CFrame=CFrame.new(0,item.y,base+(tile-1)*300+item.z)
-        else
-          local pos,yaw=coursePosition(base+(tile-1)*300+item.z,item.x,item.y)
-          item.part.CFrame=CFrame.new(pos)*CFrame.Angles(0,yaw,0)
-        end
+        local pos,yaw=coursePosition(base+(tile-1)*300+item.z,item.x,item.y)
+        item.part.CFrame=CFrame.new(pos)*CFrame.Angles(0,yaw,0)
       end
       if changedMap then
         if item.kind=="Ground" then
@@ -121,8 +150,10 @@ local function repositionTrack(snapshot)
           item.part.Color=snapshot.mapId=="ice" and Color3.fromRGB(151,165,185) or Color3.fromRGB(174,153,118)
         elseif item.kind=="Leaves" then
           item.part.Color=snapshot.mapId=="ice" and Color3.fromRGB(40,93,73) or Color3.fromRGB(55,146,74)
-        elseif item.kind=="SnowCap" then
+        elseif item.kind=="SnowCap" or item.kind=="CliffSnow" then
           item.part.Transparency=snapshot.mapId=="ice" and 0 or 1
+        elseif item.kind=="Cliff" then
+          item.part.Color=snapshot.mapId=="ice" and Color3.fromRGB(212,222,236) or Color3.fromRGB(89,121,83)
         end
       end
     end

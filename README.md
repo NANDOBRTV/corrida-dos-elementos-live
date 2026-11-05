@@ -1,3 +1,9 @@
+### Mesma pista no Roblox Studio
+
+Atualizados os arquivos `roblox/LiveRace.server.luau` e `roblox/LiveCamera.client.luau` com as **três curvas de 180° idênticas às do navegador**, encostas acompanhando a estrada, marcas de distância, chegada definitiva e câmera aérea automática nos cotovelos. Esta é uma implementação de código preparada para o Roblox Studio; ainda não houve execução dentro da plataforma.
+
+---
+
 ## Versão 3.2 — montanha nevada e cotovelos de 180°
 
 A trilha de 5.000 metros foi reconstruída por integração de comprimentos reais de arco. São três curvas fechadas de 178°, com zigue-zagues de encosta, retas panorâmicas, pequenas elevações, placas a cada 500 m, proteções laterais e terreno nevado. As coordenadas X e Z agora se movem e retornam durante os cotovelos. O minimapa deve mostrar o traçado sinuoso. Todo o cálculo visual está isolado em [src/track-path.js](src/track-path.js), sem mudar classificação ou física da corrida.

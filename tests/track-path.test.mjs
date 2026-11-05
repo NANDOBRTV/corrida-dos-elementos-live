@@ -52,3 +52,17 @@ test("Course rendering never mutates the official 5km race",()=>{
   assert.deepEqual(s,original);
   assert.equal(s.trackLength,5000);
 });
+
+test("Native Roblox scene mirrors the actual mountain switchbacks instead of straight ground",async()=>{
+  const {readFile}=await import("node:fs/promises");
+  const server=await readFile(new URL("../roblox/LiveRace.server.luau",import.meta.url),"utf8");
+  const camera=await readFile(new URL("../roblox/LiveCamera.client.luau",import.meta.url),"utf8");
+  for(const token of ["{1400,1770,3.10}","{2430,2810,-3.10}","{3420,3790,3.10}",
+    "local function centerAt(distance)","CliffSnow","FINISH_5000",
+    "model:PivotTo(CFrame.new(pos)"]){
+    assert.ok(server.includes(token),"Missing native track feature "+token);
+  }
+  for(const token of ["{1400,1770,3.10}","{2430,2810,-3.10}","{3420,3790,3.10}",
+    "centerAt(center-65)","overview*72"])
+    assert.ok(camera.includes(token),"Missing native camera feature "+token);
+});

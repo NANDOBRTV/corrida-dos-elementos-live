@@ -3,14 +3,45 @@ local RunService=game:GetService("RunService")
 local workspace=game:GetService("Workspace")
 local cam=workspace.CurrentCamera
 local folder=workspace:WaitForChild("RaceAvatars",30)
--- The spectator camera follows the exact same curve as the Roblox race track.
+-- Same distance-profile, X/Z integration and elevation as the authoritative web renderer.
+local COURSE_LENGTH=5000
+local STEP=2
+local turns={
+  {0,420,.03},{420,790,-1.55},{790,1400,-.05},
+  {1400,1770,3.10},{1770,2430,.08},
+  {2430,2810,-3.10},{2810,3420,-.06},
+  {3420,3790,3.10},{3790,4460,.07},
+  {4460,4800,-1.18},{4800,5000,-.10}
+}
+local function headingAt(s)
+  local a=0
+  for _,turn in ipairs(turns) do
+    if s<=turn[1] then break end
+    local t=math.min(1,(s-turn[1])/(turn[2]-turn[1]))
+    a+=turn[3]*(1-math.cos(math.pi*t))*.5
+    if s<turn[2] then break end
+  end
+  return a
+end
+local xx,zz,hh={[1]=0},{[1]=0},{}
+for i=0,COURSE_LENGTH/STEP do
+  local s=i*STEP
+  hh[i+1]=headingAt(s)
+  if i>0 then
+    local h=headingAt(s-STEP*.5)
+    xx[i+1]=xx[i]+math.sin(h)*STEP
+    zz[i+1]=zz[i]+math.cos(h)*STEP
+  end
+end
 local function centerAt(distance)
-  local s=math.clamp(tonumber(distance) or 0,0,5000)
-  local t=math.min(1,s/140)
-  local smooth=t*t*(3-2*t)
-  local x=smooth*(27*math.sin(s/172)+10*math.sin(s/69))
-  local y=.72*math.sin(s/115)^2+.32*math.sin(s/46)^2
-  return x,y
+  local s=math.clamp(tonumber(distance) or 0,0,COURSE_LENGTH)
+  local i=math.min(COURSE_LENGTH/STEP-1,math.floor(s/STEP))
+  local t=(s-i*STEP)/STEP
+  local x=xx[i+1]+(xx[i+2]-xx[i+1])*t
+  local z=zz[i+1]+(zz[i+2]-zz[i+1])*t
+  local h=hh[i+1]+(hh[i+2]-hh[i+1])*t
+  local y=2.5*math.sin(s/185)^2+13*math.sin(s/1500)^2+3*math.sin(s/430)^2
+  return x,y,z,h
 end
 
 if not folder then return end
@@ -59,11 +90,14 @@ RunService:BindToRenderStep("RaceLiveCamera",Enum.RenderPriority.Camera.Value+1,
   end
   table.sort(positions)
   local center=positions[math.max(1,math.floor(#positions*.48))] or 0
-  local bx,by=centerAt(center-34)
-  local fx,fy=centerAt(center+12)
+  local nx,ny,nz,nh=centerAt(center-65)
+  local fx,fy,fz,fh=centerAt(center+75)
+  local overview=math.clamp((math.abs(fh-nh)-.22)/1.3,0,1)
+  local bx,by,bz=centerAt(center-48-overview*45)
+  local ax,ay,az=centerAt(center+38+overview*58)
   local desired=CFrame.lookAt(
-    Vector3.new(bx,16+by,center-34),
-    Vector3.new(fx,2+fy,center+12)
+    Vector3.new(bx,by+20+overview*72,bz),
+    Vector3.new(ax,ay+1.8,az)
   )
   local alpha=1-math.exp(-2.5*math.min(.12,dt))
   if (cam.CFrame.Position-desired.Position).Magnitude>180 then

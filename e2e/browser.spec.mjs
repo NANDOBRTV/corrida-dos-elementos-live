@@ -592,7 +592,8 @@ test("v3.1 5km bends actually deform lane asphalt, scenery, avatars and finish",
 
 test("v3.2 mobile minimap actually outlines three mountain hairpins",async({page,request})=>{
   await reset(request);
-  await start(page,"?view=live&quality=low&showcase=1");
+  await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
+  await expect(page.locator("#remoteMode")).toContainText("PRÉVIA VISUAL LOCAL",{timeout:25_000});
   const observed=await page.evaluate(()=>{
     const path=document.querySelector("#liveCoursePath");
     const svg=document.querySelector("#liveCourseSvg");

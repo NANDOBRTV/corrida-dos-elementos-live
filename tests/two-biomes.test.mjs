@@ -4,11 +4,11 @@ import {BIOME_ORDER,BIOMES,LEGACY_BIOME_IDS,mapForRound,obstaclesFor} from "../s
 import {createState,register,advance,migrateSavedState,validateSavedState} from "../src/engine.js";
 import {createApp} from "../server/index.js";
 
-test("Only Ice and Forest are playable, including their obstacle types",()=>{
+test("Only Ice and Forest are playable; neither biome contains automatic obstacles",()=>{
   assert.deepEqual(BIOME_ORDER,["ice","forest"]);
   assert.deepEqual(Object.keys(BIOMES).sort(),["forest","ice"]);
-  assert.deepEqual([...new Set(obstaclesFor("ice").map(x=>x.kind))],["ice"]);
-  assert.deepEqual([...new Set(obstaclesFor("forest").map(x=>x.kind))],["log"]);
+  assert.deepEqual(obstaclesFor("ice"),[]);
+  assert.deepEqual(obstaclesFor("forest"),[]);
   for(let round=1;round<=40;round++)assert.equal(mapForRound(round),round%2?"ice":"forest");
 });
 test("Retiring three biomes does not remove runners, queued entries, or prior champions",()=>{

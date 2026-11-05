@@ -1,3 +1,9 @@
+### Ponte Roblox Studio e presentes
+
+A resposta privada `/api/roblox/participants` agora inclui apenas os obstáculos ativos dos presentes. Os scripts nativos espelham a posição na mesma curva do circuito, removem os objetos expirados e marcam cores diferentes para simulações. Nada aparece sem evento de presente. A física continua sendo calculada no servidor Node; o script precisa de validação no Roblox Studio antes de uso real.
+
+---
+
 ## Versão 3.3 — minimapa livre e obstáculos somente por presentes
 
 Na tela vertical, o minimapa agora mostra **somente o traçado curvo e os pontos dos corredores**. Foram retirados os dois retângulos, os fundos, as bordas, as sombras decorativas e os rótulos de distância do minimapa; o cronômetro e o ranking permanecem como estão.

@@ -268,8 +268,53 @@ local function spawnAvatar(entry,round)
   end)
 end
 
+-- Optional native view mirrors ONLY gift-triggered obstacles from the private feed.
+-- Collision results are decided by Node; these parts are decorative/CanCollide=false.
+local giftObstacleFolder=Instance.new("Folder")
+giftObstacleFolder.Name="GiftObstacles"
+giftObstacleFolder.Parent=workspace
+local giftObstacleParts={}
+local function syncGiftObstacles(snapshot)
+  local wanted={}
+  if snapshot.phase=="RUNNING" and type(snapshot.obstacles)=="table" then
+    for _,entry in ipairs(snapshot.obstacles) do
+      if type(entry.id)=="string" and type(entry.z)=="number" and
+         type(entry.lane)=="number" and entry.z>=0 and entry.z<=5000 then
+        wanted[entry.id]=true
+        local piece=giftObstacleParts[entry.id]
+        if not piece then
+          piece=Instance.new("Part")
+          piece.Name="GiftObstacle_"..entry.id
+          piece.Anchored=true
+          piece.CanCollide=false
+          piece.CanTouch=false
+          piece.CanQuery=false
+          piece.CastShadow=false
+          piece.Shape=entry.kind=="ice" and Enum.PartType.Ball or Enum.PartType.Block
+          piece.Material=entry.kind=="ice" and Enum.Material.Ice or Enum.Material.Wood
+          piece.Size=entry.kind=="ice" and Vector3.new(2.2,3,2.2) or Vector3.new(3,1.4,2.2)
+          piece.Color=entry.simulated==true and Color3.fromRGB(205,148,251) or
+            (entry.kind=="ice" and Color3.fromRGB(109,220,246) or Color3.fromRGB(140,98,55))
+          piece:SetAttribute("Simulated",entry.simulated==true)
+          piece.Parent=giftObstacleFolder
+          giftObstacleParts[entry.id]=piece
+        end
+        local point,yaw=coursePosition(entry.z,(entry.lane-2)*4,.75)
+        piece.CFrame=CFrame.new(point)*CFrame.Angles(0,yaw,0)
+      end
+    end
+  end
+  for id,piece in pairs(giftObstacleParts) do
+    if not wanted[id] then
+      piece:Destroy()
+      giftObstacleParts[id]=nil
+    end
+  end
+end
+
 local function onRound(snapshot)
   repositionTrack(snapshot)
+  syncGiftObstacles(snapshot)
   latest=snapshot
   lastUpdate=os.clock()
   if lastRound~=snapshot.round then

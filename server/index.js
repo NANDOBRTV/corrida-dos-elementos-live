@@ -7,6 +7,7 @@ import {createState,addDemo,register,rank,advance,tick,turbo,validateSavedState,
 import {openStorage} from "./storage.js";
 import {startTikTokBridge} from "./tiktok.js";
 import {applyGiftEvent,createGiftDeduplicator} from "../src/gifts.js";
+import {activeGiftObstacles} from "../src/gift-obstacles.js";
 import {pseudonymizeTikTokUser} from "./privacy.js";
 import {createLiveDiagnostics} from "./telemetry.js";
 import {createLikeBuffer,applyLikeBatch,applySimulatedLikes} from "../src/likes.js";
@@ -194,8 +195,11 @@ export async function createApp(opts={}){
       const participants=state.active.filter(r=>Number.isSafeInteger(r.robloxUserId)&&r.robloxUserId>0)
         .map(r=>({userId:r.robloxUserId,username:r.robloxUsername,
           lane:r.lane,progress:r.progress,speed:r.speed,status:r.status,turboUntil:r.turboUntil}));
+      const obstacles=activeGiftObstacles(state).map(h=>({
+        id:h.id,z:h.z,lane:h.lane,kind:h.kind,simulated:h.simulated,expiresAt:h.expiresAt
+      }));
       sendJson(res,200,{ok:true,round:state.round,mapId:state.mapId,phase:state.phase,
-        raceMs:state.raceMs,trackLength:state.trackLength,participants});
+        raceMs:state.raceMs,trackLength:state.trackLength,participants,obstacles});
       return;
     }
     if(req.method==="GET"&&path==="/api/state"){

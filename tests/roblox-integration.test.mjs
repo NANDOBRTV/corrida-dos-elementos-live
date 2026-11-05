@@ -112,3 +112,29 @@ test("Studio movement feed has velocity for smooth client interpolation",async t
   assert.equal(typeof feed.participants[0].speed,"number");
   assert.ok(Number.isFinite(feed.participants[0].speed));
 });
+
+test("Private Roblox Studio bridge shows no obstacle before gift and one after a test gift",async t=>{
+  const storage={enabled:false,load:async()=>null,save:async()=>{},close:async()=>{}};
+  const app=await createApp({storage,seedDemo:false,adminKey:"test-admin",
+    robloxLookup:{lookup:async username=>({id:50009,username})},
+    robloxBridgeKey:"test-bridge",disableTikTok:true});
+  const addr=await app.listen(0);t.after(()=>app.close());
+  const base="http://127.0.0.1:"+addr.port;
+  const headers={"x-admin-key":"test-admin","content-type":"application/json"};
+  const feed=async()=> (await (await fetch(base+"/api/roblox/participants",{
+    headers:{"x-roblox-bridge-key":"test-bridge"}
+  })).json()).obstacles;
+  await fetch(base+"/api/admin/join",{method:"POST",headers,
+    body:JSON.stringify({userId:"runner",displayName:"Runner",content:"entrar DemoAccount12"})});
+  for(let i=0;i<2;i++)await fetch(base+"/api/admin/action",{method:"POST",headers,
+    body:JSON.stringify({action:"advance"})});
+  assert.deepEqual(await feed(),[]);
+  const gift=await fetch(base+"/api/admin/action",{method:"POST",headers,
+    body:JSON.stringify({action:"gift-test",userId:"runner"})});
+  assert.equal(gift.status,200);
+  const obstacles=await feed();
+  assert.equal(obstacles.length,1);
+  assert.equal(obstacles[0].simulated,true);
+  assert.equal(typeof obstacles[0].z,"number");
+  assert.equal(obstacles[0].kind,"ice");
+});

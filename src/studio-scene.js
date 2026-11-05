@@ -11,7 +11,7 @@ import {buildStudioEffectParts,STUDIO_EFFECT_LIMITS} from "./studio-effects.js";
 import {resolveVehicle,vehicleForBot} from "./vehicles.js";
 
 export const STUDIO_SCENE_LIMITS=Object.freeze({
-  maxRunners:100,avatarParts:VEHICLE_PARTS,roadSegments:78,
+  maxRunners:100,avatarParts:30,roadSegments:78,
   segmentMeters:4,trees:162,hills:52,snowParticles:430,
   walls:22,decorations:130,qualityMinScale:.62,maxNameplates:12
 });

@@ -59,3 +59,24 @@ test("100 veículos são renderizados sem voltar a aparecer personagem humano",a
   expect(x.stats.drawCalls).toBeLessThan(30);
   expect(x.stats.triangles).toBeLessThan(55000);
 });
+
+
+test("Prévia: o usuário digita CG 160 no simulador de chat e entra exatamente com a moto",async({page})=>{
+  await page.setViewportSize({width:390,height:693});
+  await page.goto("/?view=live&studioPreview=1&quality=low&crowd=20",
+    {waitUntil:"domcontentloaded"});
+  await expect.poll(()=>page.evaluate(()=>
+    window.__studioV5Debug?.getState()?.active?.length)).toBe(20);
+  page.once("dialog",dialog=>dialog.accept("CG 160"));
+  await page.locator("#studioJoin").click();
+  await expect.poll(()=>page.evaluate(()=>
+    window.__studioV5Debug.getState().active.find(x=>x.id==="demo-selecao")?.vehicleId
+  )).toBe("moto-cg160");
+  await expect(page.locator("#studioToast")).toContainText("CG 160");
+  const record=await page.evaluate(()=>
+    window.__studioV5Debug.getState().active.find(x=>x.id==="demo-selecao"));
+  expect(record.name).toBe("CG 160");
+  expect(record.isBot).toBe(false);
+  expect(record.vehicleKind).toBe("motorcycle");
+  await expect(page.locator("#studioRunnerCount")).toHaveText("20/100");
+});

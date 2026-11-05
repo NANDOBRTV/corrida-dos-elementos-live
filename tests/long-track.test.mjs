@@ -137,13 +137,15 @@ test("A 5km lobby upgrades to 400m without losing participants, but an active 5k
 test("Registration window stays open for 60 seconds, plus five-second start countdown",()=>{
   const s=createState(56);
   register(s,"first","First","entrar");
-  for(let i=0;i<59;i++)tick(s,1000);
+  for(let i=0;i<236;i++)tick(s,250);
   assert.equal(s.phase,"LOBBY");assert.equal(s.phaseMs,59000);
   register(s,"late","Late","entrar");
-  tick(s,1000);
+  for(let i=0;i<4;i++)tick(s,250);
   assert.equal(s.phase,"COUNTDOWN");assert.equal(s.active.length,2);
-  tick(s,4000);assert.equal(s.phase,"COUNTDOWN");
-  tick(s,1000);assert.equal(s.phase,"RUNNING");
+  for(let i=0;i<16;i++)tick(s,250);
+  assert.equal(s.phase,"COUNTDOWN");
+  for(let i=0;i<4;i++)tick(s,250);
+  assert.equal(s.phase,"RUNNING");
   assert.equal(s.raceMs,0);
   assert.equal(register(s,"after","After","entrar").queue,"próxima");
 });

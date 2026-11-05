@@ -2,7 +2,7 @@ name: Captura visual — revisão da referência
 on:
   push:
     branches: [studio-v5-live-9x16]
-    paths: [".github/workflows/studio-video-reference-capture.yml", "src/studio-scene.js", "src/studio-ui.js", "assets/studio-live.css"]
+    paths: [".github/workflows/studio-video-reference-capture.yml", "src/studio-scene.js", "src/studio-ui.js", "assets/studio-live.css", "src/studio-hero-cars.js", "src/studio-vehicle-models.js", "src/vehicles.js", "e2e/studio-hero-cars.spec.mjs"]
   pull_request:
     branches: [main]
     paths: [".github/workflows/studio-video-reference-capture.yml"]
@@ -20,6 +20,11 @@ jobs:
           node-version: "22"
       - run: npm install --include=dev --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
+      - name: Validate JavaScript, motor and six hero cars in Chromium
+        run: |
+          npm run check
+          npm test
+          npx playwright test e2e/studio-hero-cars.spec.mjs --reporter=line
       - name: Start isolated local preview
         env:
           NODE_ENV: test
@@ -51,9 +56,9 @@ jobs:
           });
           const page=await context.newPage();
           page.on('pageerror',e=>console.error('PAGEERROR:',e.message));
-          await page.goto('http://127.0.0.1:4173/?view=live&studioPreview=1&quality=low&crowd=20',
+          await page.goto('http://127.0.0.1:4173/?view=live&studioPreview=1&quality=low&crowd=6&hero=1',
             {waitUntil:'domcontentloaded'});
-          await page.waitForFunction(()=>window.__studioV5Debug?.getSceneStats().runners===20,
+          await page.waitForFunction(()=>window.__studioV5Debug?.getSceneStats().runners===6,
             null,{timeout:30000});
           await page.waitForTimeout(2000);
           const lobby=await page.screenshot({type:'jpeg',quality:53});
@@ -82,6 +87,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: studio-v5-reference-review
+          name: studio-v5-six-hero-cars
           path: test-results/reference-review/
           retention-days: 7

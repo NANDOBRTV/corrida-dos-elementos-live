@@ -158,4 +158,15 @@ test('Vídeo referência: prévia com 20 participantes mantém capacidade 100',a
   expect(result.count).toBe(20);
   expect(result.capacity).toBe('20/100');
   expect(result.phase).toBe('LOBBY');
+  await page.evaluate(async()=>{
+    const engine=await import('/src/studio-engine.js');
+    const state=window.__studioV5Debug.getState();
+    engine.studioAdvance(state);engine.studioAdvance(state);
+    engine.studioTick(state,1500);
+  });
+  await expect.poll(()=>page.evaluate(
+    ()=>window.__studioV5Debug?.getSceneStats()?.runners)).toBe(20);
+  await expect.poll(()=>page.evaluate(
+    ()=>window.__studioV5Debug?.getState()?.active?.length)).toBe(20);
+  await expect(page.locator('#studioRunnerCount')).toHaveText('20/100');
 });

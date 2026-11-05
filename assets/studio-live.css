@@ -162,3 +162,146 @@ body.studio-live-active{
 @media(prefers-reduced-motion:reduce){
   .studio-stage *{transition:none!important;animation:none!important}
 }
+
+
+/* Video-reference visual pass (original graphics; no external branding).
+   Preserve existing platform-safe 120 px top / 220 px bottom zones.
+   Compact race HUD, translucent scorecards and small right-hand powers. */
+.studio-live-active .studio-stage{
+  background:#afc1dd;
+}
+.studio-live-active .studio-channel{
+  background:rgba(15,21,32,.54);
+  padding:.95cqw 1.2cqw;border-radius:3.4cqw;
+  width:44%;
+  box-shadow:0 .4cqw 1.2cqw #1522353b;
+}
+.studio-live-active .studio-channel-icon{
+  width:6.5cqw;height:6.5cqw;font-size:3.2cqw;
+}
+.studio-live-active .studio-channel-name{font-size:2.25cqw}
+.studio-live-active .studio-ranking{
+  top:16.0%;width:35.2%;
+  background:rgba(10,15,27,.79);
+  border-radius:2.2cqw;padding:1.4cqw;
+  box-shadow:0 .45cqw 2.1cqw #10172c4e;
+  backdrop-filter:blur(2px);
+}
+.studio-live-active .studio-panel-title{
+  font-size:2.05cqw;color:#ffe083;
+  letter-spacing:.08em;margin-bottom:.95cqw;
+}
+.studio-live-active .studio-live-dot{
+  width:1.2cqw;height:1.2cqw;background:#f8d34b;
+  box-shadow:none;
+}
+.studio-live-active .studio-rank-row{
+  background:transparent;border-radius:.8cqw;
+  padding:.46cqw .35cqw;
+}
+.studio-live-active .studio-rank-row.leader{
+  background:#ffd76720;box-shadow:none;
+}
+.studio-live-active .studio-rank-name{font-size:2.10cqw}
+.studio-live-active .studio-rank-meters{
+  color:#ffe08c;font-weight:900;font-size:1.93cqw;
+}
+.studio-live-active .studio-race-data{
+  top:16%;right:3%;width:29%;
+  padding:1.55cqw 1.4cqw;
+  background:rgba(10,15,29,.80);
+  border-radius:2cqw;
+}
+.studio-live-active .studio-race-time{
+  font-size:6.5cqw;letter-spacing:-.04em;
+  text-shadow:0 .3cqw .6cqw #0009;
+}
+.studio-live-active .studio-minimap{
+  top:28.4%;right:3%;width:24.8%;height:13.9%;
+  background:rgba(9,15,30,.82)!important;
+  padding:1.9cqw;
+  border-radius:2.4cqw;
+  box-shadow:0 .45cqw 1.8cqw #060e2266!important;
+  backdrop-filter:blur(2px);
+}
+.studio-live-active .studio-minimap svg{
+  filter:drop-shadow(0 0 .35cqw #101b38);
+}
+.studio-live-active .studio-opening{
+  top:23%;min-width:56%;max-width:86%;
+  gap:.35cqw;
+  padding:2.0cqw 3.5cqw;
+  border-radius:2.1cqw;
+  background:rgba(10,14,24,.86);
+  box-shadow:0 .5cqw 2cqw #101c337a;
+}
+.studio-live-active .studio-opening>span{font-size:2.95cqw}
+.studio-live-active .studio-opening>strong{
+  font-size:7.8cqw;color:#ffc962;
+}
+.studio-live-active .studio-opening>small{
+  color:#fff9e7;font-size:2.05cqw;line-height:1.18;
+  text-shadow:0 .1cqw .6cqw #050912;
+}
+.studio-live-active .studio-stage[data-phase="countdown"] .studio-opening{
+  top:21%;
+}
+.studio-live-active .studio-nameplate{
+  background:rgba(10,17,32,.86);
+  border:.13cqw solid #ffffff76;
+  border-radius:1.4cqw;
+  padding:.27cqw .65cqw;
+  box-shadow:0 .24cqw .75cqw #050b1888;
+}
+.studio-live-active .studio-nameplate.studio-gold{
+  border-color:#ffd557;
+  background:rgba(47,35,16,.94);
+}
+.studio-live-active .studio-position{
+  background:#3174d4;color:white;
+  font-size:1.72cqw;font-weight:900;
+  padding:.15cqw .45cqw;border-radius:.55cqw;
+}
+.studio-live-active .studio-nameplate.studio-gold .studio-position{
+  background:#d49f2b;color:#1c160d;
+}
+.studio-live-active .studio-chat{
+  bottom:12%;height:21.8%;width:47%;
+}
+.studio-live-active .studio-chat-title{display:none}
+.studio-live-active .studio-chat-line{
+  background:linear-gradient(90deg,rgba(15,21,35,.50),transparent 97%);
+  min-height:3.4cqw;padding:.2cqw .3cqw;
+}
+.studio-live-active .studio-interactions{
+  right:3%;bottom:12%;width:31%;
+  gap:1.7cqw;
+}
+.studio-live-active .studio-action-row{
+  display:grid;grid-template-columns:minmax(0,1fr);
+  gap:.7cqw;width:100%;
+}
+.studio-live-active .studio-action{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;justify-content:end;
+  gap:.75cqw;min-height:4.6cqw;width:100%;
+  font-size:2.28cqw;font-weight:1000;
+  background:none!important;border:0!important;
+  padding:0;color:#fff;box-shadow:none!important;
+  text-align:right;
+  text-shadow:-.2cqw -.2cqw #0b1323,.2cqw -.2cqw #0b1323,
+    -.2cqw .2cqw #0b1323,.2cqw .2cqw #0b1323;
+}
+.studio-live-active .studio-action>span{
+  display:inline-block;font-size:3.65cqw;
+  line-height:1;min-width:8.3cqw;text-align:left;
+  filter:drop-shadow(0 .3cqw .2cqw #080d16);
+}
+.studio-live-active .studio-social-actions{
+  align-self:flex-end;gap:1.1cqw;margin:0;
+}
+.studio-live-active .studio-social-actions button{
+  width:6.3cqw;height:6.3cqw;
+  background:#14223699;font-size:3.1cqw;
+  border-color:#ffffff6b;
+}

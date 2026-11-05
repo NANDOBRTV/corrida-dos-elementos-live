@@ -403,3 +403,76 @@ body.studio-live-active{
 .studio-live-active .studio-nameplate>.studio-avatar{
   width:3.1cqw;height:3.1cqw;flex-shrink:0
 }
+
+
+/* Director shots + compact secondary car list. Names over vehicles identify
+   the spectator (@username); rankings and list identify the chosen model. */
+.studio-live-active .studio-vehicle-mini{
+  position:absolute;z-index:6;left:3%;top:43.0%;width:31.5%;
+  border:.1cqw solid #c3d5e650;border-radius:2.1cqw;
+  padding:1.1cqw 1.25cqw;
+  background:rgba(10,19,30,.77);
+  box-shadow:0 .4cqw 1.8cqw #070f1d66;
+  backdrop-filter:blur(2px);
+  pointer-events:none;
+}
+.studio-live-active .studio-vehicle-mini-title{
+  display:block;color:#f5da85;
+  font-weight:1000;font-size:1.75cqw;
+  letter-spacing:.04em;margin-bottom:.9cqw;
+}
+.studio-live-active .studio-vehicle-mini-rows{
+  list-style:none;margin:0;padding:0;
+  display:flex;flex-direction:column;gap:.23cqw;
+}
+.studio-live-active .studio-mini-vehicle{
+  display:grid;grid-template-columns:3.4cqw minmax(0,1fr);
+  gap:.6cqw;align-items:center;
+  padding:.31cqw .42cqw;
+  border-radius:.75cqw;
+  color:#f5f8fe;font-weight:850;font-size:1.85cqw;
+  line-height:1.15;min-height:3.2cqw;
+}
+.studio-live-active .studio-mini-vehicle.is-focus{
+  background:#ffcf6936;color:#ffe391;
+}
+.studio-live-active .studio-mini-number{
+  color:#f5d27b;font-size:1.65cqw;font-weight:1000;
+}
+.studio-live-active .studio-mini-name{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.studio-live-active .studio-camera-label{
+  position:absolute;z-index:7;
+  left:50%;top:12.0%;transform:translateX(-50%);
+  max-width:61%;width:max-content;
+  border-radius:1.2cqw;padding:.7cqw 1.2cqw;
+  background:rgba(8,18,31,.81);
+  color:#f6ebbd;font-size:1.8cqw;font-weight:950;
+  box-shadow:0 .35cqw 1.4cqw #0008;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  pointer-events:none;
+}
+.studio-live-active .studio-nameplate{
+  max-width:34cqw;min-height:3.2cqw;
+  gap:.45cqw;padding:.29cqw .62cqw;
+  border-radius:.9cqw;
+  background:rgba(12,22,36,.78);
+  box-shadow:0 .18cqw .85cqw #0009;
+}
+.studio-live-active .studio-plate-name{
+  max-width:27cqw;min-width:0;
+  font-size:1.72cqw;font-weight:900;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  color:#fff;
+}
+.studio-live-active .studio-nameplate.studio-camera-focus{
+  background:rgba(58,41,14,.94)!important;
+  border-color:#ffd769!important;
+  box-shadow:0 0 1.6cqw #ffca55aa;
+}
+.studio-live-active .studio-stage:is([data-phase="lobby"],[data-phase="countdown"])
+  :is(.studio-vehicle-mini,.studio-camera-label){display:none!important}
+.studio-live-active .studio-stage[data-phase="results"] .studio-camera-label{
+  display:none!important;
+}

@@ -178,7 +178,7 @@ test("Android 9:16 WebGL renders 100 avatars in one batch and twelve nameplate a
     }
     function studioTickOnly(state,ms){
       state.raceMs+=ms;
-      for(const r of state.active)r.progress+=Number(r.speed)||.9;
+      for(const r of state.active)r.progress+=(Number(r.speed)||9)*(ms/1000);
     }
     return {elapsedMs:performance.now()-start,stats:scene.stats()};
   });

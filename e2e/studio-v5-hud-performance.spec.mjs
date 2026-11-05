@@ -67,7 +67,8 @@ for(const profile of [
     expect(audit.body.scrollHeight).toBeLessThanOrEqual(profile.height+2);
     expect(audit.overlap).toEqual([]);
     expect(audit.outOfSafe).toEqual([]);
-    expect(audit.nameplates).toBeLessThanOrEqual(12);
+    // Up to 36 visible usernames are now allowed with 100 vehicles in view.
+    expect(audit.nameplates).toBeLessThanOrEqual(36);
     expect(audit.mapPath).toBeGreaterThan(40);
     expect(audit.stats.cameraCount).toBe(1);
     expect(audit.stats.runners).toBe(100);

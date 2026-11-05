@@ -404,17 +404,23 @@ export function createWorld(canvas,{quality="balanced"}={}) {
         block(root,0,-2.4,dz,125,4.6,80,settings.ground);
         for(const side of [-1,1]){
           const bump=((dz*7+(side+2)*13)%5);
-          const cliff=side*(36+bump*5);
-          block(root,cliff,4+bump*2,dz,42,11+bump*4,38,
-            settings.id==="ice"?0xe1eaf3:0x617e60);
-          block(root,cliff,10+bump*2,dz,45,2.3,40,
-            settings.id==="ice"?0xf4f7fc:0x86b583);
-          if(dz%120===30)for(let j=0;j<5;j++){
-            const x=side*(65+j*8);
-            block(root,x,11+(j%3)*4,dz+(j-2)*10,18,18+(j%3)*8,17,
-              settings.id==="ice"?0xd2dce9:0x527d59);
-            block(root,x,20+(j%3)*5,dz+(j-2)*10,19,1.4,18,
-              settings.id==="ice"?0xf3f7fd:0xa3c6a1);
+          // Angular terrain forms ridges rather than giant rectangular walls,
+          // so 50 characters and the U-turn remain visible on phone screens.
+          const ridge=side*(38+bump*4);
+          rock(root,ridge,dz,6+bump*1.2,
+            settings.id==="ice"?0xe3edf7:0x698e74);
+          rock(root,side*(64+bump*4),dz+13,9+bump*1.7,
+            settings.id==="ice"?0xd6e4f3:0x77987a);
+          if(dz%120===30){
+            const x=side*(94+bump*5);
+            rock(root,x,dz-8,17+bump*2.5,
+              settings.id==="ice"?0xd4dce8:0x678470);
+            // White angled snowcap on the far skyline, never over the road.
+            const peak=new THREE.Mesh(octahedronGeometry,
+              material(settings.id==="ice"?0xf5f8fc:0xa7c7a5));
+            peak.position.set(x,14+bump*2,dz-8);
+            peak.scale.set(9+bump,4+bump*.5,9+bump);
+            root.add(peak);
           }
         }
       }
@@ -494,14 +500,21 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       if(root.userData.baseDistance!==nextBase)updateCurvedCourse(nextBase);
     }
     const alpha=1-Math.exp(-2.9*Math.min(dt,.2));
-    const near=curvedCourse?trackCenter(Math.max(0,z-65)):{x:0,y:0,z:Math.max(-24,z-24),heading:0};
-    const far=curvedCourse?trackCenter(Math.min(currentLength,z+75)):{x:0,y:0,z:z+12,heading:0};
-    const yawDelta=curvedCourse?Math.abs(far.heading-near.heading):0;
-    const overview=Math.min(1,Math.max(0,(yawDelta-.22)/1.3));
-    const back=curvedCourse?trackCenter(Math.max(0,z-48-overview*45)):near;
-    const ahead=curvedCourse?trackCenter(Math.min(currentLength,z+38+overview*58)):far;
-    positionTarget.set(back.x,back.y+20+overview*72,back.z);
-    lookTarget.set(ahead.x,ahead.y+1.8,ahead.z);
+    const center=curvedCourse?trackCenter(z):{x:0,y:0,z,heading:0};
+    const before=curvedCourse?trackCenter(Math.max(0,z-72)):center;
+    const after=curvedCourse?trackCenter(Math.min(currentLength,z+72)):center;
+    const yawDelta=curvedCourse?Math.abs(after.heading-before.heading):0;
+    const overview=Math.min(1,Math.max(0,(yawDelta-.22)/1.30));
+    // Camera remains anchored to the pack's own tangent, not a different arm
+    // of a hairpin. This keeps 50 avatars in frame during 180° turns.
+    const backDistance=27+overview*47;
+    const height=13.7+overview*53;
+    const forwardDistance=12+overview*13;
+    const forwardX=Math.sin(center.heading),forwardZ=Math.cos(center.heading);
+    positionTarget.set(center.x-forwardX*backDistance,
+      center.y+height,center.z-forwardZ*backDistance);
+    lookTarget.set(center.x+forwardX*forwardDistance,
+      center.y+1.5,center.z+forwardZ*forwardDistance);
     // Network recovery and benchmark jumps can move several kilometers.
     // Avoid rendering an empty transient frame between streamed tiles.
     if(camera.position.distanceTo(positionTarget)>170){

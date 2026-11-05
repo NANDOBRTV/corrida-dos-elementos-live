@@ -133,3 +133,39 @@ test("A 5km lobby upgrades to 400m without losing participants, but an active 5k
   assert.equal(untouched.trackLength,5000);
   assert.equal(untouched.active[0].progress,2800);
 });
+
+test("Registration window stays open for 60 seconds, plus five-second start countdown",()=>{
+  const s=createState(56);
+  register(s,"first","First","entrar");
+  for(let i=0;i<59;i++)tick(s,1000);
+  assert.equal(s.phase,"LOBBY");assert.equal(s.phaseMs,59000);
+  register(s,"late","Late","entrar");
+  tick(s,1000);
+  assert.equal(s.phase,"COUNTDOWN");assert.equal(s.active.length,2);
+  tick(s,4000);assert.equal(s.phase,"COUNTDOWN");
+  tick(s,1000);assert.equal(s.phase,"RUNNING");
+  assert.equal(s.raceMs,0);
+  assert.equal(register(s,"after","After","entrar").queue,"próxima");
+});
+test("Authenticated operator can request a manual camera close shared in public state",async t=>{
+  const storage={enabled:false,load:async()=>null,save:async()=>{},close:async()=>{}};
+  const app=await createApp({adminKey:"manual-camera-test",storage,seedDemo:false,disableTikTok:true});
+  const addr=await app.listen(0);t.after(()=>app.close());
+  const base="http://127.0.0.1:"+addr.port;
+  const post=(action,userId,key="manual-camera-test")=>fetch(base+"/api/admin/action",{
+    method:"POST",headers:{"content-type":"application/json",...(key?{"x-admin-key":key}:{})},
+    body:JSON.stringify({action,userId})});
+  assert.equal((await post("camera-focus","one",null)).status,401);
+  assert.equal((await post("camera-focus","one")).status,400);
+  const join=await fetch(base+"/api/admin/join",{
+    method:"POST",headers:{"content-type":"application/json","x-admin-key":"manual-camera-test"},
+    body:JSON.stringify({userId:"one",displayName:"Runner",content:"entrar"})});
+  assert.equal(join.status,200);
+  await post("advance");await post("advance");
+  assert.equal((await post("camera-focus","unknown")).status,400);
+  const result=await (await post("camera-focus","one")).json();
+  assert.equal(result.ok,true);assert.equal(result.name,"Runner");
+  const publicState=await (await fetch(base+"/api/state")).json();
+  assert.equal(publicState.state.manualCamera.id,"one");
+  assert.equal(publicState.state.manualCamera.untilRaceMs-publicState.state.manualCamera.startRaceMs,5000);
+});

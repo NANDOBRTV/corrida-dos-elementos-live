@@ -125,9 +125,14 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
     color:0xffffff,roughness:.22,metalness:.20});
   const visorMaterial=new THREE.MeshStandardMaterial({
     color:0x0d1d2a,roughness:.08,metalness:.4});
+  const lampMaterial=new THREE.MeshBasicMaterial({color:0xffedbf});
+  const tailMaterial=new THREE.MeshBasicMaterial({color:0xd82e39});
+  const bootMaterial=new THREE.MeshStandardMaterial({
+    color:0x202632,roughness:.78,metalness:0});
   const ownedMeshes=[],ownedGeometries=[],ownedMaterials=[
     shellMaterial,glassMaterial,tireMaterial,hubMaterial,tankMaterial,
-    jacketMaterial,helmetMaterial,visorMaterial
+    jacketMaterial,helmetMaterial,visorMaterial,
+    lampMaterial,tailMaterial,bootMaterial
   ];
   const body=new Map(),windows=new Map();
   const counts=new Map();
@@ -162,6 +167,12 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
     new THREE.SphereGeometry(.5,12,8),jacketMaterial);
   const limbs=batch("studio-motorcycle-rider-arms-and-legs",
     new THREE.CylinderGeometry(.5,.5,1,8),jacketMaterial,capacity*4);
+  const riderGloves=batch("studio-motorcycle-rider-gloves-and-boots",
+    new THREE.SphereGeometry(.5,8,6),bootMaterial,capacity*4);
+  const headlights=batch("studio-real-front-headlamps",
+    new THREE.SphereGeometry(.5,8,6),lampMaterial,capacity*2);
+  const taillights=batch("studio-real-rear-taillamps",
+    new THREE.SphereGeometry(.5,8,6),tailMaterial,capacity*2);
   const local=new THREE.Matrix4(),combined=new THREE.Matrix4();
   const pos=new THREE.Vector3(),scale=new THREE.Vector3(),rotation=new THREE.Quaternion();
   const xAxis=new THREE.Vector3(1,0,0);
@@ -219,6 +230,16 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
         w*.81,cabinHeight,l*cabinScale);
       push(roofs,root,0,glassY+cabinHeight*.98,cabinCenter,
         w*.73,.085,l*cabinScale*.70,paint);
+      const classic=profile==="classic";
+      const sport=profile==="muscle"||vehicle.id==="car-civic";
+      for(const side of [-1,1]){
+        // Different profiles receive differently sized light assemblies.
+        push(headlights,root,side*w*.35,high?.86:.73,l*.49,
+          classic?.32:sport?.39:.31,
+          classic?.28:sport?.12:.18,.11);
+        push(taillights,root,side*w*.37,high?.91:.74,-l*.49,
+          profile==="compact"?.22:.34,profile==="compact"?.39:.16,.1);
+      }
     }else{
       renderedMotorcycles++;totalRiders++;
       const isScooter=["scooter","step-through"].includes(vehicle.shape);
@@ -243,6 +264,10 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
           side*.39,1.53,gripZ,.12,jersey);
         segment(root,side*.20,seatY+.10,-l*.26,
           side*.33,.67,l*.06,.17,jersey);
+        push(riderGloves,root,side*.39,1.53,gripZ,
+          .21,.18,.27);
+        push(riderGloves,root,side*.33,.67,l*.06,
+          .23,.27,.33);
       }
     }
     const wheelY=vehicle.kind==="motorcycle"?

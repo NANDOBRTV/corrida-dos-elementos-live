@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {createCameraDirector,chooseCloseup,eligibleForCloseup,
   closeupWaitMs,CLOSEUP_WAIT_MIN_MS,CLOSEUP_WAIT_MAX_MS,
   CLOSEUP_DURATION_MS} from "../src/camera-director.js";
-import {createState,register,advance} from "../src/engine.js";
+import {createState,register,advance,focusRunner,MANUAL_CAMERA_MS} from "../src/engine.js";
 
 function race(){
   const state=createState(9921);
@@ -75,4 +75,32 @@ test("Closeups stop during results/lobby; an absent runner cannot cause a crash"
   s.phase="RUNNING";s.raceMs=closeupWaitMs(s,0)+900;
   assert.ok(d.update(s));
   s.phase="LOBBY";assert.equal(d.update(s),null);
+});
+
+test("Manual operator spotlight lasts 5 seconds, overrides auto and never changes the race",()=>{
+  const s=race(),d=createCameraDirector();
+  const prior=structuredClone(s.active);
+  assert.equal(MANUAL_CAMERA_MS,5000);
+  assert.equal(focusRunner(s,"unknown").ok,false);
+  assert.equal(focusRunner(s,s.active[3].id).ok,true);
+  assert.equal(s.manualCamera.id,s.active[3].id);
+  s.raceMs=800;const focused=d.update(s);
+  assert.equal(focused.id,s.active[3].id);
+  assert.equal(focused.manual,true);
+  assert.ok(focused.blend>.99);
+  s.raceMs=4700;assert.equal(d.update(s)?.manual,true);
+  s.raceMs=5000;assert.equal(d.update(s)?.manual??false,false);
+  assert.deepEqual(s.active,prior);
+});
+test("Only active runners can be manually spotlighted; last operator choice wins",()=>{
+  const s=race(),d=createCameraDirector();
+  s.active[0].status="finished";
+  assert.equal(focusRunner(s,s.active[0].id).ok,false);
+  assert.ok(focusRunner(s,s.active[1].id).ok);
+  assert.equal(d.update(s).id,s.active[1].id);
+  s.raceMs=1800;
+  assert.ok(focusRunner(s,s.active[2].id).ok);
+  assert.equal(d.update(s).id,s.active[2].id);
+  s.phase="RESULTS";assert.equal(d.update(s),null);
+  assert.equal(focusRunner(s,s.active[2].id).ok,false);
 });

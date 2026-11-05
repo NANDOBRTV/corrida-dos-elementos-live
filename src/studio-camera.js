@@ -3,10 +3,12 @@
 import {LIVE_STUDIO,LANES,LANE_WIDTH} from "./config.js";
 
 export const STUDIO_CAMERA=Object.freeze({
-  fovPortrait:76,near:0.1,far:520,
-  followDistance:27.5,followHeight:11.3,lookAhead:31,
+  // Match the reference framing: a lower, tighter shot behind the racing pack.
+  // The same physical camera remains active; no random cuts or drone view.
+  fovPortrait:72,near:0.1,far:520,
+  followDistance:20.5,followHeight:9.35,lookAhead:22,
   gridBackMargin:19,gridHeight:12.6,
-  winnerDistance:9.5,winnerHeight:5.6,smoothness:3.7,
+  winnerDistance:9.5,winnerHeight:5.6,smoothness:4.1,
   columns:10,gridGap:2.85,trackLength:1600
 });
 const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));

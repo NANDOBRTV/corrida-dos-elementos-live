@@ -30,7 +30,7 @@ test("Likes never change speed, race order, entrants or track length",()=>{
   const original=structuredClone(s.active);
   assert.deepEqual(applyLikeBatch(s,{count:77,events:3}),{count:77,total:77});
   assert.deepEqual(s.active,original);
-  assert.equal(s.next.length,0);assert.equal(s.trackLength,5000);
+  assert.equal(s.next.length,0);assert.equal(s.trackLength,400);
   assert.ok(!JSON.stringify(s).includes("private"));
 });
 test("Server exposes aggregated likes in official state, no duplicate processing",async t=>{
@@ -78,5 +78,5 @@ test("High-volume packet bursts remain bounded and never multiply 5km race event
   applyLikeBatch(state,batch);
   assert.equal(state.observedLikes,1500);
   assert.equal(state.active.length,0);
-  assert.equal(state.trackLength,5000);
+  assert.equal(state.trackLength,400);
 });

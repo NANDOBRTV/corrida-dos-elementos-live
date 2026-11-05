@@ -48,7 +48,7 @@ test("Same Roblox avatar is unique per round and survives the queued round",()=>
   advance(state);nextRound(state);
   assert.equal(state.active[0].robloxUserId,100040);
   assert.equal(state.active[0].robloxUsername,"Nando_2026");
-  assert.equal(state.trackLength,5000);
+  assert.equal(state.trackLength,400);
 });
 test("Studio bridge is private; exports only public user IDs and race movement",async t=>{
   const storage={enabled:false,load:async()=>null,save:async()=>{},close:async()=>{}};
@@ -66,7 +66,7 @@ test("Studio bridge is private; exports only public user IDs and race movement",
   const linked=await (await fetch(base+"/api/roblox/participants",{headers:{"x-roblox-bridge-key":"test-bridge"}})).json();
   assert.equal(linked.participants[0].userId,12345);
   assert.equal(linked.participants[0].username,"Nando_2026");
-  assert.equal(linked.trackLength,5000);
+  assert.equal(linked.trackLength,400);
   assert.ok(!JSON.stringify(linked).includes("tiktok-private"));
   assert.ok(!JSON.stringify(linked).includes("test-admin"));
 });

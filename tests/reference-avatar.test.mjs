@@ -11,8 +11,8 @@ test("Original blocky humanoid cosmetics are deterministic across refreshes",()=
   assert.ok(new Set(first.map(v=>v.headwear)).size>=3);
   assert.ok(new Set(first.map(v=>v.hairStyle)).size>=3);
   assert.ok(first.some(v=>v.vehicle==="jetpack"));
-  assert.ok(first.some(v=>v.vehicle==="kart"));
-  assert.ok(first.some(v=>v.vehicle==="moto"));
+  assert.ok(first.every(v=>v.vehicle!=="kart"));
+  assert.ok(first.every(v=>v.vehicle!=="moto"));
 });
 test("Humanoid visuals cannot change the authoritative 5,000m race",()=>{
   const game=createState(51);
@@ -21,5 +21,5 @@ test("Humanoid visuals cannot change the authoritative 5,000m race",()=>{
   const looks=appearanceForRunner(game.active[0].id);
   assert.ok(looks.outfit>=0&&looks.outfit<8);
   assert.deepEqual(game,original);
-  assert.equal(game.trackLength,5000);
+  assert.equal(game.trackLength,400);
 });

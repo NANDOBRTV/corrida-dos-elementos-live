@@ -16,7 +16,7 @@ test("Zero gifts means zero obstacles, including after > 2000m of a live race",(
   const s=running();
   assert.deepEqual(activeGiftObstacles(s),[]);
   assert.deepEqual(s.giftObstacles,[]);
-  for(const r of s.active)r.progress=2500;
+  for(const r of s.active)r.progress=200;
   for(let i=0;i<40;i++)tick(s,50);
   assert.deepEqual(activeGiftObstacles(s),[]);
   assert.ok(s.active.every(r=>r.slowUntil===0&&r.passed.length===0));

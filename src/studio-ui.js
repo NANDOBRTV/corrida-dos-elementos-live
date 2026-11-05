@@ -122,6 +122,7 @@ const MARKUP=[
         "<button id='studioShare' type='button' aria-label='Compartilhar'>↗</button>",
       "</div>",
     "</aside>",
+    "<a class='studio-credits-link' href='/assets/hero-credits.html' target='_blank' rel='noopener noreferrer' aria-label='Créditos dos modelos 3D'>ⓘ Créditos 3D</a>",
     "<div id='studioToast' class='studio-toast' role='status' hidden></div>",
   "</main>"
 ].join("");

@@ -391,3 +391,15 @@ body.studio-live-active{
 .studio-live-active .studio-feature-avatar{
   image-rendering:pixelated;
 }
+
+/* Full chosen model names instead of the former human player tags. */
+.studio-live-active .studio-nameplate{max-width:38cqw}
+.studio-live-active .studio-plate-name{
+  max-width:29cqw;font-size:1.60cqw;letter-spacing:-.01em
+}
+.studio-live-active .studio-rank-name{
+  font-size:1.80cqw;letter-spacing:-.025em;
+}
+.studio-live-active .studio-nameplate>.studio-avatar{
+  width:3.1cqw;height:3.1cqw;flex-shrink:0
+}

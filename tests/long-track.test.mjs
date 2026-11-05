@@ -117,3 +117,19 @@ test("Protected operator can configure the next race laps",async t=>{
   assert.equal(ok.ok,true);assert.equal(ok.state.trackLength,1600);
   assert.equal(ok.state.laps,4);
 });
+
+test("A 5km lobby upgrades to 400m without losing participants, but an active 5km race is preserved",()=>{
+  const saved=createState(55);
+  saved.trackLength=5000;saved.round=12;
+  register(saved,"ready","Pronto","entrar");
+  const migrated=migrateSavedState(saved);
+  assert.equal(migrated.trackLength,400);
+  assert.equal(migrated.active.length,1);
+  assert.equal(migrated.active[0].id,"ready");
+  assert.equal(migrated.laps,1);
+  const running=structuredClone(saved);
+  running.phase="RUNNING";running.active[0].progress=2800;
+  const untouched=migrateSavedState(running);
+  assert.equal(untouched.trackLength,5000);
+  assert.equal(untouched.active[0].progress,2800);
+});

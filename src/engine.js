@@ -220,14 +220,16 @@ export function migrateSavedState(v) {
   const current=BIOME_ORDER.includes(v.mapId);
   const retired=LEGACY_BIOME_IDS.includes(v.mapId);
   if(!current&&!retired)return v; // Unknown biome remains invalid, no silent reset.
-  // New records explicitly declare 5000m. v2.6 snapshots retain their 300m
-  // finish, and older snapshots without trackLength retain the 150m finish.
+  // Preserve old races in progress, but upgrade an idle 5km lobby to the
+  // new 400m W circuit without deleting already registered participants.
   const needsDistance=v.trackLength===undefined;
-  if(!retired&&!needsDistance)return v;
+  const upgradeLobby=v.trackLength===PREVIOUS_LONG_TRACK_LENGTH&&v.phase==="LOBBY";
+  if(!retired&&!needsDistance&&!upgradeLobby)return v;
   return {
     ...v,
     mapId:retired?mapForRound(v.round):v.mapId,
-    trackLength:needsDistance?LEGACY_TRACK_LENGTH:v.trackLength
+    trackLength:needsDistance?LEGACY_TRACK_LENGTH:upgradeLobby?TRACK_LENGTH:v.trackLength,
+    ...(upgradeLobby?{laps:1,nextLaps:1}:{})
   };
 }
 export function validateSavedState(v) {

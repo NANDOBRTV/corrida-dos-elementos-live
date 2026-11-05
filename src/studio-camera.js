@@ -81,10 +81,15 @@ export function studioRunnerPose(runner,index=0,phase="RUNNING",results=[]){
   const progress=Math.max(0,finite(Number(r.progress)));
   const isStaging=phase==="LOBBY"||phase==="COUNTDOWN";
   let d=progress;
-  if(isStaging){
-    const place=Number.isInteger(r.gridPosition)&&r.gridPosition>=1?
-      r.gridPosition:index+1;
-    d=-Math.floor((place-1)/STUDIO_CAMERA.columns)*STUDIO_CAMERA.gridGap;
+  const place=Number.isInteger(r.gridPosition)&&r.gridPosition>=1?
+    r.gridPosition:index+1;
+  const row=Math.floor((place-1)/STUDIO_CAMERA.columns);
+  if(isStaging)d=-row*STUDIO_CAMERA.gridGap;
+  else if(phase==="RUNNING"){
+    // A full 100-runner grid cannot collapse into ten coordinates at GO.
+    // Fade only the visual row spacing after 45m (no impact on official meters).
+    const taper=clamp(1-progress/45,0,1);
+    d=progress-row*STUDIO_CAMERA.gridGap*taper;
   }
   // The only individual focus in the whole game: the winner's podium.
   // The three podium runners stand together and are never placed over track traffic.
@@ -101,6 +106,39 @@ export function studioRunnerPose(runner,index=0,phase="RUNNING",results=[]){
   }
   return {...studioPositionOnCourse(d,lane),podium:null};
 }
+export function studioCrowdPoses(state){
+  const s=state?.state??state??{};
+  const active=Array.isArray(s.active)?s.active:[];
+  const results=Array.isArray(s.results)?s.results:[];
+  const poses=new Map(active.map((r,i)=>[r.id,studioRunnerPose(r,i,s.phase,results)]));
+  if(s.phase!=="RUNNING")return poses;
+  // Visual-only collision separation on each lane: nearby runners never
+  // occupy the same voxel space, even when server progress values coincide.
+  for(let lane=0;lane<LANES;lane++){
+    const group=active.filter(r=>r.lane===lane).sort((a,b)=>
+      Number(b.progress||0)-Number(a.progress||0)||
+      Number(a.gridPosition||0)-Number(b.gridPosition||0)||
+      String(a.id).localeCompare(String(b.id)));
+    let last=Infinity;
+    for(const r of group){
+      const pose=poses.get(r.id);
+      if(!pose)continue;
+      const base=studioRunnerPose(r,active.indexOf(r),"RUNNING");
+      // Arc length coordinate is recovered by projection onto centerline;
+      // use the official distance minus the decaying initial grid offset.
+      const place=Number(r.gridPosition)||active.indexOf(r)+1;
+      const row=Math.floor((place-1)/10);
+      const progress=Math.max(0,finite(Number(r.progress)));
+      const logical=progress-row*STUDIO_CAMERA.gridGap*
+        clamp(1-progress/45,0,1);
+      const spaced=Math.min(logical,last-1.30);
+      last=spaced;
+      poses.set(r.id,{...studioPositionOnCourse(spaced,r.lane),podium:null});
+    }
+  }
+  return poses;
+}
+
 export function cameraTargetFor(state){
   const s=state?.state??state??{};
   const runners=Array.isArray(s.active)?s.active:[];
@@ -145,12 +183,16 @@ export function cameraTargetFor(state){
   const at=studioCourseAt(distance);
   const dx=Math.sin(at.heading),dz=Math.cos(at.heading);
   const future=studioCourseAt(distance+STUDIO_CAMERA.lookAhead);
+  const rows=Math.max(1,Math.min(10,Math.ceil(runners.length/10)));
+  const initialSpacing=(rows-1)*STUDIO_CAMERA.gridGap*
+    clamp(1-distance/45,0,1);
+  const followDistance=STUDIO_CAMERA.followDistance+initialSpacing;
   // Exactly one stable rear shot: no drone, random close, POV cuts or orbit.
   return {
     position:{
-      x:at.x-dx*STUDIO_CAMERA.followDistance,
+      x:at.x-dx*followDistance,
       y:at.y+STUDIO_CAMERA.followHeight,
-      z:at.z-dz*STUDIO_CAMERA.followDistance
+      z:at.z-dz*followDistance
     },
     target:{x:future.x,y:future.y+1.9,z:future.z},
     mode:"CHASE",leaderId:null,heading:at.heading
@@ -189,9 +231,10 @@ export function studioVisibleNameplates(state,{max=12,featuredId=null}={}){
   }
   const positions=new Map(sorted.map((r,i)=>[r.id,i+1]));
   const results=Array.isArray(s.results)?s.results:[];
+  const poses=studioCrowdPoses(s);
   return selected.map(r=>({
     id:r.id,name:String(r.name??"Corredor").slice(0,28),
     rank:positions.get(r.id),color:r.color,
-    pose:studioRunnerPose(r,active.indexOf(r),s.phase,results)
+    pose:poses.get(r.id)??studioRunnerPose(r,active.indexOf(r),s.phase,results)
   }));
 }

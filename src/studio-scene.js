@@ -4,7 +4,7 @@
 import * as THREE from "three";
 import {LIVE_STUDIO,BIOME_ORDER,RUNNER_COLORS} from "./config.js";
 import {
-  STUDIO_CAMERA,studioCourseAt,studioPositionOnCourse,studioRunnerPose,
+  STUDIO_CAMERA,studioCourseAt,studioRunnerPose,studioCrowdPoses,
   advanceStudioCamera,studioVisibleNameplates
 } from "./studio-camera.js";
 
@@ -82,7 +82,6 @@ export function createStudioScene(canvas,{quality="balanced",
   const ratio=Math.min(isFiniteNumber(pixelRatio)?pixelRatio:deviceRatio,maxPixelRatio);
   renderer.setPixelRatio(Math.max(.65,ratio));
   const fixedGeometry=new THREE.BoxGeometry(1,1,1);
-  const sphereGeometry=new THREE.IcosahedronGeometry(1,0);
   const makeMat=hex=>new THREE.MeshLambertMaterial({color:hex});
   const materials={
     road:makeMat(0xffffff),edge:makeMat(0xffffff),
@@ -199,7 +198,8 @@ export function createStudioScene(canvas,{quality="balanced",
   }
   function rebuildCourse(center,distance){
     // Only about 300m of asphalt/scenery on the GPU for a 1500m race.
-    const start=Math.max(0,Math.floor((center-38)/4)*4);
+    // Staging asphalt extends to -40m for all ten rows at GO.
+    const start=Math.floor((center-38)/4)*4;
     let rs=0,es=0,ls=0,ts=0,cs=0,hs=0,ws=0;
     for(let i=0;i<STUDIO_SCENE_LIMITS.roadSegments;i++){
       const meter=start+(i+.5)*STUDIO_SCENE_LIMITS.segmentMeters;
@@ -263,9 +263,10 @@ export function createStudioScene(canvas,{quality="balanced",
     const phase=String(state.phase??"LOBBY");
     const t=Number(state.raceMs)||0;
     const results=Array.isArray(state.results)?state.results:[];
+    const positions=studioCrowdPoses(state);
     for(let i=0;i<entries.length;i++){
       const r=entries[i];
-      const pose=studioRunnerPose(r,i,phase,results);
+      const pose=positions.get(r.id)??studioRunnerPose(r,i,phase,results);
       const rootAngle=pose.heading;
       const running=phase==="RUNNING"&&r.status==="running";
       const seed=nameHash(r.id)%1000;
@@ -392,7 +393,7 @@ export function createStudioScene(canvas,{quality="balanced",
     scene.remove(snow);snow.geometry.dispose();snow.material.dispose();
     for(const child of podium.children)child.material.dispose();
     scene.remove(podium);
-    fixedGeometry.dispose();sphereGeometry.dispose();
+    fixedGeometry.dispose();
     for(const m of Object.values(materials))m.dispose();
     renderer.dispose();
     lastState=null;cameraPose=null;previousCourseBucket=null;

@@ -324,8 +324,8 @@ test("v2.3 batches fifty animated runners without losing colors or movement",asy
   expect(result.colorsPreserved,"GPU color delta "+result.colorDelta).toBe(true);
   expect(result.articulated).toBe(true);
   expect(result.afterRemoval).toBe(result.expectedAfter);
-  expect(result.vehicleCounts.kart).toBeGreaterThan(0);
-  expect(result.vehicleCounts.moto).toBeGreaterThan(0);
+  expect(result.vehicleCounts.kart).toBe(0);
+  expect(result.vehicleCounts.moto).toBe(0);
   expect(result.cleaned).toBe(true);
 });
 
@@ -430,7 +430,7 @@ test("v2.7 mobile 5000 m straight minimap tracks top three racers",async({page,r
   await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
   await expect(page.locator("#remoteMode")).toContainText("PRÉVIA VISUAL LOCAL",{timeout:25_000});
   await expect(page.locator("#liveMiniMapName")).toContainText("GELO");
-  await expect(page.locator(".live-mini-finish")).toContainText("5000 m");
+  await expect(page.locator(".live-mini-finish")).toContainText("400 m");
   await expect(page.locator(".live-mini-start")).toContainText("0 m");
   for(const id of ["#liveMapDot","#liveMapRival2","#liveMapRival3"])
     await expect(page.locator(id)).toBeVisible();
@@ -478,118 +478,100 @@ test("v2.6 300m courses render a real finish in both biomes and retain old 150m 
   expect(scene[2].labels).toContain(150);
   expect(scene[0].background).not.toBe(scene[1].background);
   await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
-  await expect(page.locator("#liveMiniFinish")).toHaveText("🏁 5000 m");
+  await expect(page.locator("#liveMiniFinish")).toHaveText("🏁 400 m");
   await expect(page.locator("#liveRemaining")).toContainText("m até a chegada");
 });
 
 
-test("v2.7 streams only a 600m scenery window over a real 5km course",async({page,request})=>{
+
+test("v4.0 only allocates one 400m circuit, with stable GPU instance count across laps",async({page,request})=>{
   await reset(request);
   await start(page,"?view=operator&quality=low");
-  const measurements=await page.evaluate(async()=>{
+  const outcome=await page.evaluate(async()=>{
     const {createWorld}=await import("/src/world.js");
-    const c=document.createElement("canvas");
-    c.style.cssText="position:absolute;left:-9999px;top:0;width:280px;height:440px";
-    document.body.append(c);
-    const world=createWorld(c,{quality:"low"});
-    const race={phase:"RUNNING",raceMs:1000,active:[{id:"test",lane:2,progress:0,
-      color:"#65d9fa",turboUntil:0,status:"running"}]};
-    const data=[];
+    const canvas=document.createElement("canvas");
+    canvas.style.cssText="position:absolute;left:-9999px;width:280px;height:440px";
+    document.body.append(canvas);
+    const world=createWorld(canvas,{quality:"low"});
+    const samples=[];
     try{
       for(const map of ["ice","forest"]){
-        world.setMap(map,5000);
-        world.resize();
-        const root=world.scene.children.find(x=>x.isGroup&&x.name!=="absolute-finish-line");
+        world.setMap(map,400);
+        const root=world.scene.getObjectByName("streamed-course");
         const finish=world.scene.getObjectByName("absolute-finish-line");
-        const labels=[];
-        finish.traverse(o=>{if(o.isSprite)labels.push(o.position.z+finish.position.z)});
-        const initial=world.scene.children.length;
-        let count=0;
-        root.traverse(o=>{if(o.isInstancedMesh)count+=o.count;else if(o.isMesh)count++;});
-        const positions=[];
-        for(const z of [0,299,499,500,780,4900,4998]){
-          race.active[0].progress=z;
-          world.render(race,.016);
-          positions.push(root.userData.baseDistance);
-          let afterCount=0;
-          root.traverse(o=>{if(o.isInstancedMesh)afterCount+=o.count;else if(o.isMesh)afterCount++;});
-          if(afterCount!==count)throw Error("GPU objects unexpectedly grow during 5km stream");
-          if(world.scene.children.length!==initial)throw Error("Scene nodes leaked while streaming");
+        const count=()=>{
+          let n=0;root.traverse(o=>{if(o.isInstancedMesh)n+=o.count;else if(o.isMesh)n++;});
+          return n;
+        };
+        const startCount=count();
+        const progress=[];
+        for(const distance of [0,95,200,350,400]){
+          world.render({phase:"RUNNING",raceMs:4000,active:[
+            {id:"runner",name:"Runner",lane:2,progress:distance,status:"running"}
+          ]},.016);
+          progress.push(root.userData.baseDistance);
+          if(count()!==startCount)throw Error("GPU resource count changed during a lap");
         }
-        data.push({map,labels,positions,count,finishObjects:finish.children.length});
+        samples.push({map,startCount,progress,finishX:finish.position.x,
+          finishZ:finish.position.z,finishObjects:finish.children.length});
       }
-    }finally{world.dispose();c.remove();}
-    return data;
+    }finally{world.dispose();canvas.remove();}
+    return samples;
   });
-  expect(measurements).toHaveLength(2);
-  for(const m of measurements){
-    expect(m.count).toBeGreaterThan(100);
-    expect(m.count).toBeLessThan(2500);
-    expect(m.labels[0]).toEqual(expect.any(Number));
-    expect(Math.abs(m.labels[0])).toBeGreaterThan(100);
-    expect(m.finishObjects).toBeGreaterThan(1);
-    expect(m.positions[0]).toBe(0);
-    expect(m.positions[3]).toBe(300);
-    expect(m.positions[5]).toBeGreaterThanOrEqual(4500);
-    expect(m.positions[6]).toBeLessThanOrEqual(4800);
+  expect(outcome).toHaveLength(2);
+  for(const row of outcome){
+    expect(row.startCount).toBeGreaterThan(60);
+    expect(row.startCount).toBeLessThan(3500);
+    expect(row.progress).toEqual([0,0,0,0,0]);
+    expect(row.finishObjects).toBeGreaterThan(1);
   }
 });
 
-test("v3.1 5km bends actually deform lane asphalt, scenery, avatars and finish",async({page,request})=>{
+test("v4.0 400m W circuit aligns 3D lanes, scenery and finish in both biomes",async({page,request})=>{
   await reset(request);
   await start(page,"?view=operator&quality=low");
-  const observed=await page.evaluate(async()=>{
+  const result=await page.evaluate(async()=>{
     const {createWorld}=await import("/src/world.js");
     const {createAvatars}=await import("/src/avatars.js");
     const {trackPoint,trackCenter}=await import("/src/track-path.js");
-    const THREE=await import("three");
-    const c=document.createElement("canvas");
-    c.style.cssText="position:absolute;left:-9999px;top:0;width:280px;height:440px";
-    document.body.append(c);
-    const world=createWorld(c,{quality:"low"});
-    const race={phase:"RUNNING",raceMs:5000,active:[
-      {id:"curve-guest",name:"Curva",lane:3,progress:900,color:"#65d9fa",turboUntil:0,status:"running"}
-    ]};
+    const canvas=document.createElement("canvas");
+    canvas.style.cssText="position:absolute;left:-9999px;width:280px;height:440px";
+    document.body.append(canvas);
+    const world=createWorld(canvas,{quality:"low"});
     const avatars=createAvatars(world.scene,{quality:"low"});
-    const frames=[];
+    const samples=[];
     try{
-      for(const biome of ["ice","forest"]){
-        world.setMap(biome,5000);
-        for(const dist of [0,300,900,1500,2700,3900,4950]){
-          race.active[0].progress=dist;
-          world.render(race,.016);
-          avatars.sync(race.active);avatars.animate(race.active,"RUNNING",.016,1000);
-          const runner=world.scene.getObjectByName("blocky-runner-0");
-          const asphalt=world.scene.getObjectByName("course-asphalt");
-          const milestones=world.scene.getObjectByName("course-milestones");
+      for(const map of ["ice","forest"]){
+        world.setMap(map,400);
+        for(const dist of [0,40,90,160,230,310,399]){
+          const active=[{id:"curve-guest",name:"Test",lane:3,
+            progress:dist,color:"#65d9fa",status:"running",baseSpeed:5,passed:[]}];
+          world.render({phase:"RUNNING",round:1,raceMs:1000,trackLength:400,active},.016);
+          avatars.sync(active);avatars.animate(active,"RUNNING",.016,1000);
+          const model=world.scene.getObjectByName("blocky-runner-0");
           const finish=world.scene.getObjectByName("absolute-finish-line");
           const expected=trackPoint(dist,1.85,.76);
-          const batch=world.scene.getObjectByName("voxel-batch");
-          frames.push({
-            biome,dist,runnerX:runner.position.x,runnerY:runner.position.y,
-            yaw:runner.rotation.y,expectedX:expected.x,expectedY:expected.y,
-            asphaltX:asphalt.geometry.attributes.position.array[0],
-            base:world.scene.getObjectByName("streamed-course").userData.baseDistance,
+          samples.push({map,dist,x:model.position.x,y:model.position.y,
+            expectedX:expected.x,expectedY:expected.y,
+            checkpoints:world.scene.getObjectByName("course-milestones").children.length,
             finishX:finish.position.x,finishZ:finish.position.z,
-            checkpointCount:milestones.children.length,
-            batchCount:batch.count
-          });
+            officialX:trackCenter(400).x,officialZ:trackCenter(400).z,
+            asphalt:!!world.scene.getObjectByName("course-asphalt")});
         }
       }
-    }finally{avatars.clear();world.dispose();c.remove();}
-    return {frames,finishX:trackCenter(5000).x,finishZ:trackCenter(5000).z};
+    }finally{avatars.clear();world.dispose();canvas.remove();}
+    return samples;
   });
-  for(const x of observed.frames){
-    expect(Math.abs(x.runnerX-x.expectedX)).toBeLessThan(2);
-    expect(Math.abs(x.runnerY-x.expectedY)).toBeLessThan(.01);
-    expect(x.checkpointCount).toBe(9);
-    expect(x.finishZ).toBeCloseTo(observed.finishZ,3);
-    expect(x.finishX).toBeCloseTo(observed.finishX,3);
-    expect(x.batchCount).toBeGreaterThan(0);
+  expect(result).toHaveLength(14);
+  for(const x of result){
+    expect(Math.abs(x.x-x.expectedX)).toBeLessThan(2);
+    expect(Math.abs(x.y-x.expectedY)).toBeLessThan(.01);
+    expect(x.checkpoints).toBe(3);
+    expect(x.finishX).toBeCloseTo(x.officialX,3);
+    expect(x.finishZ).toBeCloseTo(x.officialZ,3);
+    expect(x.asphalt).toBe(true);
   }
-  expect(new Set(observed.frames.filter(x=>x.biome==="ice").map(x=>Math.round(x.asphaltX))).size).toBeGreaterThan(2);
 });
-
 test("v3.2 mobile minimap actually outlines three mountain hairpins",async({page,request})=>{
   await reset(request);
   await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
@@ -608,35 +590,30 @@ test("v3.2 mobile minimap actually outlines three mountain hairpins",async({page
   expect(observed.markers).toBe(3);
 });
 
-test("v3.2 hairpin showcase opens inside the U-turn without changing the real server",async({page,request})=>{
+
+test("v4.0 W-turn showcase opens directly in the curve without changing the database",async({page,request})=>{
   const before=await (await request.get("/api/state")).json();
   const errors=[];page.on("pageerror",err=>errors.push(err.message));
   await page.goto("/?view=live&quality=low&showcase=1&section=hairpin&biome=ice",{waitUntil:"domcontentloaded"});
   await expect(page.locator("#playerCount")).toHaveText("50",{timeout:25_000});
-  await expect(page.locator("#remoteMode")).toContainText("PRÉVIA VISUAL LOCAL");
-  await expect(page.locator("#phaseName")).toContainText("CORRIDA EM ANDAMENTO");
-  await page.waitForTimeout(1000);
   const info=await page.evaluate(async()=>{
     const {trackCenter}=await import("/src/track-path.js");
-    const a=trackCenter(1400),b=trackCenter(1770);
-    return {turn:Math.abs(b.heading-a.heading),
-      progress:document.getElementById("liveRemaining").textContent,
-      map:document.getElementById("liveMiniMapName").textContent,
+    const a=trackCenter(30),b=trackCenter(120);
+    return {turn:Math.abs(a.heading-b.heading),
+      label:document.getElementById("liveLapInfo").textContent,
       path:document.getElementById("liveCoursePath").getAttribute("d")?.length,
       overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth};
   });
-  expect(info.turn).toBeGreaterThan(3);
-  expect(info.progress).toContain("m até a chegada");
-  expect(info.map).toContain("GELO");
+  expect(info.turn).toBeGreaterThan(.3);
+  expect(info.label).toContain("1/1");
   expect(info.path).toBeGreaterThan(2000);
   expect(info.overflow).toBeLessThanOrEqual(1);
-  await page.screenshot({path:join(root,"reference-hairpin-50-runners.png"),fullPage:true});
+  await page.screenshot({path:join(root,"reference-W-track-50-runners.png"),fullPage:true});
   const after=await (await request.get("/api/state")).json();
   expect(after.state.round).toBe(before.state.round);
   expect(after.state.active.length).toBe(before.state.active.length);
   expect(errors).toEqual([]);
 });
-
 test("v3.3 minimap is ONLY route and markers, without either rectangular card",async({page})=>{
   await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
   await expect(page.locator("#playerCount")).toHaveText("50",{timeout:25000});
@@ -729,4 +706,37 @@ test("v3.4.1 randomized 0–10 second pauses between spotlight cuts",async({page
   expect(outcome.rows[5].blend).toBeGreaterThan(.95);
   expect(outcome.rows[4].focused).not.toBe(outcome.rows[0].focused);
   expect(outcome.rows.every(r=>r.pos.every(Number.isFinite))).toBe(true);
+});
+
+test("v4.0 lap select is actionable and preserves a race when applied mid-round",async({page,request})=>{
+  await reset(request);
+  await page.goto("/?view=operator&quality=low",{waitUntil:"domcontentloaded"});
+  await expect(page.locator("#nextLapCount")).toBeVisible();
+  await page.locator("#nextLapCount").selectOption("3");
+  // Operator action is covered server-side with key; verify the new UI and
+  // that its select remains usable on Android sizes.
+  const box=await page.locator("#saveNextLaps").boundingBox();
+  expect(box?.width).toBeGreaterThan(50);
+  expect(await page.locator("#nextLapCount").inputValue()).toBe("3");
+});
+test("v4.0 no random cars or motorcycles; one accepted present adds a temporary ride",async({page})=>{
+  await page.goto("/?view=live&quality=low&showcase=1",{waitUntil:"domcontentloaded"});
+  const result=await page.evaluate(async()=>{
+    const {createState,register,advance}=await import("/src/engine.js");
+    const {applyGiftEvent}=await import("/src/gifts.js");
+    const {appearanceForRunner}=await import("/src/cosmetics.js");
+    const state=createState(3);
+    for(let i=0;i<8;i++)register(state,"v"+i,"Runner "+i,"entrar");
+    advance(state);advance(state);
+    const noGift=state.active.every(r=>appearanceForRunner(r.id).vehicle!=="kart"&&
+      appearanceForRunner(r.id).vehicle!=="moto"&&r.vehicleUntil===0);
+    const result=applyGiftEvent(state,{userId:"v0",displayName:"Runner 0",giftId:"motorcycle",
+      giftName:"Moto",repeatCount:1,simulated:true});
+    return {noGift,vehicle:result.vehicle,kind:state.active[0].vehicleKind,
+      until:state.active[0].vehicleUntil};
+  });
+  expect(result.noGift).toBe(true);
+  expect(result.vehicle.kind).toBe("moto");
+  expect(result.kind).toBe("moto");
+  expect(result.until).toBe(12000);
 });

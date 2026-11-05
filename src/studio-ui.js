@@ -11,6 +11,40 @@ const asNum=(value,otherwise=0)=>Number.isFinite(Number(value))?Number(value):ot
 const shortName=(value,max=20)=>String(value??"").trim().slice(0,max)||"Corredor";
 const METERS=LIVE_STUDIO.defaultDistance;
 const PHOTO_HOST="rbxcdn.com";
+
+/**
+ * Browser watchdog (only for the new broadcast renderer).
+ * A stopped graphics loop is different from a stopped race engine:
+ * this code never modifies participant data or injects gameplay events.
+ */
+export const STUDIO_WATCHDOG=Object.freeze({
+  frameTimeoutMs:30000,
+  packetProbeMs:30000,
+  packetReloadMs:45000,
+  startupGraceMs:65000,
+  intervalMs:5000,
+  retryWindowMs:15*60*1000,
+  maxReloads:3
+});
+const RECOVERY_SESSION_KEY="corrida-studio-v5-watchdog-reload-history";
+export function studioRecoveryReason({
+  now,lastGoodFrameAt,lastPacketAt,startedAt,hasState,
+  preview=false,visible=true,online=true,contextLostAt=null
+}={}){
+  if(!visible||!online||!Number.isFinite(now))return null;
+  if(Number.isFinite(contextLostAt)&&now-contextLostAt>=STUDIO_WATCHDOG.frameTimeoutMs)
+    return "webgl-context-lost";
+  if(hasState&&now-lastGoodFrameAt>=STUDIO_WATCHDOG.frameTimeoutMs)
+    return "animation-stalled";
+  if(!preview){
+    if(!hasState&&now-startedAt>=STUDIO_WATCHDOG.startupGraceMs)
+      return "initial-state-timeout";
+    if(hasState&&now-lastPacketAt>=STUDIO_WATCHDOG.packetReloadMs)
+      return "server-state-timeout";
+  }
+  return null;
+}
+
 const MARKUP=[
   "<main id='studioLive' class='studio-stage' role='main' aria-label='Transmissão da Corrida dos Elementos'>",
     "<canvas id='studioCanvas' aria-label='Corrida voxel 3D com câmera fixa atrás do pelotão'></canvas>",
@@ -182,7 +216,10 @@ export async function startStudioLive({preview=false}={}){
     map:null,lastChatKey:"",lastRankKey:"",plateNodes:new Map(),
     latestFrameAt:0,lastUiAt:0,lastPlateAt:0,lastFacesKey:"",fpsAccum:0,
     fpsFrames:0,lastPerfAt:performance.now(),qualityScale:1,
-    previousPhase:null,toastTimer:null,connection:null,closed:false
+    previousPhase:null,toastTimer:null,connection:null,closed:false,
+    startedAt:performance.now(),lastGoodFrameAt:performance.now(),
+    contextLostAt:null,renderErrors:0,reloading:false,
+    monitoring:false,watchdogLastProbeAt:0
   };
   const ui={
     likes:$("studioLikes"),viewers:$("studioViewerTotal"),
@@ -402,6 +439,73 @@ export async function startStudioLive({preview=false}={}){
     })};
   }
   let lastRaf=0,rafId=null;
+  const intervals=[];
+  const every=(fn,ms)=>{
+    const id=window.setInterval(fn,ms);
+    intervals.push(id);
+    return id;
+  };
+  function requestReload(reason){
+    if(liveState.closed||liveState.reloading)return false;
+    // Never reload a genuinely offline browser or a throttled hidden tab.
+    if(document.visibilityState==="hidden"||navigator.onLine===false)return false;
+    const time=Date.now();
+    let history=[];
+    try{
+      const saved=JSON.parse(sessionStorage.getItem(RECOVERY_SESSION_KEY)||"[]");
+      history=Array.isArray(saved)?saved.filter(x=>
+        Number.isFinite(x)&&time-x>=0&&time-x<STUDIO_WATCHDOG.retryWindowMs):[];
+    }catch{/* Storage can be blocked by OBS/CEF privacy settings. */}
+    if(history.length>=STUDIO_WATCHDOG.maxReloads){
+      toast("Falha prolongada. Reabra a fonte de navegador para recuperar.");
+      return false;
+    }
+    try{sessionStorage.setItem(RECOVERY_SESSION_KEY,
+      JSON.stringify([...history,time]));}catch{/* No persistent local storage needed. */}
+    liveState.reloading=true;
+    console.warn("[studio-v5/watchdog] Recuperação:",reason);
+    toast("Reconectando a transmissão...");
+    location.reload();
+    return true;
+  }
+  async function supervisor(){
+    if(liveState.closed||liveState.reloading||liveState.monitoring)return;
+    if(document.visibilityState==="hidden"||navigator.onLine===false)return;
+    liveState.monitoring=true;
+    try{
+      const now=performance.now();
+      if(!preview&&now-liveState.lastPacketAt>=STUDIO_WATCHDOG.packetProbeMs&&
+        now-liveState.watchdogLastProbeAt>=STUDIO_WATCHDOG.intervalMs){
+        liveState.watchdogLastProbeAt=now;
+        await fetchLatest();
+      }
+      const reason=studioRecoveryReason({
+        now:performance.now(),lastGoodFrameAt:liveState.lastGoodFrameAt,
+        lastPacketAt:liveState.lastPacketAt,startedAt:liveState.startedAt,
+        hasState:Boolean(liveState.source),preview,
+        visible:document.visibilityState!=="hidden",
+        online:navigator.onLine!==false,
+        contextLostAt:liveState.contextLostAt
+      });
+      if(reason)requestReload(reason);
+    }catch(error){
+      // Network / timer failures must not terminate the animation loop.
+      console.warn("[studio-v5/watchdog]",String(error?.message??error).slice(0,100));
+    }finally{liveState.monitoring=false;}
+  }
+  const canvas=$("studioCanvas");
+  const onContextLost=event=>{
+    event.preventDefault();
+    liveState.contextLostAt=performance.now();
+    console.warn("[studio-v5/watchdog] WebGL context lost");
+  };
+  const onContextRestored=()=>{
+    liveState.contextLostAt=null;
+    liveState.lastGoodFrameAt=performance.now();
+  };
+  canvas.addEventListener("webglcontextlost",onContextLost);
+  canvas.addEventListener("webglcontextrestored",onContextRestored);
+
   const previewState=preview?createStudioState({connected:false,seed:5001}):null;
   if(previewState){
     studioFillBots(previewState,{count:100});
@@ -427,11 +531,11 @@ export async function startStudioLive({preview=false}={}){
     }
     // An SSE connection is naturally retried; polling also covers captive
     // networks and clients that do not expose EventSource.
-    window.setInterval(()=>{
+    every(()=>{
       if(!liveState.closed&&performance.now()-liveState.lastPacketAt>3500)
         void fetchLatest();
     },4000);
-    window.setInterval(()=>{if(!liveState.closed)void loadProfiles();},16000);
+    every(()=>{if(!liveState.closed)void loadProfiles();},16000);
   }
   function loop(now){
     if(liveState.closed)return;
@@ -449,39 +553,62 @@ export async function startStudioLive({preview=false}={}){
     }
     const state=liveState.source;
     if(!state)return;
-    const visual=interpolate(state,now);
-    world.update(visual,Math.max(dt,.001));
-    if(now-liveState.lastUiAt>210){
-      updateUi(state);liveState.lastUiAt=now;
-    }
-    if(now-liveState.lastPlateAt>125){
-      renderPlates(visual);liveState.lastPlateAt=now;
-    }
-    liveState.fpsAccum+=dt;liveState.fpsFrames++;
-    if(now-liveState.lastPerfAt>4200){
-      const fps=liveState.fpsFrames/Math.max(.001,liveState.fpsAccum);
-      const target=fps<25?Math.max(.62,liveState.qualityScale-.1):
-        fps>42?Math.min(1,liveState.qualityScale+.05):liveState.qualityScale;
-      liveState.qualityScale=target;
-      world.setRenderScale(target);
-      liveState.fpsFrames=0;liveState.fpsAccum=0;liveState.lastPerfAt=now;
+    try{
+      const visual=interpolate(state,now);
+      world.update(visual,Math.max(dt,.001));
+      liveState.lastGoodFrameAt=performance.now();
+      liveState.contextLostAt=null;
+      if(now-liveState.lastUiAt>210){
+        updateUi(state);liveState.lastUiAt=now;
+      }
+      if(now-liveState.lastPlateAt>125){
+        renderPlates(visual);liveState.lastPlateAt=now;
+      }
+      liveState.fpsAccum+=dt;liveState.fpsFrames++;
+      if(now-liveState.lastPerfAt>4200){
+        const fps=liveState.fpsFrames/Math.max(.001,liveState.fpsAccum);
+        const target=fps<25?Math.max(.62,liveState.qualityScale-.1):
+          fps>42?Math.min(1,liveState.qualityScale+.05):liveState.qualityScale;
+        liveState.qualityScale=target;
+        world.setRenderScale(target);
+        liveState.fpsFrames=0;liveState.fpsAccum=0;liveState.lastPerfAt=now;
+      }
+    }catch(error){
+      liveState.renderErrors++;
+      if(liveState.renderErrors===1||liveState.renderErrors%300===0)
+        console.warn("[studio-v5/frame] Renderização:",
+          String(error?.message??error).slice(0,150));
+      // Preserve the next animation tick; the 30s watchdog decides recovery.
     }
   }
-  window.addEventListener("resize",()=>{if(!liveState.closed)world.resize();});
-  window.addEventListener("pagehide",()=>{
+  const onResize=()=>{if(!liveState.closed)world.resize();};
+  window.addEventListener("resize",onResize);
+  function cleanup(){
+    if(liveState.closed)return;
     liveState.closed=true;
     cancelAnimationFrame(rafId);
+    for(const timer of intervals)clearInterval(timer);
     clearTimeout(liveState.toastTimer);
     liveState.connection?.close();
+    canvas.removeEventListener("webglcontextlost",onContextLost);
+    canvas.removeEventListener("webglcontextrestored",onContextRestored);
+    window.removeEventListener("resize",onResize);
     world.dispose();
-  },{once:true});
+  }
+  window.addEventListener("pagehide",cleanup,{once:true});
   window.__studioV5Debug=preview?{
     getState:()=>liveState.source,
     getSceneStats:()=>world.stats(),
     getPlateCount:()=>liveState.plateNodes.size,
-    getMapLength:()=>ui.mapPath.getTotalLength()
+    getMapLength:()=>ui.mapPath.getTotalLength(),
+    getWatchdog:()=>({
+      lastGoodFrameAt:liveState.lastGoodFrameAt,
+      lastPacketAt:liveState.lastPacketAt,
+      renderErrors:liveState.renderErrors,
+      reloading:liveState.reloading
+    })
   }:undefined;
+  every(()=>{void supervisor();},STUDIO_WATCHDOG.intervalMs);
   rafId=requestAnimationFrame(loop);
-  return {world,stage,stop:()=>{liveState.closed=true;
-    cancelAnimationFrame(rafId);liveState.connection?.close();world.dispose();}};
+  return {world,stage,stop:cleanup};
 }

@@ -13,7 +13,7 @@ import {createLiveDiagnostics} from "./telemetry.js";
 import {createLikeBuffer,applyLikeBatch,applySimulatedLikes} from "../src/likes.js";
 import {parseRaceJoin} from "../src/roblox-names.js";
 import {createRobloxLookup,RobloxLookupError} from "./roblox-users.js";
-import {createStudioRuntime} from "./studio-runtime.js";
+import {createStudioRuntime,openStudioStore} from "./studio-runtime.js";
 import {createStudioLiveBridge} from "./studio-live.js";
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
@@ -85,9 +85,16 @@ export async function createApp(opts={}){
   // state and existing /api/* routes are unchanged while UI/QA is unfinished.
   const studioV5Enabled=opts.studioV5Enabled===true||
     (opts.studioV5Enabled!==false&&process.env.STUDIO_V5_ENABLED==="true");
+  // Studio V5 persists independently of the legacy state (separate table).
+  // Fail closed in a production V5 deployment if no durable DB is configured.
+  const studioStore=studioV5Enabled?(opts.studioStore??await openStudioStore({
+    requireDatabase:opts.studioRequireDatabase??(
+      process.env.NODE_ENV==="production"&&process.env.STUDIO_V5_ENABLED==="true")
+  })):null;
+  const checkpoint=studioStore?.enabled?await studioStore.load():null;
   const studio=studioV5Enabled?createStudioRuntime({
-    adminKey:secret,autoStart:true,
-    sourceConnected:false
+    adminKey:secret,autoStart:true,sourceConnected:false,
+    store:studioStore,checkpoint
   }):null;
   const studioLive=studio&&!opts.disableTikTok?createStudioLiveBridge({
     studio,lookup:robloxLookup,
@@ -215,6 +222,7 @@ export async function createApp(opts={}){
         storage:storage.enabled?"postgres":"memory",storageHealthy:storage.enabled&&!lastPersistError,
         giftsProcessed:stats.giftsProcessed,giftBoosts:stats.giftBoosts,
         persistedAt:lastPersistSuccess,unflushedChanges:storage.enabled&&savedRevision!==revision,
+        studio:studio?.storageHealth()??null,
         tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected,
         liveEventsMode:realLiveEnabled?"enabled":"staged"});
       return;
@@ -445,8 +453,10 @@ export async function createApp(opts={}){
     async close(){
       if(closed)return;closed=true;
       clearInterval(heartbeat);clearInterval(ssePing);
-      studio?.stop();
       if(studioLive)await studioLive.close();
+      const studioSaved=await studio?.shutdown();
+      if(studio&&studioSaved===false)
+        console.error("[studio-v5/storage] Encerramento sem snapshot confirmado");
       for(const client of subscribers){try{client.end();}catch{}}
       subscribers.clear();
       if(bridge)await bridge.close();
@@ -463,9 +473,27 @@ export async function createApp(opts={}){
 async function boot(){
   const app=await createApp();
   await app.listen();
-  const shutdown=async()=>{await app.close();process.exit(0);};
-  process.once("SIGTERM",shutdown);
-  process.once("SIGINT",shutdown);
+  let stopping=false;
+  const shutdown=async(code=0)=>{
+    if(stopping)return;stopping=true;
+    try{await app.close();}catch(error){
+      console.error("[server] Erro ao encerrar:",String(error?.message??error).slice(0,180));
+      code=1;
+    }
+    process.exitCode=code;
+  };
+  process.once("SIGTERM",()=>{void shutdown(0);});
+  process.once("SIGINT",()=>{void shutdown(0);});
+  // Continuing after a fatal exception could corrupt a live race.
+  // Persist the last snapshot and let the host restart the process instead.
+  process.once("uncaughtException",error=>{
+    console.error("[server] Exceção fatal:",error);
+    void shutdown(1);
+  });
+  process.once("unhandledRejection",error=>{
+    console.error("[server] Rejeição não tratada:",error);
+    void shutdown(1);
+  });
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   boot().catch(e=>{console.error(e);process.exit(1);});

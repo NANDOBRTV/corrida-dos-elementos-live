@@ -343,8 +343,8 @@ body.studio-live-active{
    supplied video. No networked gifting is simulated as real activity. */
 .studio-live-active .studio-feature-card{
   position:absolute;
-  left:50%;top:21%;
-  width:25%;min-width:0;
+  left:50%;top:17.2%;
+  width:21%;min-width:0;
   padding:1.7cqw 1.2cqw;
   transform:translateX(-50%);
   background:rgba(15,20,34,.94);
@@ -384,4 +384,10 @@ body.studio-live-active{
 }
 @media(prefers-reduced-motion:reduce){
   .studio-live-active .studio-feature-card{animation:none}
+}
+
+/* Low-resolution hand-painted profile art stays sharply pixelated. */
+.studio-live-active .studio-avatar img,
+.studio-live-active .studio-feature-avatar{
+  image-rendering:pixelated;
 }

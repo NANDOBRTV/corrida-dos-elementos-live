@@ -9,6 +9,7 @@ import {
 } from "./studio-camera.js";
 import {buildStudioEffectParts,STUDIO_EFFECT_LIMITS} from "./studio-effects.js";
 import {resolveVehicle,vehicleForBot} from "./vehicles.js";
+import {createRealisticVehicleFleet} from "./studio-vehicle-models.js";
 
 export const STUDIO_SCENE_LIMITS=Object.freeze({
   maxRunners:100,avatarParts:30,roadSegments:78,
@@ -276,6 +277,11 @@ export function createStudioScene(canvas,{quality="balanced",
   effects.renderOrder=3;
   const avatars=createBatch("studio-100-runner-voxel-batch",fixedGeometry,
     materials.avatar,LIVE_STUDIO.maxRunners*STUDIO_SCENE_LIMITS.avatarParts);
+  // Replaces boxy silhouette, square tires and absent motorcycle pilots with
+  // shared curved meshes and dedicated helmeted riders. No model downloads.
+  const realFleet=createRealisticVehicleFleet(THREE,scene,{
+    capacity:LIVE_STUDIO.maxRunners
+  });
   // Visual-only leading-runner halo: a segmented orange floor ring and
   // tall icy speed streaks. It never alters speeds, prizes, or gifts.
   const spotlight=createBatch("studio-leader-spotlight-ring",fixedGeometry,
@@ -462,6 +468,7 @@ export function createStudioScene(canvas,{quality="balanced",
     const t=Number(state.raceMs)||0;
     const results=Array.isArray(state.results)?state.results:[];
     const positions=studioCrowdPoses(state);
+    realFleet.begin();
     for(let i=0;i<entries.length;i++){
       const r=entries[i],vehicle=resolveVehicle(r.vehicleId)||vehicleForBot(i);
       const parts=blocksFor(vehicle);
@@ -481,6 +488,8 @@ export function createStudioScene(canvas,{quality="balanced",
       tmp.rotation.set(0,rootAngle,lean);
       tmp.scale.set(scale,scale,scale);
       tmp.updateMatrix();rootMatrix.copy(tmp.matrix);
+      realFleet.renderVehicle(vehicle,r.id,rootMatrix,
+        Number(r.progress)||0,running);
       const colorKey=String(r.color)+"|"+vehicle.id;
       if(lastAvatarIds[i]!==r.id||currentColors[i]!==colorKey){
         const palette=paletteFor(r,vehicle);
@@ -494,7 +503,13 @@ export function createStudioScene(canvas,{quality="balanced",
       for(let part=0;part<VEHICLE_PARTS;part++){
         const meta=parts[part];
         localPos.set(meta.p[0],meta.p[1],meta.p[2]);
-        partScale.set(meta.s[0],meta.s[1],meta.s[2]);
+        // Keep original crisp headlamps, trim and details but let the smooth
+        // body, curved tinted cabin and round tires replace opaque voxels.
+        const replaced=vehicle.kind==="car"?
+          ["body","glass","roof","wheel","rim"].includes(meta.style):
+          ["wheel","rim"].includes(meta.style);
+        partScale.set(replaced?0:meta.s[0],replaced?0:meta.s[1],
+          replaced?0:meta.s[2]);
         const spinning=running&&(meta.role==="spoke"||meta.role==="wheel");
         const glassAngle=meta.role==="windshield"?-.34:
           meta.role==="rearWindow"?.27:0;
@@ -507,6 +522,7 @@ export function createStudioScene(canvas,{quality="balanced",
         avatars.setMatrixAt(i*VEHICLE_PARTS+part,composed);
       }
     }
+    realFleet.finish();
     avatars.count=entries.length*VEHICLE_PARTS;
     avatars.instanceMatrix.needsUpdate=true;
     if(avatars.instanceColor)avatars.instanceColor.needsUpdate=true;
@@ -669,6 +685,7 @@ export function createStudioScene(canvas,{quality="balanced",
       runners:avatars.count/STUDIO_SCENE_LIMITS.avatarParts,
       courseRebuilds:courseBuilds,avatarColorChanges,
       effectParts,spotlightParts:spotlight.count,
+      ...realFleet.stats(),
       decorations:decorations.count,renderScale,mapId:biomeId};
   }
   function dispose(){
@@ -677,6 +694,7 @@ export function createStudioScene(canvas,{quality="balanced",
       avatars,decorations,effects,spotlight]){
       scene.remove(node);node.dispose();
     }
+    realFleet.dispose();
     scene.remove(ground);ground.geometry.dispose();
     scene.remove(snow);snow.geometry.dispose();snow.material.dispose();
     for(const child of podium.children)child.material.dispose();

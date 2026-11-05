@@ -325,6 +325,9 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
       renderedCars++;totalWheels+=4;
       if(isHeroCar(vehicle.id)){
         heroModels++;heroIds.add(vehicle.id);
+        if(vehicle.id==="car-uno"){
+          ladderRungs+=12;heroDetailParts+=18;
+        }
       }
       return;
     }

@@ -514,9 +514,11 @@ export function createStudioScene(canvas,{quality="balanced",
         localPos.set(meta.p[0],meta.p[1],meta.p[2]);
         // Keep original crisp headlamps, trim and details but let the smooth
         // body, curved tinted cabin and round tires replace opaque voxels.
-        const replaced=hasPremium||vehicle.kind==="car"?
-          ["body","glass","roof","wheel","rim"].includes(meta.style):
-          ["wheel","rim"].includes(meta.style);
+        const replaced=hasPremium||(
+          vehicle.kind==="car"?
+            ["body","glass","roof","wheel","rim"].includes(meta.style):
+            ["wheel","rim"].includes(meta.style)
+        );
         partScale.set(replaced?0:meta.s[0],replaced?0:meta.s[1],
           replaced?0:meta.s[2]);
         const spinning=running&&(meta.role==="spoke"||meta.role==="wheel");

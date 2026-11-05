@@ -293,7 +293,15 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     const start=trackCenter(0);
     courseStart.position.set(start.x,start.y,start.z);
     courseStart.rotation.y=start.heading;
-    block(courseStart,0,.12,0,11.6,.06,.9,0xeef7ff);
+    // 50 participants make 17 staggered rows, extending ~42m BEHIND 0m.
+    // Their staging area must also be dark asphalt, never exposed snow.
+    const staging=block(courseStart,0,.07,-25,11.7,.12,52,
+      biome(mapId).road);
+    staging.name="starting-grid-asphalt";
+    for(const x of [-.925,.925])for(let row=1;row<=17;row++){
+      block(courseStart,x,.145,-row*2.65+.6,.065,.012,1.15,0xb3bcc7);
+    }
+    block(courseStart,0,.16,0,11.6,.05,.9,0xeef7ff);
     const gantry=trackCenter(TRACK_LENGTH);
     finishGroup.position.set(gantry.x,gantry.y,gantry.z);
     finishGroup.rotation.y=gantry.heading;

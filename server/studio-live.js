@@ -32,7 +32,13 @@ function normalizeIdentity(event){
     "Participante";
   // Platform-internal identifiers must not leak if a provider accidentally
   // mirrors an ID into the display-name field. Short ordinary names stay valid.
-  const name=raw.length>=8&&nickname.includes(raw)?"Participante":nickname;
+  const safeNickname=raw.length>=8&&nickname.includes(raw)?"Participante":nickname;
+  // A public @handle is the username spectators actually recognize above
+  // their chosen car. Never publish the provider's internal numeric userId.
+  const uniqueId=clean(event.user?.uniqueId??"",24).replace(/^@/,"");
+  const handle=/^[a-zA-Z0-9._]{2,24}$/.test(uniqueId)&&
+    uniqueId.toLowerCase()!==raw.toLowerCase()?"@"+uniqueId:null;
+  const name=handle??safeNickname.replace(/[\\u0000-\\u001f]/g,"").slice(0,28);
   return {raw,name};
 }
 function messageId(event){

@@ -1,5 +1,5 @@
-// Studio V5 — one fixed, smoothed chase camera. Pure mathematics; no DOM/WebGL.
-// The only intentional individual shot is the winner's 8-second podium.
+// Studio V5 — one smoothed camera with 10s vehicle closeups, top-three shots
+// and a final winner podium. Pure mathematics; no DOM/WebGL.
 import {LIVE_STUDIO,LANES,LANE_WIDTH} from "./config.js";
 
 export const STUDIO_CAMERA=Object.freeze({
@@ -141,6 +141,50 @@ export function studioCrowdPoses(state){
   return poses;
 }
 
+
+// Directorial cycle during RUNNING: ten seconds highlighting one randomly
+// selected (seeded/deterministic) car, eight seconds framing the first three.
+// The state is read-only and shot changes use the same smoothed camera.
+export const STUDIO_SHOTS=Object.freeze({
+  closeupMs:10000,topThreeMs:8000,
+  closeDistance:6.8,closeHeight:3.9,closeSide:2.3,
+  leadersDistance:17.0,leadersHeight:9.5
+});
+function shotHash(input){
+  let value=2166136261;
+  for(const symbol of String(input)){
+    value=Math.imul(value^symbol.charCodeAt(0),16777619);
+  }
+  return value>>>0;
+}
+export function studioCameraShot(state){
+  const s=state?.state??state??{};
+  if(s.phase!=="RUNNING")return {mode:"CHASE",featuredId:null,focusIds:[]};
+  const runners=Array.isArray(s.active)?s.active:[];
+  if(!runners.length)return {mode:"CHASE",featuredId:null,focusIds:[]};
+  const cycleMs=STUDIO_SHOTS.closeupMs+STUDIO_SHOTS.topThreeMs;
+  const raceMs=Math.max(0,finite(Number(s.raceMs)));
+  const cycle=Math.floor(raceMs/cycleMs);
+  const offset=raceMs%cycleMs;
+  const ranked=[...runners].sort((a,b)=>{
+    const aFinish=Number.isFinite(a.finishMs)?a.finishMs:Infinity;
+    const bFinish=Number.isFinite(b.finishMs)?b.finishMs:Infinity;
+    if(aFinish!==bFinish)return aFinish-bFinish;
+    return Number(b.progress||0)-Number(a.progress||0)||
+      String(a.id).localeCompare(String(b.id));
+  });
+  if(offset>=STUDIO_SHOTS.closeupMs){
+    return {mode:"TOP_THREE",featuredId:null,
+      focusIds:ranked.slice(0,3).map(r=>r.id),cycle};
+  }
+  const cars=runners.filter(r=>r.vehicleKind!=="motorcycle");
+  const pool=(cars.length?cars:runners).slice().sort((a,b)=>
+    String(a.id).localeCompare(String(b.id)));
+  const chosen=pool[shotHash(String(s.seed)+"|"+s.round+"|"+cycle+"|car")%pool.length];
+  return {mode:"VEHICLE_CLOSEUP",featuredId:chosen.id,
+    focusIds:[chosen.id],cycle};
+}
+
 export function cameraTargetFor(state){
   const s=state?.state??state??{};
   const runners=Array.isArray(s.active)?s.active:[];
@@ -173,6 +217,48 @@ export function cameraTargetFor(state){
         target:{x:at.x,y:at.y+1.35,z:at.z},
         mode:"WINNER_PODIUM",leaderId:winnerId,
         heading:at.heading
+      };
+    }
+  }
+  const shot=studioCameraShot(s);
+  if(shot.mode==="VEHICLE_CLOSEUP"){
+    const index=runners.findIndex(r=>r.id===shot.featuredId);
+    const chosen=runners[index];
+    if(chosen){
+      const place=studioCrowdPoses(s).get(chosen.id)||
+        studioRunnerPose(chosen,index,"RUNNING");
+      const dx=Math.sin(place.heading),dz=Math.cos(place.heading);
+      const rightX=Math.cos(place.heading),rightZ=-Math.sin(place.heading);
+      return {
+        position:{
+          x:place.x-dx*STUDIO_SHOTS.closeDistance+
+            rightX*STUDIO_SHOTS.closeSide,
+          y:place.y+STUDIO_SHOTS.closeHeight,
+          z:place.z-dz*STUDIO_SHOTS.closeDistance+
+            rightZ*STUDIO_SHOTS.closeSide
+        },
+        target:{x:place.x,y:place.y+1.05,z:place.z},
+        mode:"VEHICLE_CLOSEUP",leaderId:chosen.id,heading:place.heading
+      };
+    }
+  }
+  if(shot.mode==="TOP_THREE"&&shot.focusIds.length){
+    const poses=studioCrowdPoses(s);
+    const focused=shot.focusIds.map(id=>poses.get(id)).filter(Boolean);
+    if(focused.length){
+      const average={
+        x:focused.reduce((n,p)=>n+p.x,0)/focused.length,
+        y:focused.reduce((n,p)=>n+p.y,0)/focused.length,
+        z:focused.reduce((n,p)=>n+p.z,0)/focused.length
+      };
+      const heading=focused[0].heading;
+      const dx=Math.sin(heading),dz=Math.cos(heading);
+      return {
+        position:{x:average.x-dx*STUDIO_SHOTS.leadersDistance,
+          y:average.y+STUDIO_SHOTS.leadersHeight,
+          z:average.z-dz*STUDIO_SHOTS.leadersDistance},
+        target:{x:average.x,y:average.y+1.05,z:average.z+dz*3},
+        mode:"TOP_THREE",leaderId:shot.focusIds[0],heading
       };
     }
   }
@@ -224,7 +310,7 @@ export function studioVisibleNameplates(state,{max=12,featuredId=null}={}){
   const active=Array.isArray(s.active)?s.active:[];
   const sorted=[...active].sort((a,b)=>Number(b.progress||0)-Number(a.progress||0)||
     String(a.id).localeCompare(String(b.id)));
-  const count=clamp(Math.trunc(finite(Number(max),12)),0,12);
+  const count=clamp(Math.trunc(finite(Number(max),12)),0,100);
   const selected=sorted.slice(0,count);
   if(featuredId){
     const selectedRunner=active.find(r=>r.id===featuredId);
@@ -236,6 +322,7 @@ export function studioVisibleNameplates(state,{max=12,featuredId=null}={}){
   const poses=studioCrowdPoses(s);
   return selected.map(r=>({
     id:r.id,name:String(r.name??"Veículo").slice(0,28),
+    username:String(r.driverName??(r.isBot?"BOT":"Participante")).slice(0,28),
     vehicleId:r.vehicleId??null,
     rank:positions.get(r.id),color:r.color,
     pose:poses.get(r.id)??studioRunnerPose(r,active.indexOf(r),s.phase,results)

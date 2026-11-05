@@ -5,11 +5,12 @@ import * as THREE from "three";
 import {LIVE_STUDIO,BIOME_ORDER,RUNNER_COLORS} from "./config.js";
 import {
   STUDIO_CAMERA,studioCourseAt,studioRunnerPose,studioCrowdPoses,
-  advanceStudioCamera,studioVisibleNameplates
+  studioCameraShot,advanceStudioCamera,studioVisibleNameplates
 } from "./studio-camera.js";
 import {buildStudioEffectParts,STUDIO_EFFECT_LIMITS} from "./studio-effects.js";
 import {resolveVehicle,vehicleForBot} from "./vehicles.js";
 import {createRealisticVehicleFleet} from "./studio-vehicle-models.js";
+import {createPremiumCars} from "./studio-premium-cars.js";
 
 export const STUDIO_SCENE_LIMITS=Object.freeze({
   maxRunners:100,avatarParts:30,roadSegments:78,
@@ -282,6 +283,13 @@ export function createStudioScene(canvas,{quality="balanced",
   const realFleet=createRealisticVehicleFleet(THREE,scene,{
     capacity:LIVE_STUDIO.maxRunners
   });
+  // Licensed high-fidelity cars are only used in high/ultra mode, with a
+  // cheap procedural fallback. Rendering remains possible with zero internet.
+  const premium=createPremiumCars(THREE,scene,{
+    enabled:quality==="high"||quality==="ultra",
+    maxDetailed:6
+  });
+  premium.warmAll();
   // Visual-only leading-runner halo: a segmented orange floor ring and
   // tall icy speed streaks. It never alters speeds, prizes, or gifts.
   const spotlight=createBatch("studio-leader-spotlight-ring",fixedGeometry,
@@ -488,8 +496,9 @@ export function createStudioScene(canvas,{quality="balanced",
       tmp.rotation.set(0,rootAngle,lean);
       tmp.scale.set(scale,scale,scale);
       tmp.updateMatrix();rootMatrix.copy(tmp.matrix);
+      const hasPremium=premium.isVisible(r.id);
       realFleet.renderVehicle(vehicle,r.id,rootMatrix,
-        Number(r.progress)||0,running);
+        Number(r.progress)||0,running,hasPremium);
       const colorKey=String(r.color)+"|"+vehicle.id;
       if(lastAvatarIds[i]!==r.id||currentColors[i]!==colorKey){
         const palette=paletteFor(r,vehicle);
@@ -505,7 +514,7 @@ export function createStudioScene(canvas,{quality="balanced",
         localPos.set(meta.p[0],meta.p[1],meta.p[2]);
         // Keep original crisp headlamps, trim and details but let the smooth
         // body, curved tinted cabin and round tires replace opaque voxels.
-        const replaced=vehicle.kind==="car"?
+        const replaced=hasPremium||vehicle.kind==="car"?
           ["body","glass","roof","wheel","rim"].includes(meta.style):
           ["wheel","rim"].includes(meta.style);
         partScale.set(replaced?0:meta.s[0],replaced?0:meta.s[1],
@@ -651,6 +660,7 @@ export function createStudioScene(canvas,{quality="balanced",
       }
       snowGeometry.attributes.position.needsUpdate=true;
     }
+    premium.update(state,studioCrowdPoses(state),studioCameraShot(state));
     const crowdPoses=updateAvatars(state);
     updateEffects(state,mid,crowdPoses);
     updateSpotlight(state,crowdPoses);
@@ -685,7 +695,7 @@ export function createStudioScene(canvas,{quality="balanced",
       runners:avatars.count/STUDIO_SCENE_LIMITS.avatarParts,
       courseRebuilds:courseBuilds,avatarColorChanges,
       effectParts,spotlightParts:spotlight.count,
-      ...realFleet.stats(),
+      ...realFleet.stats(),...premium.stats(),
       decorations:decorations.count,renderScale,mapId:biomeId};
   }
   function dispose(){
@@ -694,7 +704,7 @@ export function createStudioScene(canvas,{quality="balanced",
       avatars,decorations,effects,spotlight]){
       scene.remove(node);node.dispose();
     }
-    realFleet.dispose();
+    premium.dispose();realFleet.dispose();
     scene.remove(ground);ground.geometry.dispose();
     scene.remove(snow);snow.geometry.dispose();snow.material.dispose();
     for(const child of podium.children)child.material.dispose();

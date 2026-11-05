@@ -3,7 +3,7 @@ import {createStudioScene} from "./studio-scene.js";
 import {studioCourseAt,studioCameraShot,STUDIO_SHOTS} from "./studio-camera.js";
 import {createStudioState,studioFillBots,studioTick,studioRank,studioGift,studioJoin} from "./studio-engine.js";
 import {LIVE_STUDIO} from "./config.js";
-import {resolveVehicle,parseVehicleChoice} from "./vehicles.js";
+import {resolveVehicle,parseVehicleChoice,HERO_CAR_IDS} from "./vehicles.js";
 
 const $=id=>document.getElementById(id);
 const clamp=(n,min,max)=>Math.min(max,Math.max(min,n));
@@ -708,10 +708,28 @@ export async function startStudioLive({preview=false}={}){
   const requestedCrowd=Number(params.get("crowd"));
   const previewBots=Number.isInteger(requestedCrowd)&&
     requestedCrowd>=1&&requestedCrowd<=100?requestedCrowd:100;
+  // Explicit owner-only demonstration mode. Real chat registrations remain
+  // selected by the viewer, never reassigned or randomly substituted.
+  const heroPreview=preview&&params.get("hero")==="1";
+  const applyHeroPreview=state=>{
+    if(!heroPreview||!state?.active)return;
+    let index=0;
+    for(const runner of state.active){
+      if(!runner.isBot)continue;
+      const vehicle=resolveVehicle(HERO_CAR_IDS[index%HERO_CAR_IDS.length]);
+      index++;
+      if(vehicle&&runner.vehicleId!==vehicle.id){
+        runner.name=vehicle.name;
+        runner.vehicleId=vehicle.id;
+        runner.vehicleKind=vehicle.kind;
+      }
+    }
+  };
   const previewState=preview?createStudioState({connected:false,seed:5001}):null;
   let previewGiftBucket=-1,previewGiftRound=-1;
   if(previewState){
     studioFillBots(previewState,{count:previewBots});
+    applyHeroPreview(previewState);
     applyState(previewState);
   }
   async function fetchLatest(){
@@ -756,6 +774,7 @@ export async function startStudioLive({preview=false}={}){
       // while the real engine and ?crowd=100 still support all 100 slots.
       if(previewBots<100&&previewState.active.length>previewBots)
         previewState.active.length=previewBots;
+      applyHeroPreview(previewState);
       if(previewGiftRound!==previewState.round){
         previewGiftRound=previewState.round;previewGiftBucket=-1;
       }

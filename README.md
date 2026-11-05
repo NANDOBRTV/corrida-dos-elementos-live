@@ -1,3 +1,9 @@
+### Câmera de corrida baseada na sequência do vídeo
+
+Além da largada frontal em plano aberto e da troca imediata para câmera traseira, o acompanhamento alterna **câmera baixa atrás do pelotão, enquadramento mais próximo e duas tomadas aéreas amplas**, com movimentos suaves. O padrão segue o ritmo visual do vídeo de referência sem reproduzir literalmente assets, nome de plataforma ou o layout do criador. O close manual de 5s e os closes automáticos de 0–10s continuam prioritários. São apenas posições de uma câmera 3D existente; nenhum modelo extra é carregado.
+
+---
+
 ## Versão 4.1 — largada e enquadramento com base no vídeo enviado
 
 A referência de 66 segundos mostra cerca de **10 corredores lado a lado** na primeira fileira, ampla pista ocupando ~80% da tela vertical, câmera frontal fixa, contagem central grande e uma troca imediata para câmera traseira no "GO!". A versão web agora usa **10 faixas (10×1,75m)**, asfalto com 18,9m de largura e **até cinco fileiras para 50 jogadores**; 1º–10º na frente, depois 11º–20º etc. Os três primeiros continuam na fileira da frente. O tempo oficial de inscrição mantém **60 segundos**, seguido por **5 segundos com contagem 5,4,3,2,1** e "GO!" grande por 1 segundo.

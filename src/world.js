@@ -5,6 +5,7 @@ import {QUALITY_SETTINGS} from "./performance.js";
 import {trackCenter,trackPoint,trackBounds,COURSE_MILESTONES} from "./track-path.js";
 import {visualStartingDistance,gridTrackPoint,GRID_COLUMNS,GRID_ROW_GAP} from "./start-grid.js";
 import {createCameraDirector} from "./camera-director.js";
+import {cameraShot} from "./broadcast-camera.js";
 import {snowbankProfile,clearOfWTrack} from "./snow-clearance.js";
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
@@ -571,12 +572,14 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     const overview=Math.min(1,Math.max(0,(yawDelta-.22)/1.30));
     // Camera remains anchored to the pack's own tangent, not a different arm
     // of a hairpin. This keeps 50 avatars in frame during 180° turns.
-    const backDistance=26+overview*40;
-    const height=13+overview*50;
-    const forwardDistance=12+overview*13;
+    // Low rear-follow, tighter pack view, and two broad aerial shots
+    // follow the rhythms observed in the supplied 66-second reference.
+    const shot=cameraShot(race.phase==="RUNNING"?race.raceMs:0,overview);
+    const backDistance=shot.back,height=shot.height,forwardDistance=shot.ahead;
     const forwardX=Math.sin(center.heading),forwardZ=Math.cos(center.heading);
-    positionTarget.set(center.x-forwardX*backDistance,
-      center.y+height,center.z-forwardZ*backDistance);
+    const sideX=Math.cos(center.heading),sideZ=-Math.sin(center.heading);
+    positionTarget.set(center.x-forwardX*backDistance+sideX*shot.lateral,
+      center.y+height,center.z-forwardZ*backDistance+sideZ*shot.lateral);
     lookTarget.set(center.x+forwardX*forwardDistance,
       center.y+1.5,center.z+forwardZ*forwardDistance);
     // From opening the registration lobby until the countdown reaches zero:

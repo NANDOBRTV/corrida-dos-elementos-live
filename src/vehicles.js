@@ -67,6 +67,7 @@ export function normalizeVehicleText(value){
 for(const vehicle of VEHICLES){
   lookup.set(normalizeVehicleText(vehicle.name),vehicle);
   lookup.set(normalizeVehicleText(vehicle.id),vehicle);
+  lookup.set(normalizeVehicleText(vehicle.id.replace(/^(car|moto)-/,"")),vehicle);
 }
 for(const [alias,code] of Object.entries(aliases)){
   const vehicle=VEHICLES.find(v=>v.id.endsWith("-"+code));

@@ -23,3 +23,12 @@ test("Humanoid visuals cannot change the authoritative 5,000m race",()=>{
   assert.deepEqual(game,original);
   assert.equal(game.trackLength,400);
 });
+
+test("Frontal countdown avatars have original visible faces without new GPU draw calls",async()=>{
+  const {readFile}=await import("node:fs/promises");
+  const src=await readFile(new URL("../src/avatars.js",import.meta.url),"utf8");
+  assert.ok(src.includes('part(body,[-.19,1.83,.425]'));
+  assert.ok(src.includes('part(body,[.19,1.83,.425]'));
+  assert.ok(src.includes('part(body,[0,1.54,.425]'));
+  assert.ok(src.includes('InstancedMesh'));
+});

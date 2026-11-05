@@ -90,6 +90,12 @@ export function createAvatars(scene,{quality="balanced"}={}) {
     // First instance deliberately preserves the official player's color.
     part(body,[0,.87,0],[.92,.96,.55],r.color); // R6-like rectangular torso
     part(body,[0,1.72,0],[.84,.82,.80],skin); // oversized cuboid head
+    // Add clearly visible front-facing features. Without these cubes the
+    // countdown frontal shot looked like the back of a featureless head.
+    // Instanced into the existing single voxel draw call.
+    part(body,[-.19,1.83,.425],[.115,.13,.035],0x192029);
+    part(body,[.19,1.83,.425],[.115,.13,.035],0x192029);
+    part(body,[0,1.54,.425],[.22,.048,.025],0x80564c);
     const arms=[],legs=[];
     for(const side of [-1,1]){
       const arm=new THREE.Group();arm.position.set(side*.65,1.22,0);body.add(arm);

@@ -1,3 +1,9 @@
+### Detalhes dos avatares na câmera frontal
+
+Os avatares originais do simulador web agora têm olhos e boca simples, visíveis de frente na contagem regressiva. Isso evita a aparência de cabeças sem rosto e não importa modelos oficiais do Roblox. As pequenas peças são adicionadas ao lote 3D já existente, sem novas draw calls.
+
+---
+
 ### Visibilidade na largada
 
 A revisão das capturas reais do Android mostrou que o pórtico de chegada estava à frente dos personagens. Agora o pórtico é ocultado no lobby e durante a contagem regressiva, reaparecendo perto do final da volta. O quadro de inscrição e o cronômetro foram separados para não cobrir a primeira fileira de dez corredores. O sistema de chegada e a linha física de início da volta permanecem ativos.

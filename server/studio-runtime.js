@@ -377,7 +377,7 @@ export function createStudioRuntime({
     if(path==="/api/studio/health"&&req.method==="GET"){
       send(res,200,{ok:true,enabled:true,phase:state.phase,
         round:state.round,connected:state.connected,clients:clients.size,
-        persistence:storageHealth(),metrics});return true;
+        persistence:storageHealth().mode,storage:storageHealth(),metrics});return true;
     }
     if(path==="/api/studio/state"&&req.method==="GET"){
       send(res,200,snapshot());return true;

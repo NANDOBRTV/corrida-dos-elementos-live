@@ -166,7 +166,7 @@ function renderHud() {
       marker.title=racer.name+" · "+Math.floor(progress)+"m";
     }
   }
-  byId("liveWeatherTag").textContent=m.id==="ice"?"❄️ NEVE NA PISTA":"🌿 TRILHA DA FLORESTA";
+  byId("liveWeatherTag").textContent=m.id==="ice"?"❄️ PISTA LIMPA • MONTANHAS NEVADAS":"🌿 TRILHA DA FLORESTA";
   const boost=state.phase==="RUNNING"
     ?state.active.find(r=>r.turboUntil>state.raceMs&&r.status==="running"):null;
   const sprint=byId("liveSprintCard");

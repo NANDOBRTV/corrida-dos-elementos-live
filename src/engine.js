@@ -19,7 +19,7 @@ export function createState(seed=127492) {
   return {
     version:1, round:1, mapId:mapForRound(1), trackLength:TRACK_LENGTH, phase:"LOBBY", phaseMs:0, raceMs:0, laps:1, nextLaps:1,
     accumulator:0, seed:seed>>>0, active:[], next:[], results:[], history:[], seasonLeaders:[], paused:false,
-    giftObstacles:[],giftObstacleSequence:0,
+    giftObstacles:[],giftObstacleSequence:0,manualCamera:null,
     messages:[{ text:"Ambiente de demonstração iniciado. Digite entrar.", at:0 }]
   };
 }
@@ -93,10 +93,12 @@ function enterPhase(state,nextPhase) {
   state.phase=nextPhase;
   state.phaseMs=0;
   if(nextPhase==="COUNTDOWN"){
+    state.manualCamera=null;
     arrangeStartingGrid(state);
     announce(state,"Inscrições da rodada "+state.round+" encerradas.");
   }
   if(nextPhase==="RUNNING"){
+    state.manualCamera=null;
     state.raceMs=0;
     state.giftObstacles=[];state.giftObstacleSequence=0;
     for(const r of state.active){
@@ -107,6 +109,7 @@ function enterPhase(state,nextPhase) {
     announce(state,"LARGADA! Boa sorte a todos.");
   }
   if(nextPhase==="RESULTS"){
+    state.manualCamera=null;
     state.giftObstacles=[];
     for(const r of state.active){r.vehicleKind="foot";r.vehicleUntil=0;}
     state.results=rank(state.active).map((r,index)=>({
@@ -129,7 +132,7 @@ export function nextRound(state) {
   arrangeStartingGrid({...state,phase:"LOBBY",active:state.active});
   state.next=[];
   state.results=[];
-  state.giftObstacles=[];state.giftObstacleSequence=0;
+  state.giftObstacles=[];state.giftObstacleSequence=0;state.manualCamera=null;
   state.phase="LOBBY";state.phaseMs=0;state.raceMs=0;state.accumulator=0;
   announce(state,"Novo lobby: "+state.mapId+". É necessário comentar entrar a cada rodada.");
 }
@@ -151,6 +154,21 @@ export function configureNextLaps(state,requested){
   state.nextLaps=laps;
   announce(state,"Próxima corrida: "+laps+" volta(s) de 400 metros.");
   return {ok:true,laps,applies:"próxima corrida"};
+}
+export const MANUAL_CAMERA_MS=5000;
+export function focusRunner(state,userId){
+  if(state?.phase!=="RUNNING")
+    return {ok:false,reason:"Close manual disponível apenas durante a corrida."};
+  if(typeof userId!=="string"||!userId||userId.length>128)
+    return {ok:false,reason:"Selecione um participante válido."};
+  const runner=state.active.find(r=>r.id===userId&&r.status==="running");
+  if(!runner)return {ok:false,reason:"O participante não está correndo."};
+  state.manualCamera={
+    id:runner.id,round:state.round,
+    startRaceMs:state.raceMs,
+    untilRaceMs:state.raceMs+MANUAL_CAMERA_MS
+  };
+  return {ok:true,id:runner.id,name:runner.name,durationMs:MANUAL_CAMERA_MS};
 }
 export function turbo(state,id) {
   if(state.phase!=="RUNNING")return false;
@@ -213,6 +231,8 @@ function updateStep(state,ms) {
   if(state.phase==="RUNNING")stepRunners(state,ms);
   if(state.phase==="RUNNING"&&Array.isArray(state.giftObstacles))
     state.giftObstacles=activeGiftObstacles(state);
+  if(state.manualCamera&&state.raceMs>=state.manualCamera.untilRaceMs)
+    state.manualCamera=null;
   const everyoneFinished=state.phase==="RUNNING"&&state.active.length>0&&state.active.every(r=>r.status==="finished");
   // No entrants? Don't leave the demo in a pointless 85-second empty race.
   const emptyRace=state.phase==="RUNNING"&&state.active.length===0&&state.phaseMs>=1500;

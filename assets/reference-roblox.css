@@ -179,3 +179,9 @@ body[data-view="live"] #liveLapInfo{
 }
 .lap-controls select{width:100%;max-width:100%}
 .lap-controls button{margin-top:8px}
+
+/* v4.0.3: private operator-only spotlight control. */
+.manual-camera-controls select{display:block;width:100%;max-width:100%;margin:8px 0}
+.manual-camera-controls button{width:100%;min-height:38px}
+.manual-camera-controls button:disabled{opacity:.55;cursor:not-allowed}
+.manual-camera-controls p{font-size:12px}

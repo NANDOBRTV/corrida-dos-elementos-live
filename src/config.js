@@ -8,7 +8,7 @@ export const LONG_RACE_TIMEOUT = 1_500_000; // maximum running time for multi-la
 export const LEGACY_TRACK_LENGTH = 150;
 export const LANES = 5;
 export const LANE_WIDTH = 1.85;
-export const PHASE_TIMES = Object.freeze({ LOBBY: 20000, COUNTDOWN: 5000, RUNNING: 85000, RESULTS: 10000 });
+export const PHASE_TIMES = Object.freeze({ LOBBY: 60000, COUNTDOWN: 5000, RUNNING: 85000, RESULTS: 10000 });
 // Dois mapas definitivos. Um cenário 3D é carregado por corrida.
 export const BIOME_ORDER = Object.freeze(["ice", "forest"]);
 // IDs antigos são aceitos apenas na migração dos snapshots anteriores à versão 2.3.

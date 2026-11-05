@@ -167,6 +167,12 @@
         <button type="button" id="saveNextLaps" class="soft-button">🏁 SALVAR VOLTAS</button>
         <p id="lapSettingStatus">Corrida atual: 1 volta. Próxima: 1 volta.</p>
       </div>
+      <div class="preview-map-box manual-camera-controls">
+        <label for="focusRunnerSelect">🎥 ESCOLHER CORREDOR PARA CLOSE MANUAL</label>
+        <select id="focusRunnerSelect" aria-label="Participante para destacar na câmera"></select>
+        <button type="button" id="focusRunnerButton" class="soft-button" disabled>📸 DAR CLOSE NO PARTICIPANTE • 5s</button>
+        <p id="manualFocusStatus" role="status" aria-live="polite">Aguarde a largada para selecionar um corredor.</p>
+      </div>
       <div class="operator-actions">
         <button id="togglePause" class="soft-button">⏸ PAUSAR MOTOR</button>
         <button id="nextPhase" class="soft-button">⏭ AVANÇAR FASE</button>

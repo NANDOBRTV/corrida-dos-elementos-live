@@ -42,6 +42,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
   const streamingLength=STREAM_TILE_LENGTH*2;
   let weather=null,focusRing=null,boostTrails=null,giftObstacleMesh=null;
   let cameraInitialized=false;
+  let lastCameraPhase=null;
   let visibleCloseup=null;
   let curvedCourse=false;
   let ribbons=[],curvedBatches=[],curvedSingles=[];
@@ -436,7 +437,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     const targetLength=[150,PREVIOUS_TRACK_LENGTH,TRACK_LENGTH].includes(length)?length:TRACK_LENGTH;
     if(mapId===settings.id&&currentLength===targetLength)return;
     clearMap();mapId=settings.id;currentLength=targetLength;
-    director.reset();visibleCloseup=null;cameraInitialized=false;
+    director.reset();visibleCloseup=null;cameraInitialized=false;lastCameraPhase=null;
     curvedCourse=targetLength===TRACK_LENGTH;
     // A 400m lap fits in memory as one complete circuit; legacy races
     // also reuse the same 400m circuit without loading repeated geometry.
@@ -574,10 +575,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     // Countdown + the first seconds of the race are shot FROM IN FRONT of
     // the starting grid, looking back at the first three leaders and the rows
     // of three behind them. Blend into the moving chase camera afterwards.
-    const opening=race.phase==="LOBBY"||race.phase==="COUNTDOWN"?1:
-      race.phase==="RUNNING"&&z<65
-        ?Math.min(1,Math.max(0,(6500-(Number(race.raceMs)||0))/1800))
-        :0;
+    const opening=race.phase==="LOBBY"||race.phase==="COUNTDOWN"?1:0;
     if(opening>0){
       const first=curvedCourse?trackCenter(z):{x:0,y:0,z,heading:0};
       const forwardX=Math.sin(first.heading),forwardZ=Math.cos(first.heading);
@@ -617,7 +615,11 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     }
     // Network recovery and benchmark jumps can move several kilometers.
     // Avoid rendering an empty transient frame between streamed tiles.
-    if(!cameraInitialized||camera.position.distanceTo(positionTarget)>170){
+    // At the exact start of RUNNING: switch to the behind-the-runners
+    // chase camera immediately, instead of lingering in the frontal shot.
+    const raceStarted=(lastCameraPhase==="LOBBY"||lastCameraPhase==="COUNTDOWN")&&
+      race.phase==="RUNNING";
+    if(raceStarted||!cameraInitialized||camera.position.distanceTo(positionTarget)>170){
       cameraInitialized=true;
       camera.position.copy(positionTarget);
       cameraTarget.copy(lookTarget);
@@ -626,6 +628,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       cameraTarget.lerp(lookTarget,alpha);
     }
     camera.lookAt(cameraTarget);
+    lastCameraPhase=race.phase;
     animateAtmosphere(dt,z);
     updateSpeedTrails(race);
     drawGiftObstacles(race);

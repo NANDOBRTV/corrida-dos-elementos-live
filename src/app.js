@@ -1,5 +1,5 @@
 import { BIOMES, BIOME_ORDER, TRACK_LENGTH, mapForRound, biome } from "./config.js";
-import { createState, addDemo, register, rank, tick, countdown, advance, turbo, configureNextLaps, validateSavedState, migrateSavedState, raceLength } from "./engine.js";
+import { createState, addDemo, register, rank, tick, countdown, advance, turbo, focusRunner, configureNextLaps, validateSavedState, migrateSavedState, raceLength } from "./engine.js";
 import { createWorld } from "./world.js";
 import { createAvatars } from "./avatars.js";
 import { connectRemote } from "./remote.js";
@@ -135,8 +135,9 @@ function renderHud() {
   document.body.dataset.phase=state.phase.toLowerCase();
   const leading=rank(state.active);
   const leadProgress=leading.length?Math.max(0,Number(leading[0].progress)||0):0;
-  byId("liveTimer").textContent=toTime(state.raceMs);
-  byId("liveRemaining").textContent=Math.max(0,Math.ceil(distance-leadProgress))+" m até a chegada";
+  byId("liveTimer").textContent=toTime(state.phase==="LOBBY"?countdown(state):state.raceMs);
+  byId("liveRemaining").textContent=state.phase==="LOBBY"
+    ?"INSCRIÇÕES ABERTAS · COMENTE ENTRAR":Math.max(0,Math.ceil(distance-leadProgress))+" m até a chegada";
   const laps=Number.isInteger(state.laps)?state.laps:Math.max(1,Math.round(distance/COURSE_LENGTH));
   byId("liveLapInfo").textContent="VOLTA "+currentLap(leadProgress,laps)+"/"+laps+" · 400 m/volta";
   byId("liveRaceCount").textContent=state.active.length+"/50 corredores";
@@ -180,6 +181,26 @@ function renderHud() {
   byId("phaseTime").textContent=countdown(state)+"s";
   byId("lapSettingStatus").textContent="Corrida atual: "+(state.laps??1)+
     " volta(s). Próxima configurada: "+(state.nextLaps??1)+" volta(s).";
+  const focusSelect=byId("focusRunnerSelect");
+  const running=rank(state.active).filter(r=>r.status==="running");
+  const signature=running.map(r=>r.id).join("|");
+  if(focusSelect.dataset.runners!==signature){
+    const chosen=focusSelect.value;
+    focusSelect.replaceChildren(...running.map((r,i)=>{
+      const item=document.createElement("option");
+      item.value=r.id;item.textContent=(i+1)+"º — "+r.name;return item;
+    }));
+    if(running.some(r=>r.id===chosen))focusSelect.value=chosen;
+    focusSelect.dataset.runners=signature;
+  }
+  byId("focusRunnerButton").disabled=state.phase!=="RUNNING"||!running.length;
+  focusSelect.disabled=state.phase!=="RUNNING"||!running.length;
+  const manual=state.manualCamera;
+  byId("manualFocusStatus").textContent=manual&&state.phase==="RUNNING"&&
+    manual.round===state.round&&manual.untilRaceMs>state.raceMs
+      ?"🎥 Close manual: "+(state.active.find(r=>r.id===manual.id)?.name||"Corredor")+
+       " · "+Math.ceil((manual.untilRaceMs-state.raceMs)/1000)+"s restantes"
+      :"Escolha um corredor em movimento para destacar na transmissão.";
   byId("phaseName").textContent=(state.paused?"⏸ ":"")+({
     LOBBY:"LOBBY ABERTO",COUNTDOWN:"PREPARE-SE",RUNNING:"CORRIDA EM ANDAMENTO",RESULTS:"RESULTADOS"
   }[state.phase]);
@@ -467,6 +488,18 @@ byId("saveNextLaps").addEventListener("click",async()=>{
   }
   const result=configureNextLaps(state,laps);
   feedback(result.ok?laps+" volta(s) configuradas para "+result.applies+".":result.reason,result.ok);
+  renderHud();persist();
+});
+byId("focusRunnerButton").addEventListener("click",async()=>{
+  const userId=byId("focusRunnerSelect").value;
+  if(!userId){feedback("Escolha um corredor que esteja na prova.",false);return;}
+  if(remoteMode){
+    const result=await adminRequest("camera-focus",{userId});
+    if(result)feedback("🎥 Close manual ativado: "+result.name+" por 5 segundos.");
+    return;
+  }
+  const result=focusRunner(state,userId);
+  feedback(result.ok?"🎥 Close ativado em "+result.name+" por 5 segundos.":result.reason,result.ok);
   renderHud();persist();
 });
 byId("nextPhase").addEventListener("click",async()=>{

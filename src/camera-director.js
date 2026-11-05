@@ -37,6 +37,23 @@ export function chooseCloseup(race,slot,previousId=null){
   if(pool.length>1&&pool[index].id===previousId)index=(index+1)%pool.length;
   return pool[index];
 }
+export function manualCloseup(race){
+  const request=race?.manualCamera;
+  const ms=Number(race?.raceMs);
+  if(race?.phase!=="RUNNING"||!request||!Number.isFinite(ms)||
+     request.round!==race.round||
+     !Number.isFinite(request.startRaceMs)||
+     !Number.isFinite(request.untilRaceMs)||
+     ms<request.startRaceMs||ms>=request.untilRaceMs)return null;
+  const runner=(race.active||[]).find(r=>r.id===request.id&&r.status==="running");
+  if(!runner)return null;
+  const elapsed=ms-request.startRaceMs,duration=request.untilRaceMs-request.startRaceMs;
+  const blend=Math.min(smoothstep(elapsed/FADE_IN_MS),
+    smoothstep((duration-elapsed)/FADE_OUT_MS));
+  return {id:runner.id,name:String(runner.name||"Corredor").slice(0,28),
+    progress:runner.progress,lane:runner.lane,blend,
+    manual:true,elapsedMs:elapsed,durationMs:duration};
+}
 export function createCameraDirector(){
   let round=null,seed=null,shot=0,nextStart=0,selectedId=null,attempted=false;
   let previousId=null,latest=null,lastMs=-1;
@@ -66,6 +83,8 @@ export function createCameraDirector(){
       nextStart+=CLOSEUP_DURATION_MS+closeupWaitMs(race,shot);
       selectedId=null;attempted=false;
     }
+    const manual=manualCloseup(race);
+    if(manual){latest=manual;return manual;}
     if(ms<nextStart){latest=null;return null;}
     if(!attempted){
       const chosen=chooseCloseup(race,shot+1,previousId);

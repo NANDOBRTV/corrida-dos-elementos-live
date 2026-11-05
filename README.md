@@ -1,3 +1,11 @@
+## Versão 4.0.3 — 60s para inscrições, câmera atrás na largada e close manual
+
+O **LOBBY agora permanece aberto por 60 segundos**, seguido por 5 segundos de contagem regressiva. Durante esse tempo, até 50 espectadores podem entrar na corrida; a largada ocorre automaticamente ao fim da contagem. A câmera mostra a frente da grade com 1º–3º na primeira fila, 4º–6º atrás etc., e **corta imediatamente para uma visão por trás dos corredores no instante da largada**, sem manter um close frontal por mais 6,5 segundos.
+
+No painel **Operador**, a lista seleciona qualquer corredor **ativo e em movimento** para um close manual de 5 segundos. O botão usa a API administrativa autenticada (ADMIN_KEY) em Render, sincronizando o foco com todos os espectadores por SSE e snapshots HTTP. No modo local, a mesma ação é simulada. As aproximações automáticas com pausas aleatórias de 0–10s continuam; o close manual as sobrepõe temporariamente. Não existe alteração de velocidade, sorteios, dinheiro ou eventos de presentes. Um foco encerrado/expirado não é retomado após reinício.
+
+---
+
 ## Versão 4.0.2 — largada frontal, grade 3×N e pista sem neve
 
 A câmera da largada fica **em frente aos participantes**, mostrando seus rostos durante o lobby, a contagem regressiva e os primeiros segundos da corrida. Depois se desloca suavemente para a câmera tradicional, preservando os closes aleatórios de 0 a 10s. A primeira fileira reúne o 1º, 2º e 3º classificados, lado a lado; a segunda recebe 4º a 6º e assim por diante, em até 17 linhas para 50 participantes. Os lugares são visuais, sem alterar as distâncias oficiais ou oferecer vantagem de velocidade.

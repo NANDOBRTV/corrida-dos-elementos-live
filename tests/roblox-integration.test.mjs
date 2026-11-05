@@ -139,7 +139,7 @@ test("Private Roblox Studio bridge shows no obstacle before gift and one after a
   assert.equal(obstacles[0].kind,"ice");
 });
 
-test("Studio avatar camera reads replicated official race time and cuts every 10 seconds",async()=>{
+test("Studio avatar camera uses official race time and 0–10-second randomized gaps",async()=>{
   const {readFile}=await import("node:fs/promises");
   const server=await readFile(new URL("../roblox/LiveRace.server.luau",import.meta.url),"utf8");
   const camera=await readFile(new URL("../roblox/LiveCamera.client.luau",import.meta.url),"utf8");
@@ -148,7 +148,8 @@ test("Studio avatar camera reads replicated official race time and cuts every 10
     'folder:SetAttribute("RaceRound",snapshot.round)',
     'model:SetAttribute("RaceLane",lane)'])
     assert.ok(server.includes(marker),marker);
-  for(const marker of ["math.floor(raceMs/10000)","3200","chooseFeatured",
+  for(const marker of ["randomWait(round,0)","Random.new(round*7937+sequence*10949+271828)",
+    "NextInteger(0,10000)","3200","chooseFeatured",
     "desired=desired:Lerp(close,blend)","Random.new(round*7937+slot*10949)"])
     assert.ok(camera.includes(marker),marker);
 });

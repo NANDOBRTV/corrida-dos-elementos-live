@@ -1,0 +1,80 @@
+name: Captura visual — revisão da referência
+on:
+  push:
+    branches: [studio-v5-live-9x16]
+    paths: [".github/workflows/studio-video-reference-capture.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci --include=dev --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Start isolated local preview
+        env:
+          NODE_ENV: test
+          PORT: "4173"
+          TIKTOK_LIVE_MODE: disabled
+          TIKTOK_USERNAME: ""
+        run: |
+          npm start > /tmp/studio-preview.log 2>&1 &
+          for i in $(seq 1 35); do
+            if curl -fsS http://127.0.0.1:4173/health > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/studio-preview.log
+          exit 1
+      - name: Capture actual rendered lobby and chase scene
+        run: |
+          mkdir -p test-results/reference-review
+          node --input-type=module <<'NODE'
+          import {chromium} from '@playwright/test';
+          import {writeFileSync} from 'node:fs';
+          const browser=await chromium.launch({headless:true, args:[
+            '--enable-webgl','--use-angle=swiftshader',
+            '--enable-unsafe-swiftshader','--ignore-gpu-blocklist',
+            '--disable-dev-shm-usage'
+          ]});
+          const context=await browser.newContext({
+            viewport:{width:390,height:693},deviceScaleFactor:1,
+            isMobile:true,hasTouch:true
+          });
+          const page=await context.newPage();
+          page.on('pageerror',e=>console.error('PAGEERROR:',e.message));
+          await page.goto('http://127.0.0.1:4173/?view=live&studioPreview=1&quality=low',
+            {waitUntil:'domcontentloaded'});
+          await page.waitForFunction(()=>window.__studioV5Debug?.getSceneStats().runners===100,
+            {timeout:30000});
+          await page.waitForTimeout(2000);
+          const lobby=await page.screenshot({type:'jpeg',quality:53});
+          writeFileSync('test-results/reference-review/lobby.jpg',lobby);
+          console.log('VISUAL_IMAGE_LOBBY:'+lobby.toString('base64'));
+          await page.evaluate(async()=>{
+            const engine=await import('/src/studio-engine.js');
+            const state=window.__studioV5Debug.getState();
+            engine.studioAdvance(state);
+            engine.studioAdvance(state);
+            engine.studioTick(state,8500);
+          });
+          await page.waitForTimeout(1600);
+          const running=await page.screenshot({type:'jpeg',quality:53});
+          writeFileSync('test-results/reference-review/running.jpg',running);
+          console.log('VISUAL_IMAGE_RUNNING:'+running.toString('base64'));
+          console.log('SCENE_STATS:'+JSON.stringify(await page.evaluate(
+            ()=>window.__studioV5Debug.getSceneStats())));
+          await browser.close();
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: studio-v5-reference-review
+          path: test-results/reference-review/
+          retention-days: 7

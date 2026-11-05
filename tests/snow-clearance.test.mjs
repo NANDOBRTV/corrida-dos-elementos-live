@@ -4,7 +4,7 @@ import {snowbankProfile,roadsideClearance,clearOfWTrack,ROAD_HALF_WIDTH,SNOW_BUF
 import {trackPoint,trackCenter,COURSE_LENGTH} from "../src/track-path.js";
 import {BIOMES} from "../src/config.js";
 test("Every possible winter snow bank stays safely outside the drivable asphalt",()=>{
-  assert.equal(ROAD_HALF_WIDTH,5.85);
+  assert.equal(ROAD_HALF_WIDTH,9.45);
   for(const side of [-1,1])for(let variation=0;variation<7;variation++){
     const p=snowbankProfile(side,variation);
     assert.ok(roadsideClearance(p)>=SNOW_BUFFER,

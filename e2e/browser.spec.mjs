@@ -550,7 +550,7 @@ test("v4.0 400m W circuit aligns 3D lanes, scenery and finish in both biomes",as
           avatars.sync(active);avatars.animate(active,"RUNNING",.016,1000);
           const model=world.scene.getObjectByName("blocky-runner-0");
           const finish=world.scene.getObjectByName("absolute-finish-line");
-          const expected=trackPoint(dist,1.85,.76);
+          const expected=trackPoint(dist,-2.625,.76);
           samples.push({map,dist,x:model.position.x,y:model.position.y,
             expectedX:expected.x,expectedY:expected.y,
             checkpoints:world.scene.getObjectByName("course-milestones").children.length,
@@ -796,12 +796,12 @@ test("v4.0.2 Ice stays snow-free over the W asphalt and starts with a frontal ca
   expect(observed.front).toBeGreaterThan(15);
   const leaders=observed.pack.filter(r=>r.position<=3);
   expect(leaders.map(r=>r.id).sort()).toEqual([...observed.topIds].sort());
-  expect(leaders.map(r=>r.lane).sort()).toEqual([1,2,3]);
+  expect(leaders.map(r=>r.lane).sort()).toEqual([0,1,2]);
   expect(leaders.every(r=>Math.abs(r.relative)<.5)).toBe(true);
   const second=observed.pack.filter(r=>r.position>=4&&r.position<=6);
   const third=observed.pack.filter(r=>r.position>=7&&r.position<=9);
-  expect(second.every(r=>r.relative<-2.4&&r.relative>-3.0)).toBe(true);
-  expect(third.every(r=>r.relative<-5&&r.relative>-5.6)).toBe(true);
+  expect(second.every(r=>Math.abs(r.relative)<.5)).toBe(true);
+  expect(third.every(r=>Math.abs(r.relative)<.5)).toBe(true);
   expect(observed.groundTop).toBeLessThan(observed.minRoadHeight);
   expect(observed.stagingLength).toBeGreaterThan(48);
   expect(observed.stagingWidth).toBeGreaterThan(10);
@@ -874,4 +874,81 @@ test("v4.0.3 camera switches from front to behind the pack on the exact start fr
   expect(positions.countdown).toBeGreaterThan(15);
   expect(positions.launched).toBeLessThan(-15);
   expect(positions.phase).toBe("RUNNING");
+});
+
+test("v4.1 reference: 10-wide lineup fits portrait broadcast camera and dark wide asphalt",async({page})=>{
+  await page.goto("/?view=live&quality=low&showcase=1&intro=countdown&biome=ice",{waitUntil:"domcontentloaded"});
+  await expect(page.locator("#playerCount")).toHaveText("50",{timeout:25000});
+  await expect(page.locator("#startBanner")).toBeVisible();
+  await expect(page.locator("#countdownOverlay")).toBeVisible();
+  const out=await page.evaluate(async()=>{
+    const THREE=await import("three");
+    const {createWorld}=await import("/src/world.js");
+    const {createAvatars}=await import("/src/avatars.js");
+    const {createState,register,advance,rank}=await import("/src/engine.js");
+    const {LANES,LANE_WIDTH,laneX}=await import("/src/config.js");
+    const canvas=document.createElement("canvas");
+    canvas.style.cssText="position:absolute;left:-9999px;width:350px;height:630px";
+    document.body.append(canvas);
+    const world=createWorld(canvas,{quality:"low"});
+    const avatars=createAvatars(world.scene,{quality:"low"});
+    const s=createState(11);
+    for(let i=0;i<50;i++)register(s,"a"+i,"Avatar "+i,"entrar");
+    advance(s);
+    try{
+      world.setMap("ice",400);
+      avatars.sync(s.active,0,"COUNTDOWN");
+      avatars.animate(s.active,"COUNTDOWN",.016,100);
+      world.render(s,.016);
+      world.camera.updateMatrixWorld(true);
+      const group=rank(s.active).slice(0,10);
+      const view=group.map(r=>{
+        const idx=s.active.findIndex(x=>x.id===r.id);
+        const model=world.scene.getObjectByName("blocky-runner-"+idx);
+        const projected=new THREE.Vector3(model.position.x,model.position.y+2,
+          model.position.z).project(world.camera);
+        return {id:r.id,col:r.lane,row:Math.floor((r.gridPosition-1)/10),
+          x:projected.x,y:projected.y};
+      });
+      const ground=world.scene.getObjectByName("starting-grid-asphalt");
+      const worldRoad=world.scene.getObjectByName("course-asphalt");
+      return {view,lanes:LANES,laneWidth:LANE_WIDTH,
+        asphaltWidth:ground.scale.x,roadWorld:!!worldRoad,
+        videoCols:10,scenePhase:s.phase};
+    }finally{avatars.clear();world.dispose();canvas.remove();}
+  });
+  expect(out.scenePhase).toBe("COUNTDOWN");
+  expect(out.lanes).toBe(10);
+  expect(out.asphaltWidth).toBeGreaterThan(19);
+  expect(out.roadWorld).toBe(true);
+  expect(out.view.map(v=>v.col)).toEqual([0,1,2,3,4,5,6,7,8,9]);
+  expect(out.view.every(v=>v.row===0)).toBe(true);
+  expect(out.view.every(v=>Math.abs(v.x)<.99)).toBe(true);
+  expect(Math.max(...out.view.map(v=>v.x))-Math.min(...out.view.map(v=>v.x))).toBeGreaterThan(1.05);
+});
+test("v4.1 reference countdown stays frontal and switches to GO then behind at launch",async({page})=>{
+  await page.goto("/?view=live&quality=low&showcase=1&intro=countdown&biome=ice",{waitUntil:"domcontentloaded"});
+  await expect(page.locator("#countdownOverlay")).toBeVisible();
+  await expect(page.locator("#startBannerLabel")).toHaveText("LARGADA EM");
+  const first=await page.locator("#countdownOverlay").textContent();
+  expect(["5","4","3","2","1"]).toContain(first);
+  await expect(page.locator("body")).toHaveAttribute("data-phase","running",{timeout:12000});
+  await expect(page.locator("#countdownOverlay")).toBeHidden({timeout:5000});
+  const frame=await page.evaluate(()=>({
+    phase:document.body.dataset.phase,
+    bannerHidden:document.getElementById("startBanner").hidden,
+    width:document.documentElement.scrollWidth-document.documentElement.clientWidth
+  }));
+  expect(frame.phase).toBe("running");
+  expect(frame.bannerHidden).toBe(true);
+  expect(frame.width).toBeLessThanOrEqual(1);
+});
+test("v4.1 60s warmup is visible with 50 fictitious characters, no early launch",async({page})=>{
+  await page.goto("/?view=live&quality=low&showcase=1&intro=full&biome=ice",{waitUntil:"domcontentloaded"});
+  await expect(page.locator("#startBannerLabel")).toHaveText("INSCRIÇÕES ABERTAS",{timeout:25000});
+  await expect(page.locator("#startBannerCount")).toHaveText("50/50");
+  await expect(page.locator("#startBannerSeconds")).toHaveText(/^(60|59|58)$/);
+  await expect(page.locator("body")).toHaveAttribute("data-phase","lobby");
+  await expect(page.locator("#countdownOverlay")).toBeHidden();
+  await page.screenshot({path:join(root,"video-reference-ten-wide-front-camera.png"),fullPage:true});
 });

@@ -10,16 +10,16 @@ import {
 import {buildStudioEffectParts,STUDIO_EFFECT_LIMITS} from "./studio-effects.js";
 
 export const STUDIO_SCENE_LIMITS=Object.freeze({
-  maxRunners:100,avatarParts:14,roadSegments:78,
-  segmentMeters:4,trees:76,hills:36,snowParticles:110,
-  walls:22,decorations:70,qualityMinScale:.62,maxNameplates:12
+  maxRunners:100,avatarParts:19,roadSegments:78,
+  segmentMeters:4,trees:112,hills:46,snowParticles:310,
+  walls:22,decorations:100,qualityMinScale:.62,maxNameplates:12
 });
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const isFiniteNumber=n=>typeof n==="number"&&Number.isFinite(n);
 const colors={
-  ice:{sky:0xc7dcf0,fog:0xc7dcf0,ground:0xe3edf5,
-    road:0x829db8,edge:0xdde5ee,line:0xeaf1f3,
-    trunk:0x485b67,crown:0x497484,hill:0xd0e1eb},
+  ice:{sky:0xa9bad5,fog:0xb7c6dd,ground:0xe8effb,
+    road:0xb5c0d5,edge:0xe5edf8,line:0xdce7f5,
+    trunk:0x453b37,crown:0x174332,hill:0xdce6f6},
   forest:{sky:0xb9dfce,fog:0xb9dfce,ground:0x83ba87,
     road:0x9d9888,edge:0xd8c5a0,line:0xf5ead4,
     trunk:0x69513a,crown:0x306849,hill:0x78ad78}
@@ -38,7 +38,12 @@ const avatarPart=[
   {p:[ .14,2.14,.365],s:[.105,.12,.035],style:"eye"},
   {p:[0,1.88,.365],s:[.20,.05,.03],style:"mouth"},
   {p:[0,.98,-.32],s:[.47,.66,.27],style:"pack"},
-  {p:[0,2.53,-.22],s:[.93,.18,.47],style:"hair"}
+  {p:[0,2.53,-.22],s:[.93,.18,.47],style:"hair"},
+  {p:[-.27,1.35,-.28],s:[.19,.67,.065],style:"stripe"},
+  {p:[ .27,1.35,-.28],s:[.19,.67,.065],style:"stripe"},
+  {p:[-.58,.62,.02],s:[.35,.18,.43],style:"wrist"},
+  {p:[ .58,.62,.02],s:[.35,.18,.43],style:"wrist"},
+  {p:[0,1.11,-.478],s:[.52,.16,.05],style:"emblem"}
 ];
 function nameHash(value){
   let h=2166136261;
@@ -50,19 +55,39 @@ function nameHash(value){
 function paletteFor(r){
   const seed=nameHash(r?.id);
   const color=String(r?.color??RUNNER_COLORS[seed%RUNNER_COLORS.length]);
-  const skin=[0xf4c8a0,0xa16b4e,0xeac49f,0x795034,0xe6ac89][seed%5];
-  const hair=[0x171f29,0x593b2b,0x916740,0x35252f,0xb9a385][seed%5];
-  const pants=[0x232c41,0x473d52,0x2d444b,0x473e30][(seed>>>4)%4];
+  // Original, deterministic voxel costumes: high-contrast blocky outfits,
+  // not imported platform skins or copies of another game's characters.
+  const outfits=[
+    [0x162a32,0x18222e,0x25bac3,0x113f52],
+    [0x9b275c,0x542445,0xffa1cf,0x682b75],
+    [0xebb743,0x915a30,0xffe58b,0xc36b2c],
+    [0x9e3344,0x24483d,0xd9bf7a,0x264d38],
+    [0x45c1b5,0x245e65,0x89f5e7,0x308c86],
+    [0x6548aa,0x342854,0xc9a5ff,0x453086],
+    [0xb7b7bf,0x586474,0xe5e9eb,0x414e60],
+    [0x30373c,0x171c27,0x7ad1df,0x25404e],
+    [0xd58b30,0x644a2f,0xffd46a,0x9c6330],
+    [0x5c934d,0x284a32,0xb8dc65,0x3b694a],
+    [0xd0b9a2,0x7d4751,0xffd8bf,0x7e6d74],
+    [0x2748a6,0x1c2862,0x91dcf7,0x30367b]
+  ];
+  const outfit=outfits[(seed>>>3)%outfits.length];
+  const skin=[0xf4c8a0,0xa16b4e,0xeac49f,0x795034,0xc1c3ca,0xd5a999][seed%6];
+  const hair=[0x171f29,0x593b2b,0x916740,0x35252f,0xe5d36a,0x222b38][seed%6];
+  const primary=seed%5===0?new THREE.Color(color):new THREE.Color(outfit[0]);
   return {
-    shirt:new THREE.Color(color),
+    shirt:primary,
     skin:new THREE.Color(skin),
     hair:new THREE.Color(hair),
-    sleeve:new THREE.Color(color),
-    pants:new THREE.Color(pants),
-    shoe:new THREE.Color(0x171c2a),
+    sleeve:primary,
+    pants:new THREE.Color(outfit[1]),
+    shoe:new THREE.Color((seed%3===0)?0xe1e6ed:0x171c2a),
     eye:new THREE.Color(0x132232),
     mouth:new THREE.Color(0x834f46),
-    pack:new THREE.Color(0x566780)
+    pack:new THREE.Color(outfit[3]),
+    stripe:new THREE.Color(outfit[2]),
+    wrist:new THREE.Color(outfit[2]),
+    emblem:new THREE.Color(outfit[2])
   };
 }
 export function createStudioScene(canvas,{quality="balanced",
@@ -83,12 +108,42 @@ export function createStudioScene(canvas,{quality="balanced",
   const ratio=Math.min(isFiniteNumber(pixelRatio)?pixelRatio:deviceRatio,maxPixelRatio);
   renderer.setPixelRatio(Math.max(.65,ratio));
   const fixedGeometry=new THREE.BoxGeometry(1,1,1);
+  // Tiny generated pixel-noise maps give the snow and packed path actual
+  // block-scale surface detail without external textures, downloads or IP.
+  function noiseTexture(seed,grain=22){
+    const el=document.createElement("canvas");
+    el.width=64;el.height=64;
+    const ctx=el.getContext("2d");
+    const image=ctx.createImageData(64,64);
+    let value=seed>>>0;
+    for(let i=0;i<4096;i++){
+      value=(Math.imul(value,1664525)+1013904223)>>>0;
+      const v=228+((value>>>23)%grain)-Math.floor(grain/2);
+      image.data[i*4]=Math.min(255,v);
+      image.data[i*4+1]=Math.min(255,v+2);
+      image.data[i*4+2]=Math.min(255,v+7);
+      image.data[i*4+3]=255;
+    }
+    ctx.putImageData(image,0,0);
+    const texture=new THREE.CanvasTexture(el);
+    texture.magFilter=THREE.NearestFilter;
+    texture.minFilter=THREE.LinearMipmapLinearFilter;
+    texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+    texture.colorSpace=THREE.SRGBColorSpace;
+    return texture;
+  }
+  const roadTexture=noiseTexture(90210,40);
+  const groundTexture=noiseTexture(12831,28);
+  roadTexture.repeat.set(5,1);
+  groundTexture.repeat.set(65,65);
   const makeMat=hex=>new THREE.MeshLambertMaterial({color:hex});
   const materials={
-    road:makeMat(0xffffff),edge:makeMat(0xffffff),
+    road:new THREE.MeshLambertMaterial({color:0xffffff,map:roadTexture}),
+    edge:makeMat(0xffffff),
     line:makeMat(0xffffff),trunk:makeMat(0xffffff),
     crown:makeMat(0xffffff),hill:makeMat(0xffffff),
-    wall:makeMat(0xffffff),ground:makeMat(0xffffff),
+    wall:makeMat(0xffffff),
+    ground:new THREE.MeshLambertMaterial({color:0xffffff,map:groundTexture}),
     avatar:new THREE.MeshLambertMaterial({color:0xffffff})
   };
   scene.add(new THREE.HemisphereLight(0xffffff,0x7c8794,2.1));
@@ -110,7 +165,7 @@ export function createStudioScene(canvas,{quality="balanced",
   const trunks=createBatch("studio-voxel-tree-trunks",fixedGeometry,
     materials.trunk,STUDIO_SCENE_LIMITS.trees);
   const crowns=createBatch("studio-voxel-tree-crowns",fixedGeometry,
-    materials.crown,STUDIO_SCENE_LIMITS.trees*3);
+    materials.crown,STUDIO_SCENE_LIMITS.trees*4);
   const hills=createBatch("studio-small-hills",fixedGeometry,
     materials.hill,STUDIO_SCENE_LIMITS.hills);
   const walls=createBatch("studio-start-walls",fixedGeometry,
@@ -151,10 +206,10 @@ export function createStudioScene(canvas,{quality="balanced",
     snowPositions[i*3+2]=((i*79)%149-74)*1.16;
   }
   snowGeometry.setAttribute("position",
-    new THREE.BufferAttribute(snowPositions,3));
+    new THREE.BufferAttribute(snowPositions,3).setUsage(THREE.DynamicDrawUsage));
   const snow=new THREE.Points(snowGeometry,
-    new THREE.PointsMaterial({color:0xffffff,size:.21,transparent:true,
-      opacity:.72,depthWrite:false}));
+    new THREE.PointsMaterial({color:0xffffff,size:.50,transparent:true,
+      opacity:.90,depthWrite:false}));
   snow.frustumCulled=false;
   snow.name="studio-background-snowfall";
   scene.add(snow);
@@ -178,6 +233,7 @@ export function createStudioScene(canvas,{quality="balanced",
   let courseBuilds=0;
   let avatarColorChanges=0;
   let effectParts=0;
+  let snowfallTime=0;
   const currentColors={};
 
   function put(mesh,index,pos,scale,heading=0){
@@ -197,8 +253,8 @@ export function createStudioScene(canvas,{quality="balanced",
     materials.crown.color.setHex(style.crown);
     materials.hill.color.setHex(style.hill);
     materials.wall.color.setHex(id==="ice"?0xb2cfe0:0x8b7452);
-    // Snow-dusted, turquoise pine needles for Ice; deep vibrant Forest green.
-    materials.crown.color.setHex(id==="ice"?0xb3d7df:0x285a43);
+    // Spruce branch colors vary per block instance, not pastel blue pines.
+    materials.crown.color.setHex(0xffffff);
     for(const m of Object.values(materials))m.needsUpdate=true;
     scene.background=new THREE.Color(style.sky);
     scene.fog=new THREE.Fog(style.fog,115,425);
@@ -220,14 +276,16 @@ export function createStudioScene(canvas,{quality="balanced",
       const meter=start+(i+.5)*STUDIO_SCENE_LIMITS.segmentMeters;
       if(meter>distance+7)break;
       const at=studioCourseAt(meter);
-      put(road,rs++,{x:at.x,y:at.y-.17,z:at.z},
-        {x:21,y:.28,z:4.15},at.heading);
+      // Snowy packed broad path, rather than painted blue asphalt.
+      put(road,rs++,{x:at.x,y:at.y-.13,z:at.z},
+        {x:21,y:.23,z:4.15},at.heading);
       for(const side of [-1,1]){
-        const edge=roadsidePoint(meter,side*10.8);
-        put(shoulders,es++,{x:edge.x,y:edge.y-.1,z:edge.z},
-          {x:.42,y:.34,z:4.15},edge.heading);
+        const drift=(i*13+(side===1?7:0))%6;
+        const edge=roadsidePoint(meter,side*(10.3+drift*.21));
+        put(shoulders,es++,{x:edge.x,y:edge.y-.05,z:edge.z},
+          {x:.75+drift*.2,y:.3+drift*.09,z:4.17},edge.heading);
       }
-      if(i%3===0){
+      if(biomeId!=="ice"&&i%3===0){
         for(const side of [-1,0,1]){
           const line=roadsidePoint(meter,side*3.5);
           put(centerlines,ls++,{x:line.x,y:line.y+.006,z:line.z},
@@ -245,15 +303,18 @@ export function createStudioScene(canvas,{quality="balanced",
     for(let i=0;i<STUDIO_SCENE_LIMITS.trees;i++){
       const side=i%2===0?-1:1;
       const dist=start+(i*73%305);
-      const lateral=side*(19+(i*37%21));
+      const lateral=side*(16.7+(i*37%25));
       const at=roadsidePoint(dist,lateral);
-      const sz=1+((i*17)%7)*.16;
-      put(trunks,ts++,{x:at.x,y:at.y+1.3*sz,z:at.z},
-        {x:.55*sz,y:2.6*sz,z:.55*sz});
-      for(let level=0;level<3;level++){
-        put(crowns,cs++,{x:at.x,y:at.y+(2.3+level*.86)*sz,z:at.z},
-          {x:(2.0-level*.50)*sz,y:(1.28-level*.15)*sz,
-            z:(2.0-level*.50)*sz},Math.PI/4);
+      const sz=.85+((i*17)%7)*.15;
+      put(trunks,ts++,{x:at.x,y:at.y+1.65*sz,z:at.z},
+        {x:.80*sz,y:3.3*sz,z:.80*sz});
+      for(let level=0;level<4;level++){
+        const size=3.8-level*.71;
+        put(crowns,cs,{x:at.x,y:at.y+(2.75+level*.73)*sz,z:at.z},
+          {x:size*sz,y:(.95-level*.06)*sz,z:size*sz});
+        crowns.setColorAt(cs++,new THREE.Color(biomeId==="ice"?
+          [0x143a30,0x1b463a,0x20483b,0x18372e][(i+level)%4]:
+          [0x285b40,0x1d4f33,0x2c6547,0x234f39][(i+level)%4]));
       }
     }
     for(let i=0;i<STUDIO_SCENE_LIMITS.hills;i++){
@@ -268,13 +329,12 @@ export function createStudioScene(canvas,{quality="balanced",
       const distance=start+6+(i*61%300);
       const lateral=side*(16.5+(i*11%13));
       const at=roadsidePoint(distance,lateral);
-      const variant=i%4,size=1.1+variant*.3;
-      // Blue-glass blocks or low forest shrubs. No tall grey pyramids.
+      const variant=i%4,size=.42+variant*.21;
+      // Low voxel rocks and snow clumps by the shoulders; no giant gems.
       put(decorations,ds,{x:at.x,y:at.y+size*.32,z:at.z},
-        {x:size*(variant===0?1.4:.9),y:size*(biomeId==="ice"?1.4:.64),z:size*.9},
-        variant%2?Math.PI/4:0);
+        {x:size*(variant===0?1.5:.9),y:size*(biomeId==="ice"?.8:.64),z:size*.9});
       decorations.setColorAt(ds++,new THREE.Color(
-        biomeId==="ice"?[0x88dff4,0xc3eff8,0x70bcd7,0xe8faff][variant]:
+        biomeId==="ice"?[0xdfe9f7,0xaabed8,0xc4d4e8,0xf5f9ff][variant]:
           [0x4f9b5d,0x91d96b,0x7ebd50,0xdaa27a][variant]
       ));
     }
@@ -285,7 +345,8 @@ export function createStudioScene(canvas,{quality="balanced",
       mesh.count=count;mesh.instanceMatrix.needsUpdate=true;
     }
     const base=studioCourseAt(start+145);
-    ground.position.set(base.x,-.62,base.z);
+    ground.position.set(base.x,base.y-.48,base.z);
+    if(crowns.instanceColor)crowns.instanceColor.needsUpdate=true;
     courseBuilds++;previousCourseBucket=Math.floor(center/8);
   }
 
@@ -299,7 +360,10 @@ export function createStudioScene(canvas,{quality="balanced",
     for(let i=0;i<entries.length;i++){
       const r=entries[i];
       const pose=positions.get(r.id)??studioRunnerPose(r,i,phase,results);
-      const rootAngle=pose.heading;
+      // During registration the runners face the audience; when the
+      // countdown ends they turn and run forward, using the same camera.
+      const rootAngle=pose.heading+
+        (phase==="LOBBY"||phase==="COUNTDOWN"?Math.PI:0);
       const running=phase==="RUNNING"&&r.status==="running";
       const seed=nameHash(r.id)%1000;
       const gait=running?Math.sin(t*.013+seed)*.22:0;
@@ -407,7 +471,15 @@ export function createStudioScene(canvas,{quality="balanced",
     }
     const anchor=studioCourseAt(mid);
     snow.position.set(anchor.x,anchor.y+3,anchor.z);
-    snow.rotation.y=(Number(state.raceMs)||0)*.00005;
+    snowfallTime+=dt;
+    if(snow.visible){
+      // Individual square flakes move downward even while lobby time is 0.
+      for(let i=0;i<snowCount;i++){
+        const height=2+(i*29%83)*.47;
+        snowPositions[i*3+1]=2+((height-snowfallTime*(1.2+i%5*.33)+52)%52);
+      }
+      snowGeometry.attributes.position.needsUpdate=true;
+    }
     const crowdPoses=updateAvatars(state);
     updateEffects(state,mid,crowdPoses);
     updatePodium(state);
@@ -450,6 +522,7 @@ export function createStudioScene(canvas,{quality="balanced",
     for(const child of podium.children)child.material.dispose();
     scene.remove(podium);
     fixedGeometry.dispose();
+    roadTexture.dispose();groundTexture.dispose();
     decorations.material.dispose();effects.material.dispose();
     for(const m of Object.values(materials))m.dispose();
     renderer.dispose();

@@ -2,7 +2,8 @@
 // Privacy: raw TikTok IDs never leave this module; UI sees HMAC pseudonyms.
 // No Roblox cookies, TikTok cookies, account passwords, or unofficial avatar 3D imports.
 import {randomBytes} from "node:crypto";
-import {parseRaceJoin,validRobloxUsername} from "../src/roblox-names.js";
+import {validRobloxUsername} from "../src/roblox-names.js";
+import {parseVehicleChoice} from "../src/vehicles.js";
 import {normalizeTikTokGift,normalizeTikTokLike} from "./tiktok.js";
 import {pseudonymizeTikTokUser} from "./privacy.js";
 import {createRobloxLookup} from "./roblox-users.js";
@@ -41,13 +42,12 @@ function messageId(event){
 export function normalizeStudioChat(event){
   const sender=normalizeIdentity(event);
   if(!sender||typeof event?.comment!=="string")return null;
-  const content=event.comment.trim();
-  const command=parseRaceJoin(content);
-  // The creator may type the Roblox username alone instead of "entrar User".
-  const username=command?command.username:
-    (content.toLowerCase()!=="entrar"&&validRobloxUsername(content)?content:null);
-  if(!command&&!username)return null;
-  return {...sender,username,eventId:messageId(event)};
+  // A viewer must select a valid model: "Civic", "CG 160" or
+  // "entrar Civic". Usernames and arbitrary chat never register anyone.
+  const vehicle=parseVehicleChoice(event.comment);
+  if(!vehicle)return null;
+  return {...sender,vehicleId:vehicle.id,vehicleName:vehicle.name,
+    eventId:messageId(event)};
 }
 export function normalizeStudioFollow(event){
   const sender=normalizeIdentity(event);
@@ -143,8 +143,9 @@ export function createStudioLiveBridge({
   function avatars(){
     const active=studio.state().active;
     return {ok:true,round:studio.state().round,
-      profiles:active.map(r=>cards.get(r.id)??{id:r.id,robloxUsername:null,
-        avatarUrl:null,source:r.isBot?"bot":"starter"})};
+      profiles:active.map(r=>cards.get(r.id)??{
+        id:r.id,vehicleId:r.vehicleId??"car-uno",avatarUrl:null,
+        source:"vehicle"})};
   }
   async function chat(raw){
     if(stopped)return {ok:false,reason:"Bridge stopped"};
@@ -154,15 +155,15 @@ export function createStudioLiveBridge({
     if(!id)return {ok:false,reason:"Invalid sender"};
     if(pendingJoins.has(id))return pendingJoins.get(id);
     const request=(async()=>{
-      const avatar=event.username?await avatarResolver.resolve(event.username):
-        {robloxUserId:null,robloxUsername:null,avatarUrl:null,source:"starter"};
       if(stopped)return {ok:false,reason:"Bridge stopped"};
+      // Never fetch a third-party avatar or use a social username to choose
+      // the vehicle. The catalog ID is exactly the viewer's chat selection.
       const result=studio.ingest({type:"join",eventId:event.eventId,userId:id,
-        name:event.name,robloxUserId:avatar.robloxUserId});
+        name:event.name,vehicleId:event.vehicleId});
       if(result.ok&&!result.duplicate){
-        publishAvatar(id,avatar);
+        cards.set(id,{id,vehicleId:event.vehicleId,
+          avatarUrl:null,source:"vehicle"});
         metrics.joins++;
-        if(avatar.source==="starter")metrics.starterFallbacks++;
       }
       metrics.chats++;
       return result;

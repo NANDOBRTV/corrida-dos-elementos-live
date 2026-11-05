@@ -146,6 +146,8 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
   tireGeometry.rotateZ(Math.PI/2);
   const rimGeometry=new THREE.CylinderGeometry(.5,.5,1,12,1);
   rimGeometry.rotateZ(Math.PI/2);
+  const roofs=batch("studio-real-painted-roofs",
+    new THREE.BoxGeometry(1,1,1),shellMaterial);
   const tires=batch("studio-real-rubber-tires",tireGeometry,
     tireMaterial,capacity*4);
   const hubs=batch("studio-real-metal-hubs",rimGeometry,
@@ -211,8 +213,12 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
       const cabinHeight=profile==="suv"?.85:
         profile==="pickup"?.70:profile==="compact"?.76:.66;
       push(body.get(profile),root,0,.35,0,w,.78+(high?.13:0),l,paint);
-      push(windows.get(profile),root,0,1.05,cabinCenter,
+      // Window bottoms nest INTO the body (no floating glass shells).
+      const glassY=.79;
+      push(windows.get(profile),root,0,glassY,cabinCenter,
         w*.81,cabinHeight,l*cabinScale);
+      push(roofs,root,0,glassY+cabinHeight*.98,cabinCenter,
+        w*.73,.085,l*cabinScale*.70,paint);
     }else{
       renderedMotorcycles++;totalRiders++;
       const isScooter=["scooter","step-through"].includes(vehicle.shape);

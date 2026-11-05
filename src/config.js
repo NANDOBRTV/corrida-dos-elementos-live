@@ -14,7 +14,7 @@ export const BIOME_ORDER = Object.freeze(["ice", "forest"]);
 // IDs antigos são aceitos apenas na migração dos snapshots anteriores à versão 2.3.
 export const LEGACY_BIOME_IDS = Object.freeze(["desert","volcano","hell"]);
 export const BIOMES = Object.freeze({
-  ice:     { id:"ice",     emoji:"❄️", name:"GELO",    subtitle:"Expedição Boreal", sky:0xbac9df, fog:0xbac9df, ground:0xe0e9f3, road:0xa5b1c7, trim:0xe6edf4, accent:"#b5f4ff", obstacle:"Cristais de gelo" },
+  ice:     { id:"ice",     emoji:"❄️", name:"GELO",    subtitle:"Expedição Boreal", sky:0xbac9df, fog:0xbac9df, ground:0xe0e9f3, road:0x566578, trim:0xe6edf4, accent:"#b5f4ff", obstacle:"Cristais de gelo" },
   forest:  { id:"forest",  emoji:"🌲", name:"FLORESTA", subtitle:"Vale Esmeralda",   sky:0xa7d9b6, fog:0xa7d9b6, ground:0x438957, road:0xbca981, trim:0x71543c, accent:"#bff55e", obstacle:"Troncos" }
 });
 export function mapForRound(round) {

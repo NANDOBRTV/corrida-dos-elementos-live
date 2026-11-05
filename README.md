@@ -1,3 +1,9 @@
+## Versão 4.0.1 — pista limpa no mapa de Gelo
+
+O asfalto do circuito W de 400 metros agora é **cinza-escuro e completamente livre de neve**. As montanhas, árvores e margens da estrada continuam nevadas; os bancos de neve só são colocados depois de verificar o afastamento mínimo de 2,4 m da borda do asfalto e de todas as curvas que passam próximas. Os flocos de neve sobre a câmera/pista foram retirados apenas do cenário de Gelo, mantendo as folhas ambientes na Floresta. A pista nativa opcional do Roblox Studio também recebe o asfalto mais escuro. Não há alteração nos presentes, obstáculos acionados por presentes, duração de voltas ou câmera.
+
+---
+
 ## Versão 4.0 — corrida de 400 metros por volta e veículos acionados por presentes
 
 Cada volta passa a ter 400 metros e o operador pode escolher de 1 a 10 voltas para a próxima corrida. O motor calcula a distância total como 400 × voltas, mantendo o progresso oficial das rodadas antigas salvas de 5 km, 300 m e 150 m. O carro/kart e a moto aparecem somente após um presente processado durante a fase RUNNING, por 12 segundos, sem bônus de velocidade. O destinatário inscrito recebe o efeito, ou outro corredor em movimento quando quem presenteou não está na prova. A versão web exibe modelos originais; a versão nativa Roblox continua dependente de Roblox Studio. Os testes com presentes fictícios não representam eventos reais do TikTok.

@@ -4,6 +4,7 @@ import {activeGiftObstacles,MAX_ACTIVE_GIFT_OBSTACLES} from "./gift-obstacles.js
 import {QUALITY_SETTINGS} from "./performance.js";
 import {trackCenter,trackPoint,COURSE_MILESTONES} from "./track-path.js";
 import {createCameraDirector} from "./camera-director.js";
+import {snowbankProfile,clearOfWTrack} from "./snow-clearance.js";
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
 const octahedronGeometry=new THREE.OctahedronGeometry(1,0);
@@ -109,7 +110,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     block(parent,0,6.25,z,13,1.0,.85,c,.15);
   }
   function scenery(id) {
-    // For the 5km track only two reusable 300m tiles are resident in WebGL.
+    // Static winter scenery stays outside the drivable route.
     // Batching merges equal geometry/material meshes to preserve draw-call budget.
     const sections=Math.ceil(renderedLength/150);
     for(let section=0;section<sections;section++){
@@ -119,7 +120,13 @@ export function createWorld(canvas,{quality="balanced"}={}) {
           (i%2?-1:1)*(11+(i%6)*2.4),base+(i*21)%150,.65+(i%4)*.18,true);
         for(let i=0;i<30;i++)if(sceneDetail(i))crystal(
           (i%2?-1:1)*(9+(i%5)*3),base+(i*23+5)%150,.7+(i%5)*.19);
-        for(const z of [29,81,123])block(root,-21,.02,base+z,12,.06,9,0x8acfe3);
+        // Frozen water remains beyond the roadside, never painted across
+        // a crossing section of the W-shaped asphalt.
+        for(const z of [29,81,123]){
+          const icePatch={x:-24,width:6,depth:7};
+          if(!curvedCourse||clearOfWTrack(base+z,icePatch))
+            block(root,icePatch.x,.02,base+z,icePatch.width,.06,icePatch.depth,0x8acfe3);
+        }
       } else {
         for(let i=0;i<48;i++)if(sceneDetail(i))pine(
           (i%2?-1:1)*(10+(i%6)*2.5),base+(i*17+7)%150,.65+(i%5)*.16);
@@ -301,25 +308,28 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     }
   }
   function setupAtmosphere(id){
-    // Low-cost animated snowflakes on Ice; soft drifting leaves on Forest.
-    const count=profile.sceneStep>1?95:170;
-    const positions=new Float32Array(count*3);
-    for(let i=0;i<count;i++){
-      const seed=((i*97+13)%131)/131;
-      positions[i*3]=(seed-.5)*29;
-      positions[i*3+1]=((i*67)%109)/109*15+.3;
-      positions[i*3+2]=((i*47)%127)/127*65-16;
+    // Ice: no airborne snow over the racetrack. Snow remains in mountains,
+    // pine branches and protected outer banks, but the asphalt stays clean.
+    // Forest keeps its inexpensive falling-leaf ambient particles.
+    if(id==="forest"){
+      const count=profile.sceneStep>1?95:170;
+      const positions=new Float32Array(count*3);
+      for(let i=0;i<count;i++){
+        const seed=((i*97+13)%131)/131;
+        positions[i*3]=(seed-.5)*29;
+        positions[i*3+1]=((i*67)%109)/109*15+.3;
+        positions[i*3+2]=((i*47)%127)/127*65-16;
+      }
+      const geometry=new THREE.BufferGeometry();
+      geometry.setAttribute("position",new THREE.BufferAttribute(positions,3));
+      weather=new THREE.Points(geometry,new THREE.PointsMaterial({
+        color:0xd6f2a1,size:.13,transparent:true,opacity:.62,
+        depthWrite:false,sizeAttenuation:true
+      }));
+      weather.name="biome-weather-particles";
+      weather.frustumCulled=false;
+      root.add(weather);
     }
-    const geometry=new THREE.BufferGeometry();
-    geometry.setAttribute("position",new THREE.BufferAttribute(positions,3));
-    weather=new THREE.Points(geometry,new THREE.PointsMaterial({
-      color:id==="ice"?0xf6ffff:0xd6f2a1,
-      size:id==="ice"?.30:.13,transparent:true,opacity:id==="ice"?.93:.62,
-      depthWrite:false,sizeAttenuation:true
-    }));
-    weather.name="biome-weather-particles";
-    weather.frustumCulled=false;
-    root.add(weather);
     focusRing=new THREE.Mesh(new THREE.RingGeometry(.70,1.02,32),
       new THREE.MeshBasicMaterial({color:0xff7f45,transparent:true,opacity:.8,
         depthWrite:false,side:THREE.DoubleSide}));
@@ -427,8 +437,8 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     sun.shadow.camera.left=-24;sun.shadow.camera.right=24;sun.shadow.camera.top=35;sun.shadow.camera.bottom=-35;
     scene.add(sun);
     if(curvedCourse){
-      // Overlapping terraces surround the road, rotating with every switchback.
-      // Only 600m of meshes remain on the GPU, even on the 5km mountain track.
+      // Snowy terrain and rock ridges stay outside the tarmac; the road
+      // is one 400m closed circuit and needs no new geometry per lap.
       for(let dz=30;dz<renderedLength;dz+=60){
         block(root,0,-2.4,dz,125,4.6,80,settings.ground);
         for(const side of [-1,1]){
@@ -477,8 +487,11 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       for(let z=7;z<renderedLength;z+=14){
         for(const side of [-1,1]){
           const variation=((z*13+side*17)%7+7)%7;
-          block(root,side*(6.8+variation*.2),.075,z,2.4+variation*.22,.12,5.5+variation,0xf0f4fc);
-          if(variation%3===0)block(root,side*9.0,.13,z+2,1.7,.22,2.8,0xe6ecf8);
+          const bank=snowbankProfile(side,variation);
+          // Never allow a white snow polygon to intrude into any lane, even
+          // when another arm of the closed W passes nearby.
+          if(!curvedCourse||clearOfWTrack(z,bank))
+            block(root,bank.x,.075,z,bank.width,.12,bank.depth,0xf0f4fc);
         }
       }
     }

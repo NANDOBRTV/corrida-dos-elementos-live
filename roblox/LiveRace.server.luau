@@ -99,10 +99,10 @@ local function addBlock(tile,x,y,z,w,h,d,color,partName)
 end
 
 for tile=1,2 do
-  -- Terraces follow the centerline too; no giant straight ground slab.
+  -- Frozen hills stay below and beside the dark, snow-free driving surface.
   for z=10,190,20 do
     addBlock(tile,0,-2.9,z,126,5,26,Color3.fromRGB(234,241,249),"Ground")
-    addBlock(tile,0,0,z,22,.2,20,Color3.fromRGB(151,165,185),"Road")
+    addBlock(tile,0,.15,z,22,.25,20,Color3.fromRGB(83,97,114),"Road")
     for _,side in ipairs({-1,1}) do
       addBlock(tile,side*11.2,.26,z,.4,.4,20,Color3.fromRGB(235,242,252),"Edge")
       addBlock(tile,side*13.1,0,z,2,.12,20,Color3.fromRGB(230,239,248),"Shoulder")
@@ -148,7 +148,7 @@ local function repositionTrack(snapshot)
         if item.kind=="Ground" then
           item.part.Color=snapshot.mapId=="ice" and Color3.fromRGB(235,243,249) or Color3.fromRGB(82,136,91)
         elseif item.kind=="Road" then
-          item.part.Color=snapshot.mapId=="ice" and Color3.fromRGB(151,165,185) or Color3.fromRGB(174,153,118)
+          item.part.Color=snapshot.mapId=="ice" and Color3.fromRGB(83,97,114) or Color3.fromRGB(174,153,118)
         elseif item.kind=="Leaves" then
           item.part.Color=snapshot.mapId=="ice" and Color3.fromRGB(40,93,73) or Color3.fromRGB(55,146,74)
         elseif item.kind=="SnowCap" or item.kind=="CliffSnow" then

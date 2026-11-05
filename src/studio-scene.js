@@ -7,11 +7,12 @@ import {
   STUDIO_CAMERA,studioCourseAt,studioRunnerPose,studioCrowdPoses,
   advanceStudioCamera,studioVisibleNameplates
 } from "./studio-camera.js";
+import {buildStudioEffectParts,STUDIO_EFFECT_LIMITS} from "./studio-effects.js";
 
 export const STUDIO_SCENE_LIMITS=Object.freeze({
   maxRunners:100,avatarParts:14,roadSegments:78,
   segmentMeters:4,trees:76,hills:36,snowParticles:110,
-  walls:22,qualityMinScale:.62,maxNameplates:12
+  walls:22,decorations:70,qualityMinScale:.62,maxNameplates:12
 });
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const isFiniteNumber=n=>typeof n==="number"&&Number.isFinite(n);
@@ -114,6 +115,17 @@ export function createStudioScene(canvas,{quality="balanced",
     materials.hill,STUDIO_SCENE_LIMITS.hills);
   const walls=createBatch("studio-start-walls",fixedGeometry,
     materials.wall,STUDIO_SCENE_LIMITS.walls*2);
+  // Crystals for Ice / bright undergrowth for Forest. Both live off asphalt.
+  const decorations=createBatch("studio-scenery-crystals-and-shrubs",
+    fixedGeometry,new THREE.MeshLambertMaterial({color:0xffffff}),
+    STUDIO_SCENE_LIMITS.decorations);
+  // Every temporary gift / follow animation shares a single GPU draw call.
+  // No extra camera, scene objects, per-gift meshes or shader rebuild.
+  const effects=createBatch("studio-bounded-gift-effects",
+    fixedGeometry,new THREE.MeshBasicMaterial({
+      color:0xffffff,transparent:true,opacity:.87,depthWrite:false
+    }),STUDIO_EFFECT_LIMITS.maxParts);
+  effects.renderOrder=3;
   const avatars=createBatch("studio-100-runner-voxel-batch",fixedGeometry,
     materials.avatar,LIVE_STUDIO.maxRunners*STUDIO_SCENE_LIMITS.avatarParts);
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(580,610),materials.ground);
@@ -165,6 +177,7 @@ export function createStudioScene(canvas,{quality="balanced",
   let renderScale=1;
   let courseBuilds=0;
   let avatarColorChanges=0;
+  let effectParts=0;
   const currentColors={};
 
   function put(mesh,index,pos,scale,heading=0){
@@ -184,6 +197,8 @@ export function createStudioScene(canvas,{quality="balanced",
     materials.crown.color.setHex(style.crown);
     materials.hill.color.setHex(style.hill);
     materials.wall.color.setHex(id==="ice"?0xb2cfe0:0x8b7452);
+    // Snow-dusted, turquoise pine needles for Ice; deep vibrant Forest green.
+    materials.crown.color.setHex(id==="ice"?0xb3d7df:0x285a43);
     for(const m of Object.values(materials))m.needsUpdate=true;
     scene.background=new THREE.Color(style.sky);
     scene.fog=new THREE.Fog(style.fog,115,425);
@@ -200,7 +215,7 @@ export function createStudioScene(canvas,{quality="balanced",
     // Only about 300m of asphalt/scenery on the GPU for a 1500m race.
     // Staging asphalt extends to -40m for all ten rows at GO.
     const start=Math.floor((center-38)/4)*4;
-    let rs=0,es=0,ls=0,ts=0,cs=0,hs=0,ws=0;
+    let rs=0,es=0,ls=0,ts=0,cs=0,hs=0,ws=0,ds=0;
     for(let i=0;i<STUDIO_SCENE_LIMITS.roadSegments;i++){
       const meter=start+(i+.5)*STUDIO_SCENE_LIMITS.segmentMeters;
       if(meter>distance+7)break;
@@ -248,8 +263,25 @@ export function createStudioScene(canvas,{quality="balanced",
       put(hills,hs++,{x:at.x,y:at.y-.65+height*.34,z:at.z},
         {x:16+(i%5)*4,y:height,z:14+(i%4)*4});
     }
+    for(let i=0;i<STUDIO_SCENE_LIMITS.decorations;i++){
+      const side=i%2===0?-1:1;
+      const distance=start+6+(i*61%300);
+      const lateral=side*(16.5+(i*11%13));
+      const at=roadsidePoint(distance,lateral);
+      const variant=i%4,size=1.1+variant*.3;
+      // Blue-glass blocks or low forest shrubs. No tall grey pyramids.
+      put(decorations,ds,{x:at.x,y:at.y+size*.32,z:at.z},
+        {x:size*(variant===0?1.4:.9),y:size*(biomeId==="ice"?1.4:.64),z:size*.9},
+        variant%2?Math.PI/4:0);
+      decorations.setColorAt(ds++,new THREE.Color(
+        biomeId==="ice"?[0x88dff4,0xc3eff8,0x70bcd7,0xe8faff][variant]:
+          [0x4f9b5d,0x91d96b,0x7ebd50,0xdaa27a][variant]
+      ));
+    }
+    decorations.count=ds;
+    decorations.instanceColor.needsUpdate=true;
     for(const [mesh,count] of [[road,rs],[shoulders,es],[centerlines,ls],
-      [trunks,ts],[crowns,cs],[hills,hs],[walls,ws]]){
+      [trunks,ts],[crowns,cs],[hills,hs],[walls,ws],[decorations,ds]]){
       mesh.count=count;mesh.instanceMatrix.needsUpdate=true;
     }
     const base=studioCourseAt(start+145);
@@ -302,6 +334,26 @@ export function createStudioScene(canvas,{quality="balanced",
     // No stale names or old characters persist after the round resets.
     for(let i=entries.length;i<lastAvatarIds.length;i++){
       lastAvatarIds[i]=null;delete currentColors[i];
+    }
+    return positions;
+  }
+  function updateEffects(state,center,poses){
+    const list=buildStudioEffectParts(state,{
+      centerMeters:center,maxParts:STUDIO_EFFECT_LIMITS.maxParts,poses
+    });
+    let index=0;
+    for(const part of list){
+      if(index>=STUDIO_EFFECT_LIMITS.maxParts)break;
+      put(effects,index,part.position,{
+        x:part.scale[0],y:part.scale[1],z:part.scale[2]
+      },part.heading);
+      effects.setColorAt(index,new THREE.Color(part.color));
+      index++;
+    }
+    effects.count=index;effectParts=index;
+    if(index){
+      effects.instanceMatrix.needsUpdate=true;
+      if(effects.instanceColor)effects.instanceColor.needsUpdate=true;
     }
   }
   function updatePodium(state){
@@ -356,7 +408,8 @@ export function createStudioScene(canvas,{quality="balanced",
     const anchor=studioCourseAt(mid);
     snow.position.set(anchor.x,anchor.y+3,anchor.z);
     snow.rotation.y=(Number(state.raceMs)||0)*.00005;
-    updateAvatars(state);
+    const crowdPoses=updateAvatars(state);
+    updateEffects(state,mid,crowdPoses);
     updatePodium(state);
     lastState=state;
     camera.updateMatrixWorld(true);
@@ -383,17 +436,21 @@ export function createStudioScene(canvas,{quality="balanced",
       triangles:renderer.info.render.triangles,
       runners:avatars.count/STUDIO_SCENE_LIMITS.avatarParts,
       courseRebuilds:courseBuilds,avatarColorChanges,
+      effectParts,decorations:decorations.count,
       renderScale,mapId:biomeId};
   }
   function dispose(){
     if(disposed)return;disposed=true;
     for(const node of [road,shoulders,centerlines,trunks,crowns,hills,walls,
-      avatars]){scene.remove(node);node.dispose();}
+      avatars,decorations,effects]){
+      scene.remove(node);node.dispose();
+    }
     scene.remove(ground);ground.geometry.dispose();
     scene.remove(snow);snow.geometry.dispose();snow.material.dispose();
     for(const child of podium.children)child.material.dispose();
     scene.remove(podium);
     fixedGeometry.dispose();
+    decorations.material.dispose();effects.material.dispose();
     for(const m of Object.values(materials))m.dispose();
     renderer.dispose();
     lastState=null;cameraPose=null;previousCourseBucket=null;

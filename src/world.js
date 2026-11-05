@@ -588,8 +588,10 @@ export function createWorld(canvas,{quality="balanced"}={}) {
       const forwardX=Math.sin(first.heading),forwardZ=Math.cos(first.heading);
       const sideX=Math.cos(first.heading),sideZ=-Math.sin(first.heading);
       const gridDepth=Math.ceil(active.length/GRID_COLUMNS)*GRID_ROW_GAP;
-      const frontDistance=30+Math.min(3,gridDepth*.18);
-      const frontHeight=8.8+Math.min(2,gridDepth*.10);
+      // Reference video: the first row fills about 70–80% of the portrait
+      // width, rather than shrinking to a tiny 40% strip in the distance.
+      const frontDistance=19+Math.min(2,gridDepth*.08);
+      const frontHeight=7.7+Math.min(1.2,gridDepth*.08);
       // Move AROUND the runners on a half-circle, not straight THROUGH them
       // as the opening frontal shot transitions into the chase camera.
       const orbitAngle=(1-opening)*Math.PI;

@@ -38,8 +38,8 @@ async function inspectHud(page){
     }
     const topLimit=b.top+b.height*(120/1920)-1.5;
     const bottomLimit=b.bottom-b.height*(220/1920)+1.5;
-    const outOfSafe=selectors.filter(s=>boxes[s].top<topLimit||
-      boxes[s].bottom>bottomLimit);
+    const outOfSafe=selectors.filter(s=>boxes[s].visible&&
+      (boxes[s].top<topLimit||boxes[s].bottom>bottomLimit));
     return {
       viewport:{width:innerWidth,height:innerHeight},
       body:{scrollWidth:document.body.scrollWidth,scrollHeight:document.body.scrollHeight},
@@ -121,4 +121,41 @@ test('Parte 9: medir FPS real do navegador, qualidade adaptativa e recuperação
   expect(after.watchdog.renderErrors).toBe(0);
   const minimum=Number(process.env.STUDIO_MIN_FPS||0);
   if(Number.isFinite(minimum)&&minimum>0)expect(frames.fps).toBeGreaterThanOrEqual(minimum);
+});
+
+
+test('Vídeo referência: lobby mantém apenas inscrição e corrida exibe HUD completo',async({page})=>{
+  await openPreview(page,390,693);
+  await expect(page.locator('#studioGuide')).toBeVisible();
+  await expect(page.locator('.studio-ranking')).toBeHidden();
+  await expect(page.locator('.studio-race-data')).toBeHidden();
+  await expect(page.locator('.studio-minimap')).toBeHidden();
+  await page.evaluate(async()=>{
+    const engine=await import('/src/studio-engine.js');
+    const current=window.__studioV5Debug.getState();
+    engine.studioAdvance(current);engine.studioAdvance(current);
+    engine.studioTick(current,1500);
+  });
+  await expect(page.locator('.studio-ranking')).toBeVisible();
+  await expect(page.locator('.studio-race-data')).toBeVisible();
+  await expect(page.locator('.studio-minimap')).toBeVisible();
+  await expect(page.locator('#studioGuide')).toBeHidden();
+});
+
+test('Vídeo referência: prévia com 20 participantes mantém capacidade 100',async({page})=>{
+  await page.setViewportSize({width:390,height:693});
+  await page.goto('/?view=live&studioPreview=1&quality=low&crowd=20',{
+    waitUntil:'domcontentloaded'
+  });
+  await expect(page.locator('#studioLive')).toBeVisible();
+  await expect.poll(()=>page.evaluate(
+    ()=>window.__studioV5Debug?.getSceneStats()?.runners),{timeout:30000}).toBe(20);
+  const result=await page.evaluate(()=>({
+    count:window.__studioV5Debug.getState()?.active?.length,
+    capacity:document.getElementById('studioRunnerCount')?.textContent,
+    phase:window.__studioV5Debug.getState()?.phase
+  }));
+  expect(result.count).toBe(20);
+  expect(result.capacity).toBe('20/100');
+  expect(result.phase).toBe('LOBBY');
 });

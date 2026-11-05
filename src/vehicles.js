@@ -35,7 +35,49 @@ const motorcycles=[
  ["lander250","Lander 250","trail",.85,2.56,1.13],
  ["nmax160","NMAX 160","scooter",.88,2.35,.90]
 ];
+// Hero art direction: the six individually sculpted automotive silhouettes.
+// These are style/geometry identifiers, not imported automaker CAD assets.
+// Other catalog vehicles remain available to preserve earlier chat choices.
+export const HERO_CAR_IDS=Object.freeze([
+  "car-fusca","car-uno","car-palio","car-gol","car-civic","car-opala"
+]);
+export const HERO_CAR_SPECS=Object.freeze({
+  "car-fusca":Object.freeze({
+    shape:"beetle",cabin:"bubble",wheelArch:"round",
+    length:2.83,width:1.76,roofHeight:1.55,signature:"rounded rear engine",
+    ladder:false,headlights:"round",grille:"rear-vent"
+  }),
+  "car-uno":Object.freeze({
+    shape:"square-hatch",cabin:"upright",wheelArch:"square",
+    length:2.63,width:1.63,roofHeight:1.64,signature:"roof ladder",
+    ladder:true,headlights:"square",grille:"horizontal"
+  }),
+  "car-palio":Object.freeze({
+    shape:"soft-hatch",cabin:"rounded-hatch",wheelArch:"round",
+    length:2.81,width:1.72,roofHeight:1.50,signature:"rounded hatchback",
+    ladder:false,headlights:"oval",grille:"narrow"
+  }),
+  "car-gol":Object.freeze({
+    shape:"straight-hatch",cabin:"angular-hatch",wheelArch:"round",
+    length:2.83,width:1.76,roofHeight:1.45,signature:"straight hood",
+    ladder:false,headlights:"rectangular",grille:"black"
+  }),
+  "car-civic":Object.freeze({
+    shape:"sport-sedan",cabin:"fastback",wheelArch:"round",
+    length:3.32,width:1.91,roofHeight:1.39,signature:"sleek modern nose",
+    ladder:false,headlights:"thin-led",grille:"wide"
+  }),
+  "car-opala":Object.freeze({
+    shape:"retro-muscle",cabin:"notchback",wheelArch:"round",
+    length:3.66,width:1.98,roofHeight:1.44,signature:"long retro hood",
+    ladder:false,headlights:"quad-round",grille:"chrome"
+  })
+});
+export const isHeroCar=id=>Object.prototype.hasOwnProperty.call(HERO_CAR_SPECS,id);
+
 const aliases={
+  "uno escada":"uno","uno com escada":"uno",
+  "uno com escada no teto":"uno","fusquinha":"fusca",
   "scada":"strada","s-10":"s10","s 10":"s10","chevrolet s10":"s10",
   "cg":"cg160","cg 160":"cg160","titan":"cg160","titan 160":"cg160",
   "biz":"biz125","biz 125":"biz125","bros":"bros160",

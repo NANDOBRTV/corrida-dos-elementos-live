@@ -7,7 +7,7 @@ import {createStudioRuntime} from "../server/studio-runtime.js";
 import {createApp} from "../server/index.js";
 
 const SALT="studio-v5-test-salt-with-at-least-32-characters";
-const sample=(id,comment="entrar Builderman")=>({
+const sample=(id,comment="entrar Civic")=>({
   user:{userId:id,nickname:"Visitante "+id,uniqueId:"account"+id},
   comment,common:{msgId:"chat-"+id}
 });
@@ -32,12 +32,16 @@ class FakeTikTokConnection extends EventEmitter{
   async connect(){this.connected=true;}
   async disconnect(){this.disconnected=true;this.connected=false;}
 }
-test("Bare Roblox usernames and 'entrar' comments both join; unrelated chat ignored",()=>{
-  assert.equal(normalizeStudioChat(sample("1","Builderman")).username,"Builderman");
-  assert.equal(normalizeStudioChat(sample("1","entrar Builderman")).username,"Builderman");
-  assert.equal(normalizeStudioChat(sample("1","entrar")).username,null);
+test("Only exact vehicle models and entrar commands register, arbitrary chat ignored",()=>{
+  assert.equal(normalizeStudioChat(sample("1","Civic")).vehicleName,"Civic");
+  assert.equal(normalizeStudioChat(sample("1","entrar Civic")).vehicleId,"car-civic");
+  assert.equal(normalizeStudioChat(sample("1","cg160")).vehicleId,"moto-cg160");
+  assert.equal(normalizeStudioChat(sample("1","entrar CG 160")).vehicleName,"CG 160");
+  assert.equal(normalizeStudioChat(sample("1","Strada")).vehicleName,"Strada");
+  assert.equal(normalizeStudioChat(sample("1","entrar")),null);
+  assert.equal(normalizeStudioChat(sample("1","Builderman")),null);
   assert.equal(normalizeStudioChat(sample("1","Oi pessoal!")),null);
-  assert.equal(normalizeStudioChat({comment:"Builderman"}),null);
+  assert.equal(normalizeStudioChat({comment:"Civic"}),null);
   assert.equal(normalizeStudioFollow(sample("1")).raw,"1");
 });
 test("Public Roblox headshot, in-flight cache and fallback for missing usernames",async()=>{
@@ -66,30 +70,33 @@ test("Roblox thumbnail URLs must be trusted HTTPS CDN; untrusted URL becomes no 
   const out=await resolver.resolve("Builderman");
   assert.equal(out.source,"roblox");assert.equal(out.avatarUrl,null);
 });
-test("TikTok comments map to pseudonymous ids, avatars and starter fallback",async()=>{
+test("TikTok chat uses pseudonymous identity and keeps exactly the chosen model",async()=>{
   const mock=mockRoblox();
   const runtime=createStudioRuntime({autoStart:false});
   const bridge=createStudioLiveBridge({studio:runtime,...mock,identitySalt:SALT,
     enabled:false,username:"examplelive"});
-  const result=await bridge.chat(sample("raw-private-user","Builderman"));
+  const result=await bridge.chat(sample("raw-private-user","Civic"));
   assert.equal(result.ok,true);
   assert.equal(runtime.state().active.length,1);
-  assert.equal(runtime.state().active[0].robloxUserId,156);
+  assert.equal(runtime.state().active[0].vehicleId,"car-civic");
+  assert.equal(runtime.state().active[0].name,"Civic");
   assert.equal(runtime.state().active[0].id.startsWith("tt-"),true);
   assert.equal(JSON.stringify(runtime.snapshot()).includes("raw-private-user"),false);
-  assert.equal(bridge.avatars().profiles[0].robloxUsername,"Builderman");
-  assert.ok(bridge.avatars().profiles[0].avatarUrl?.startsWith("https://tr.rbxcdn.com"));
-  const fallback=await bridge.chat(sample("second-private","entrar Unknownplayer"));
-  assert.equal(fallback.ok,true);
+  assert.equal(bridge.avatars().profiles[0].vehicleId,"car-civic");
+  assert.equal(bridge.avatars().profiles[0].avatarUrl,null);
+  const second=await bridge.chat(sample("second-private","entrar CG 160"));
+  assert.equal(second.ok,true);
   assert.equal(runtime.state().active.length,2);
-  assert.equal(bridge.avatars().profiles[1].source,"starter");
+  assert.equal(runtime.state().active[1].vehicleId,"moto-cg160");
+  assert.equal(bridge.avatars().profiles[1].source,"vehicle");
+  assert.deepEqual(mock.counts(),{lookupCalls:0,avatarCalls:0});
   await bridge.close();runtime.stop();
 });
 test("Gift amounts and follows are mapped to existing bounded engine rules",async()=>{
   const runtime=createStudioRuntime({autoStart:false});
   const bridge=createStudioLiveBridge({studio:runtime,identitySalt:SALT});
-  await bridge.chat(sample("a","entrar"));
-  await bridge.chat(sample("b","entrar"));
+  await bridge.chat(sample("a","Civic"));
+  await bridge.chat(sample("b","CG 160"));
   runtime.act({action:"advance"});runtime.act({action:"advance"});
   const gift={user:{userId:"a",nickname:"A"},giftId:99,
     gift:{name:"Present",diamondCount:10,type:0},repeatCount:1,
@@ -144,14 +151,14 @@ test("Studio V5 avatar endpoint has no raw IDs and supports fallback while disco
   const address=await app.listen(0);
   t.after(()=>app.close());
   const base="http://127.0.0.1:"+address.port;
-  const registered=await app.studioLiveBridge.chat(sample("secret-user-239","Builderman"));
+  const registered=await app.studioLiveBridge.chat(sample("secret-user-239","Civic"));
   assert.equal(registered.ok,true);
   const response=await fetch(base+"/api/studio/avatars");
   assert.equal(response.status,200);
   const data=await response.json();
   assert.equal(data.profiles.length,1);
-  assert.equal(data.profiles[0].source,"roblox");
-  assert.equal(data.profiles[0].robloxUsername,"Builderman");
+  assert.equal(data.profiles[0].source,"vehicle");
+  assert.equal(data.profiles[0].vehicleId,"car-civic");
   assert.ok(data.profiles[0].id.startsWith("tt-"));
   assert.equal(JSON.stringify(data).includes("secret-user-239"),false);
   assert.equal((await fetch(base+"/api/studio/state")).status,200);

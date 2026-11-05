@@ -84,6 +84,11 @@ const MARKUP=[
       "<strong id='studioOpeningClock'>60</strong>",
       "<small id='studioOpeningHint'>COMENTE ENTRAR + USUÁRIO</small>",
     "</div>",
+    "<div id='studioGuide' class='studio-guide'>",
+      "<strong>SEU CORREDOR VOXEL NA PISTA</strong>",
+      "<span>COMENTE <b>entrar SeuUsuario</b></span>",
+      "<small>OU PARTICIPE COM UM CORREDOR ALEATÓRIO</small>",
+    "</div>",
     "<div id='studioCountdown' class='studio-countdown' hidden aria-live='off'>3</div>",
     "<div id='studioWinner' class='studio-winner' hidden>",
       "<span>🏆 VENCEDOR</span><strong id='studioWinnerName'>Corredor</strong>",
@@ -509,9 +514,12 @@ export async function startStudioLive({preview=false}={}){
   canvas.addEventListener("webglcontextlost",onContextLost);
   canvas.addEventListener("webglcontextrestored",onContextRestored);
 
+  const requestedCrowd=Number(params.get("crowd"));
+  const previewBots=Number.isInteger(requestedCrowd)&&
+    requestedCrowd>=1&&requestedCrowd<=100?requestedCrowd:100;
   const previewState=preview?createStudioState({connected:false,seed:5001}):null;
   if(previewState){
-    studioFillBots(previewState,{count:100});
+    studioFillBots(previewState,{count:previewBots});
     applyState(previewState);
   }
   async function fetchLatest(){
@@ -550,7 +558,7 @@ export async function startStudioLive({preview=false}={}){
     if(previewState){
       studioTick(previewState,dt*1000);
       if(previewState.phase==="LOBBY"&&previewState.active.length===0)
-        studioFillBots(previewState,{count:100});
+        studioFillBots(previewState,{count:previewBots});
       liveState.source=previewState;
       liveState.lastPacketAt=now;
     }

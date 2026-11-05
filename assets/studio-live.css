@@ -337,3 +337,51 @@ body.studio-live-active{
 .studio-live-active .studio-stage[data-phase="countdown"] .studio-opening{
   display:none!important;
 }
+
+
+/* Short portrait perk card, matching the floating visual hierarchy in the
+   supplied video. No networked gifting is simulated as real activity. */
+.studio-live-active .studio-feature-card{
+  position:absolute;
+  left:50%;top:21%;
+  width:25%;min-width:0;
+  padding:1.7cqw 1.2cqw;
+  transform:translateX(-50%);
+  background:rgba(15,20,34,.94);
+  border:.38cqw solid #f3cf64;
+  border-radius:2.4cqw;
+  box-shadow:0 0 1.25cqw #ffbd58aa,0 .65cqw 3cqw #0007;
+  z-index:8;
+  display:flex;flex-direction:column;align-items:center;
+  gap:.55cqw;text-align:center;pointer-events:none;
+  animation:studio-feature-intro .23s ease-out;
+}
+.studio-live-active .studio-feature-avatar{
+  height:11cqw;width:11cqw;
+  border:solid .4cqw #fff;
+  border-radius:100%;display:grid;place-items:center;
+  font-size:6.7cqw;line-height:1;
+  color:#21222b;font-weight:1000;
+  text-shadow:0 .2cqw .35cqw #fff9;
+  box-shadow:0 .25cqw .7cqw #0005;
+}
+.studio-live-active .studio-feature-card strong{
+  font-size:2.9cqw;line-height:1.1;font-weight:1000;
+  max-width:100%;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;
+}
+.studio-live-active .studio-feature-card>span{
+  font-weight:1000;font-size:2.55cqw;color:#ffe279;
+  letter-spacing:.045em;white-space:nowrap;
+}
+.studio-live-active .studio-feature-card>small{
+  font-weight:800;font-size:1.25cqw;
+  color:#cad7e3;line-height:1.15;
+}
+@keyframes studio-feature-intro{
+  from{opacity:0;transform:translateX(-50%) scale(.88)}
+  to{opacity:1;transform:translateX(-50%) scale(1)}
+}
+@media(prefers-reduced-motion:reduce){
+  .studio-live-active .studio-feature-card{animation:none}
+}

@@ -73,7 +73,7 @@ const MARKUP=[
       "<ol id='studioVehicleList' class='studio-vehicle-mini-rows'></ol>",
     "</aside>",
     "<div id='studioCameraLabel' class='studio-camera-label' hidden aria-live='off'></div>",
-    "<aside class='studio-race-data' aria-label='Informações da corrida'>
+    "<aside class='studio-race-data' aria-label='Informações da corrida'>",
       "<div class='studio-race-time' id='studioRaceTime'>0:00</div>",
       "<div class='studio-race-remaining'><span aria-hidden='true'>⚑</span><b id='studioRemaining'>1200 m</b><span>restantes</span></div>",
       "<div class='studio-race-count'><b id='studioRunnerCount'>0/100</b><span>corredores</span></div>",

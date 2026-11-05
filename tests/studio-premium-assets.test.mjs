@@ -7,7 +7,7 @@ import {HERO_CAR_IDS} from "../src/vehicles.js";
 test("Licenças CC BY visíveis, artistas corretos e URLs imutáveis",()=>{
   assert.equal(PREMIUM_CAR_IDS.length,5);
   assert.equal(SOURCE_COMMIT.length,40);
-  assert.deepEqual(PREMIUM_CAR_IDS.sort(),[
+  assert.deepEqual([...PREMIUM_CAR_IDS].sort(),[
     "car-civic","car-fusca","car-opala","car-palio","car-uno"
   ].sort());
   for(const id of PREMIUM_CAR_IDS){

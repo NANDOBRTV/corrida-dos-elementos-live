@@ -35,8 +35,8 @@ function simulate(distance,seed){
       assert.ok(Number.isFinite(p.x+p.y+p.z+p.heading));
     }
     const target=cameraTargetFor(state);
-    assert.equal(target.mode,'CHASE');
-    assert.equal(target.leaderId,null);
+    assert.ok(['VEHICLE_CLOSEUP','TOP_THREE'].includes(target.mode));
+    assert.ok(typeof target.leaderId==='string'&&target.leaderId.length>0);
     camera=advanceStudioCamera(camera,state,.1);
     assert.ok(Number.isFinite(camera.position.x+camera.position.y+
       camera.position.z+camera.target.x+camera.target.y+camera.target.z));

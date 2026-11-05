@@ -1,9 +1,9 @@
 
 import {createStudioScene} from "./studio-scene.js";
 import {studioCourseAt} from "./studio-camera.js";
-import {createStudioState,studioFillBots,studioTick,studioRank,studioGift} from "./studio-engine.js";
+import {createStudioState,studioFillBots,studioTick,studioRank,studioGift,studioJoin} from "./studio-engine.js";
 import {LIVE_STUDIO} from "./config.js";
-import {resolveVehicle,VEHICLES} from "./vehicles.js";
+import {resolveVehicle,parseVehicleChoice} from "./vehicles.js";
 
 const $=id=>document.getElementById(id);
 const clamp=(n,min,max)=>Math.min(max,Math.max(min,n));
@@ -313,8 +313,33 @@ export async function startStudioLive({preview=false}={}){
   }
   $("studioFollow").addEventListener("click",()=>
     toast("Toque em Seguir no perfil do canal da transmissão."));
-  $("studioJoin").addEventListener("click",()=>
-    toast("No chat, escreva Civic, Gol ou CG 160; também vale entrar Civic."));
+  $("studioJoin").addEventListener("click",()=>{
+    if(!preview){
+      toast("No chat, escreva Civic, Gol ou CG 160; também vale entrar Civic.");
+      return;
+    }
+    // Native prompt is used ONLY after an explicit tap in an offline preview:
+    // lets the owner exercise the same catalog parser without LIVE credentials.
+    const typed=window.prompt("TESTE DO CHAT: digite Civic, Gol, CG 160 ou outro modelo:");
+    if(typed===null)return;
+    const vehicle=parseVehicleChoice(typed);
+    if(!vehicle){toast("Modelo não encontrado. Escolha um dos 20 carros ou 10 motos.");return;}
+    if(!previewState)return;
+    if(previewState.phase==="LOBBY"){
+      // Demonstration replaces a bot instead of inflating the 20/100 lineup.
+      const prior=previewState.active.findIndex(r=>r.id==="demo-selecao");
+      if(prior>=0)previewState.active.splice(prior,1);
+      else{
+        const last=previewState.active.findLastIndex(r=>r.isBot);
+        if(last>=0)previewState.active.splice(last,1);
+      }
+    }
+    const result=studioJoin(previewState,{
+      userId:"demo-selecao",name:"Prévia do chat",vehicleId:vehicle.id
+    });
+    toast(result.ok?"DEMO: "+vehicle.name+" inscrito na fila "+result.queue:
+      result.reason);
+  });
   $("studioBoost").addEventListener("click",()=>
     toast("Uma rosa enviada na transmissão ativa o turbo."));
   $("studioSprint").addEventListener("click",()=>

@@ -484,7 +484,7 @@ export function createWorld(canvas,{quality="balanced"}={}) {
     // Bend lanes, shoulders, barriers and scenery along the same W circuit.
     // Older 150m/300m snapshots retain their straight layout.
     if(curvedCourse){
-      makeRibbon("course-shoulder",-10,10,-.055,settings.id==="ice"?0xe7eef5:0x728e6b);
+      makeRibbon("course-shoulder",-10,10,-.055,settings.id==="ice"?0x66798e:0x728e6b);
       makeRibbon("course-asphalt",-5.85,5.85,.078,settings.road);
       for(const side of [-1,1]){
         makeRibbon("course-edge-"+side,side*5.80,side*6.19,.22,settings.trim);

@@ -214,8 +214,10 @@ test("Restarted HTTP service restores the same round and kept positions",async t
   const restored=await second.get("/api/studio/state");
   assert.equal(restored.json.state.phase,"RUNNING");
   assert.equal(restored.json.state.round,running.json.state.round);
-  assert.equal(restored.json.state.active.length,1);
-  assert.equal(restored.json.state.active[0].id,"user001");
+  // An offline broadcaster fills the remaining places with bots at countdown.
+  assert.equal(restored.json.state.active.length,100);
+  assert.ok(restored.json.state.active.some(r=>r.id==="user001"));
+  assert.equal(restored.json.state.active.filter(r=>!r.isBot).length,1);
   const recovery=await second.get("/api/studio/health");
   assert.equal(recovery.json.storage.recovered,true);
   await second.close();

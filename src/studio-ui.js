@@ -559,6 +559,11 @@ export async function startStudioLive({preview=false}={}){
       studioTick(previewState,dt*1000);
       if(previewState.phase==="LOBBY"&&previewState.active.length===0)
         studioFillBots(previewState,{count:previewBots});
+      // The offline engine normally auto-fills 100 bots at the countdown.
+      // In a video-reference demo, honor ?crowd=20 throughout the race,
+      // while the real engine and ?crowd=100 still support all 100 slots.
+      if(previewBots<100&&previewState.active.length>previewBots)
+        previewState.active.length=previewBots;
       liveState.source=previewState;
       liveState.lastPacketAt=now;
     }

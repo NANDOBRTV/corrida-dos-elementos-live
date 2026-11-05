@@ -235,7 +235,8 @@ export function studioVisibleNameplates(state,{max=12,featuredId=null}={}){
   const results=Array.isArray(s.results)?s.results:[];
   const poses=studioCrowdPoses(s);
   return selected.map(r=>({
-    id:r.id,name:String(r.name??"Corredor").slice(0,28),
+    id:r.id,name:String(r.name??"Veículo").slice(0,28),
+    vehicleId:r.vehicleId??null,
     rank:positions.get(r.id),color:r.color,
     pose:poses.get(r.id)??studioRunnerPose(r,active.indexOf(r),s.phase,results)
   }));

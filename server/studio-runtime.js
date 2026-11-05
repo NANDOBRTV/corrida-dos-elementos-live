@@ -224,6 +224,8 @@ export function createStudioRuntime({
     }).catch(error=>{
       lastWriteError=String(error?.message??error).slice(0,160);
       writeFailures++;metrics.writeFailures=writeFailures;
+      // A failed revision must be eligible for another save attempt.
+      if(queuedRevision===targetRevision){queuedRevision=-1;queuedJob=null;}
       console.error("[studio-v5/storage]",lastWriteError);
       return false;
     });

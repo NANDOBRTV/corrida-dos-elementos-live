@@ -305,3 +305,35 @@ body.studio-live-active{
   background:#14223699;font-size:3.1cqw;
   border-color:#ffffff6b;
 }
+
+
+/* The reference separates the clean entry screen from the racing HUD.
+   Keep all panels mounted for SSE/UI consistency; hide visually until GO. */
+.studio-live-active .studio-guide{
+  position:absolute;z-index:9;
+  top:29%;left:50%;transform:translateX(-50%);
+  width:90%;text-align:center;pointer-events:none;
+  display:flex;flex-direction:column;align-items:center;gap:.65cqw;
+  color:#fff;text-shadow:
+    -.2cqw -.2cqw .2cqw #172336,.2cqw .2cqw .3cqw #172336,
+    0 .5cqw 1cqw #1f2a3d;
+}
+.studio-live-active .studio-guide strong{
+  font-weight:1000;font-size:2.7cqw;color:#8effa8;
+  letter-spacing:.06em;
+}
+.studio-live-active .studio-guide span{
+  font-weight:1000;font-size:3.4cqw;
+}
+.studio-live-active .studio-guide b{color:#ffe06e}
+.studio-live-active .studio-guide small{
+  font-weight:800;font-size:1.95cqw;color:#f4f8fd;
+}
+.studio-live-active .studio-stage:is([data-phase="lobby"],[data-phase="countdown"])
+  :is(.studio-ranking,.studio-race-data,.studio-minimap){display:none!important}
+.studio-live-active .studio-stage:not([data-phase="lobby"]) .studio-guide{
+  display:none!important;
+}
+.studio-live-active .studio-stage[data-phase="countdown"] .studio-opening{
+  display:none!important;
+}

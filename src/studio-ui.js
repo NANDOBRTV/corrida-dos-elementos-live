@@ -556,8 +556,10 @@ export async function startStudioLive({preview=false}={}){
     try{
       const visual=interpolate(state,now);
       world.update(visual,Math.max(dt,.001));
-      liveState.lastGoodFrameAt=performance.now();
-      liveState.contextLostAt=null;
+      // WebGL context loss is cleared only by the real restored event;
+      // a successful JavaScript call alone does not mean the GPU recovered.
+      if(liveState.contextLostAt===null)
+        liveState.lastGoodFrameAt=performance.now();
       if(now-liveState.lastUiAt>210){
         updateUi(state);liveState.lastUiAt=now;
       }

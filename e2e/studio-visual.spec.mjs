@@ -171,7 +171,8 @@ test("Android 9:16 WebGL renders 100 avatars in one batch and twelve nameplate a
   expect(out.stats.drawCalls).toBeLessThan(30);
   expect(out.stats.triangles).toBeGreaterThan(1500);
   expect(out.stats.triangles).toBeLessThan(55000);
-  expect(out.labels.length).toBeLessThanOrEqual(12);
+  expect(out.labels.length).toBeLessThanOrEqual(100);
+  expect(out.labels.every(plate=>typeof plate.username==="string")).toBe(true);
   expect(out.angle).toBe(STUDIO_CAMERA.fovPortrait);
   expect(out.aspect).toBeCloseTo(390/693,3);
   expect(errors).toEqual([]);

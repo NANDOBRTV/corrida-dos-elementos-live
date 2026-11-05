@@ -87,6 +87,27 @@ function blocksFor(vehicle){
     if(isClassic)add([0,1.38,cabinCenter],[w*.62,.24,cabinLength*.77],"roof");
     if(vehicle.shape==="muscle")
       add([0,.89,l*.13],[w*.60,.10,.50],"trim");
+    // Original model-specific body cues, rather than identical colored boxes.
+    // At most 30 voxel pieces per vehicle for 100-vehicle Android performance.
+    if(isSedan){
+      add([0,1.10,-l*.29],[w*.77,.11,l*.22],"body");
+      add([0,1.05,l*.22],[w*.78,.08,l*.22],"glass","windshield");
+    }else if(isPickup){
+      add([0,.74,-l*.31],[w*.72,.08,l*.44],"cargo");
+      add([0,1.00,-l*.49],[w*.90,.15,.11],"trim");
+    }else if(isSuv){
+      add([0,1.53,cabinCenter],[w*.86,.12,cabinLength*.78],"roof");
+      add([0,1.14,-l*.32],[w*.78,.13,l*.18],"glass","rearWindow");
+    }else if(isClassic){
+      add([0,1.45,-.13],[w*.66,.19,cabinLength*.56],"roof");
+      add([0,.93,l*.43],[w*.75,.14,l*.24],"body");
+    }else if(isCompact){
+      add([0,1.52,-l*.09],[w*.82,.12,cabinLength*.69],"roof");
+      add([0,1.00,-l*.38],[w*.79,.10,l*.16],"glass","rearWindow");
+    }else{
+      add([0,.99,l*.31],[w*.79,.12,l*.20],"glass","windshield");
+      add([0,.90,-l*.43],[w*.77,.11,l*.16],"tail");
+    }
   }else{
     const isScooter=vehicle.shape==="scooter"||vehicle.shape==="step-through";
     const isTrail=vehicle.shape==="trail";
@@ -123,7 +144,16 @@ function blocksFor(vehicle){
     if(isTrail){
       add([0,1.18,l*.35],[.51,.19,.65],"body");
       add([0,.54,-l*.31],[.43,.12,.59],"trim");
+      add([0,1.01,l*.39],[.12,.74,.12],"chrome");
+      add([0,.58,l*.38],[.54,.09,.52],"body");
+    }else if(isScooter){
+      add([0,.87,l*.24],[.58,.34,.36],"body");
+      add([0,1.36,l*.33],[.49,.28,.09],"glass","windshield");
+    }else{
+      add([0,1.02,l*.25],[.54,.14,.48],"body");
+      add([0,.48,l*.35],[.39,.12,.45],"trim");
     }
+    add([.32,.57,-l*.26],[.16,.13,l*.46],"chrome");
   }
   while(out.length<VEHICLE_PARTS)out.push(hide());
   vehicleShapes.set(id,out);
@@ -466,9 +496,13 @@ export function createStudioScene(canvas,{quality="balanced",
         localPos.set(meta.p[0],meta.p[1],meta.p[2]);
         partScale.set(meta.s[0],meta.s[1],meta.s[2]);
         const spinning=running&&(meta.role==="spoke"||meta.role==="wheel");
+        const glassAngle=meta.role==="windshield"?-.34:
+          meta.role==="rearWindow"?.27:0;
         if(spinning)limbRotation.setFromAxisAngle(limbAxis,
           t*.013*(vehicle.kind==="motorcycle"?1.2:1));
-        partMatrix.compose(localPos,spinning?limbRotation:noRotation,partScale);
+        else if(glassAngle)limbRotation.setFromAxisAngle(limbAxis,glassAngle);
+        partMatrix.compose(localPos,(spinning||glassAngle)?limbRotation:noRotation,
+          partScale);
         composed.multiplyMatrices(rootMatrix,partMatrix);
         avatars.setMatrixAt(i*VEHICLE_PARTS+part,composed);
       }
@@ -611,8 +645,10 @@ export function createStudioScene(canvas,{quality="balanced",
   }
   function nameplates({featuredId=null}={}){
     if(!lastState||disposed)return [];
+    // Only vehicles within the camera view are exposed to HTML labels.
+    // Max 100 anchors; DOM collision culling is handled by the overlay.
     const choices=studioVisibleNameplates(lastState,{
-      max:STUDIO_SCENE_LIMITS.maxNameplates,featuredId
+      max:100,featuredId
     });
     return choices.flatMap(item=>{
       const vehicle=resolveVehicle(item.vehicleId)||resolveVehicle(item.name);
@@ -621,7 +657,8 @@ export function createStudioScene(canvas,{quality="balanced",
       if(faceVector.z<-.9||faceVector.z>1||
         Math.abs(faceVector.x)>1.12||Math.abs(faceVector.y)>1.12)return [];
       return [{
-        id:item.id,name:item.name,rank:item.rank,color:item.color,
+        id:item.id,name:item.name,username:item.username,
+        vehicleId:item.vehicleId,rank:item.rank,color:item.color,
         x:(faceVector.x+1)/2,y:(1-faceVector.y)/2
       }];
     });

@@ -82,7 +82,7 @@ const MARKUP=[
     "<div id='studioOpening' class='studio-opening' hidden>",
       "<span id='studioOpeningTitle'>INSCRIÇÕES ABERTAS</span>",
       "<strong id='studioOpeningClock'>60</strong>",
-      "<small id='studioOpeningHint'>COMENTE ENTRAR + NOME ROBLOX</small>",
+      "<small id='studioOpeningHint'>COMENTE ENTRAR + USUÁRIO</small>",
     "</div>",
     "<div id='studioCountdown' class='studio-countdown' hidden aria-live='off'>3</div>",
     "<div id='studioWinner' class='studio-winner' hidden>",
@@ -243,7 +243,7 @@ export async function startStudioLive({preview=false}={}){
   $("studioFollow").addEventListener("click",()=>
     toast("Toque em Seguir no perfil do canal da transmissão."));
   $("studioJoin").addEventListener("click",()=>
-    toast("No chat da transmissão, escreva: entrar NomeRoblox"));
+    toast("No chat da transmissão, escreva: entrar SeuUsuario"));
   $("studioBoost").addEventListener("click",()=>
     toast("Uma rosa enviada na transmissão ativa o turbo."));
   $("studioSprint").addEventListener("click",()=>
@@ -409,7 +409,7 @@ export async function startStudioLive({preview=false}={}){
     if(phase==="LOBBY"){
       text(ui.openingTitle,"INSCRIÇÕES ABERTAS");
       text(ui.openingClock,openingSeconds(state));
-      text(ui.openingHint,"COMENTE ENTRAR + NOME ROBLOX");
+      text(ui.openingHint,"COMENTE ENTRAR + USUÁRIO");
     }
     if(phase==="COUNTDOWN"){
       text(ui.openingTitle,"LARGADA EM");

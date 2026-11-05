@@ -219,7 +219,7 @@ export async function startStudioLive({preview=false}={}){
     previousPhase:null,toastTimer:null,connection:null,closed:false,
     startedAt:performance.now(),lastGoodFrameAt:performance.now(),
     contextLostAt:null,renderErrors:0,reloading:false,
-    monitoring:false,watchdogLastProbeAt:0
+    monitoring:false,watchdogLastProbeAt:0,resumedAt:0
   };
   const ui={
     likes:$("studioLikes"),viewers:$("studioViewerTotal"),
@@ -471,6 +471,9 @@ export async function startStudioLive({preview=false}={}){
   async function supervisor(){
     if(liveState.closed||liveState.reloading||liveState.monitoring)return;
     if(document.visibilityState==="hidden"||navigator.onLine===false)return;
+    // Browser sources paused while hidden get a short reconnect grace when
+    // OBS shows them again, rather than an immediate false watchdog reload.
+    if(performance.now()-liveState.resumedAt<12000)return;
     liveState.monitoring=true;
     try{
       const now=performance.now();
@@ -558,8 +561,6 @@ export async function startStudioLive({preview=false}={}){
       world.update(visual,Math.max(dt,.001));
       // WebGL context loss is cleared only by the real restored event;
       // a successful JavaScript call alone does not mean the GPU recovered.
-      if(liveState.contextLostAt===null)
-        liveState.lastGoodFrameAt=performance.now();
       if(now-liveState.lastUiAt>210){
         updateUi(state);liveState.lastUiAt=now;
       }
@@ -575,6 +576,8 @@ export async function startStudioLive({preview=false}={}){
         world.setRenderScale(target);
         liveState.fpsFrames=0;liveState.fpsAccum=0;liveState.lastPerfAt=now;
       }
+      if(liveState.contextLostAt===null)
+        liveState.lastGoodFrameAt=performance.now();
     }catch(error){
       liveState.renderErrors++;
       if(liveState.renderErrors===1||liveState.renderErrors%300===0)
@@ -584,7 +587,15 @@ export async function startStudioLive({preview=false}={}){
     }
   }
   const onResize=()=>{if(!liveState.closed)world.resize();};
+  const onVisibility=()=>{
+    if(liveState.closed||document.visibilityState!=="visible")return;
+    liveState.resumedAt=performance.now();
+    // The WebGL draw may have been legitimately throttled while hidden.
+    liveState.lastGoodFrameAt=liveState.resumedAt;
+    if(!preview)void fetchLatest();
+  };
   window.addEventListener("resize",onResize);
+  document.addEventListener("visibilitychange",onVisibility);
   function cleanup(){
     if(liveState.closed)return;
     liveState.closed=true;
@@ -595,6 +606,7 @@ export async function startStudioLive({preview=false}={}){
     canvas.removeEventListener("webglcontextlost",onContextLost);
     canvas.removeEventListener("webglcontextrestored",onContextRestored);
     window.removeEventListener("resize",onResize);
+    document.removeEventListener("visibilitychange",onVisibility);
     world.dispose();
   }
   window.addEventListener("pagehide",cleanup,{once:true});

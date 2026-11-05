@@ -162,3 +162,10 @@ test("Release: SSE oferece snapshot mas nao vaza chave administrativa",async t=>
   const invalid=await server.request("/api/studio/not-found");
   assert.equal(invalid.status,404);
 });
+
+test("Release: a tela Studio V5 nao exibe marcas de outros aplicativos",async()=>{
+  const {readFileSync}=await import("node:fs");
+  const source=readFileSync(new URL("../src/studio-ui.js",import.meta.url),"utf8");
+  assert.doesNotMatch(source,/ROBLOX|TIKTOK|INSTAGRAM|YOUTUBE/i);
+  assert.match(source,/COMENTE ENTRAR \+ USUÁRIO/);
+});

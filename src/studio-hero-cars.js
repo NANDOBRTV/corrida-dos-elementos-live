@@ -84,6 +84,24 @@ function buildGeometry(THREE,rings,pointsPerRing,wrap=true){
       indices.push(a,c,b,b,c,d);
     }
   }
+  // Seal front and rear: a silhouette must not appear hollow when the
+  // broadcast camera closes in from behind or beside a vehicle.
+  if(wrap){
+    for(const endIndex of [0,rings.length-1]){
+      const ring=rings[endIndex];
+      const origin=positions.length/3;
+      let x=0,y=0,z=0;
+      for(const p of ring){x+=p[0];y+=p[1];z+=p[2];}
+      positions.push(x/ring.length,y/ring.length,z/ring.length);
+      uvs.push(.5,.5);
+      const start=endIndex*pointsPerRing;
+      for(let j=0;j<pointsPerRing;j++){
+        const a=start+j,b=start+(j+1)%pointsPerRing;
+        if(endIndex===0)indices.push(origin,b,a);
+        else indices.push(origin,a,b);
+      }
+    }
+  }
   const g=new THREE.BufferGeometry();
   g.setAttribute("position",new THREE.Float32BufferAttribute(positions,3));
   g.setAttribute("uv",new THREE.Float32BufferAttribute(uvs,2));

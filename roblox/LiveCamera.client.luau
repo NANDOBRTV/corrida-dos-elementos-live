@@ -3,45 +3,54 @@ local RunService=game:GetService("RunService")
 local workspace=game:GetService("Workspace")
 local cam=workspace.CurrentCamera
 local folder=workspace:WaitForChild("RaceAvatars",30)
--- Same distance-profile, X/Z integration and elevation as the authoritative web renderer.
-local COURSE_LENGTH=5000
-local STEP=2
-local turns={
-  {0,420,.03},{420,790,-1.55},{790,1400,-.05},
-  {1400,1770,3.10},{1770,2430,.08},
-  {2430,2810,-3.10},{2810,3420,-.06},
-  {3420,3790,3.10},{3790,4460,.07},
-  {4460,4800,-1.18},{4800,5000,-.10}
+-- W circuit, 400m closed Catmull-Rom spline, matched to src/track-path.js.
+local COURSE_LENGTH=400
+local controls={
+ {48,162},{72,165},{87,152},{89,127},{77,110},{64,91},
+ {59,70},{62,53},{76,50},{85,58},{92,48},{89,27},
+ {71,16},{46,20},{33,35},{35,57},{47,78},
+ {47,101},{37,106},{31,91},{21,86},{15,108},
+ {21,137},{34,157}
 }
-local function headingAt(s)
-  local a=0
-  for _,turn in ipairs(turns) do
-    if s<=turn[1] then break end
-    local t=math.min(1,(s-turn[1])/(turn[2]-turn[1]))
-    a+=turn[3]*(1-math.cos(math.pi*t))*.5
-    if s<turn[2] then break end
+local density=64
+local samples={}
+local function pointAt(i) return controls[((i-1)%#controls)+1] end
+for i=1,#controls do
+ local a,b,c,d=pointAt(i-1),pointAt(i),pointAt(i+1),pointAt(i+2)
+ for j=0,density-1 do
+  local t=j/density;local t2=t*t;local t3=t2*t
+  local function axis(k)
+   return .5*(2*b[k]+(c[k]-a[k])*t+
+    (2*a[k]-5*b[k]+4*c[k]-d[k])*t2+
+    (-a[k]+3*b[k]-3*c[k]+d[k])*t3)
   end
-  return a
+  table.insert(samples,Vector2.new(axis(1),axis(2)))
+ end
 end
-local xx,zz,hh={[1]=0},{[1]=0},{}
-for i=0,COURSE_LENGTH/STEP do
-  local s=i*STEP
-  hh[i+1]=headingAt(s)
-  if i>0 then
-    local h=headingAt(s-STEP*.5)
-    xx[i+1]=xx[i]+math.sin(h)*STEP
-    zz[i+1]=zz[i]+math.cos(h)*STEP
-  end
+table.insert(samples,samples[1])
+local distances={[1]=0}
+for i=2,#samples do distances[i]=distances[i-1]+(samples[i]-samples[i-1]).Magnitude end
+local factor=COURSE_LENGTH/distances[#distances]
+local origin=samples[1]
+local function xy(distance)
+ local target=math.clamp(distance,0,COURSE_LENGTH)/factor
+ local low,high=1,#samples
+ while low+1<high do
+  local middle=math.floor((low+high)/2)
+  if distances[middle]<target then low=middle else high=middle end
+ end
+ local span=distances[high]-distances[low]
+ local t=span>0 and math.clamp((target-distances[low])/span,0,1) or 0
+ local p=samples[low]:Lerp(samples[high],t)
+ return (p.X-origin.X)*factor,(origin.Y-p.Y)*factor
 end
 local function centerAt(distance)
-  local s=math.clamp(tonumber(distance) or 0,0,COURSE_LENGTH)
-  local i=math.min(COURSE_LENGTH/STEP-1,math.floor(s/STEP))
-  local t=(s-i*STEP)/STEP
-  local x=xx[i+1]+(xx[i+2]-xx[i+1])*t
-  local z=zz[i+1]+(zz[i+2]-zz[i+1])*t
-  local h=hh[i+1]+(hh[i+2]-hh[i+1])*t
-  local y=2.5*math.sin(s/185)^2+13*math.sin(s/1500)^2+3*math.sin(s/430)^2
-  return x,y,z,h
+ local d=math.max(0,tonumber(distance) or 0)%COURSE_LENGTH
+ local x,z=xy(d)
+ local bx,bz=xy((d-.35+COURSE_LENGTH)%COURSE_LENGTH)
+ local ax,az=xy((d+.35)%COURSE_LENGTH)
+ local angle=d/COURSE_LENGTH*math.pi*2
+ return x,2*math.sin(angle)^2+1.2*math.sin(angle*2)^2,z,math.atan2(ax-bx,az-bz)
 end
 
 if not folder then return end

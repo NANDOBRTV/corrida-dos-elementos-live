@@ -8,48 +8,54 @@ local endpoint="https://corrida-dos-elementos-live.onrender.com/api/roblox/parti
 local INTERVAL=2
 local MAX_RUNNERS=50
 
--- Exactly the same heading-profile integration as src/track-path.js (2 studs per step).
--- Real 180-degree switchbacks; progression measures distance along the road.
-local COURSE_LENGTH=5000
-local STEP=2
-local turns={
-  {0,420,.03},{420,790,-1.55},{790,1400,-.05},
-  {1400,1770,3.10},{1770,2430,.08},
-  {2430,2810,-3.10},{2810,3420,-.06},
-  {3420,3790,3.10},{3790,4460,.07},
-  {4460,4800,-1.18},{4800,5000,-.10}
+-- W circuit, 400m closed Catmull-Rom spline, matched to src/track-path.js.
+local COURSE_LENGTH=400
+local controls={
+ {48,162},{72,165},{87,152},{89,127},{77,110},{64,91},
+ {59,70},{62,53},{76,50},{85,58},{92,48},{89,27},
+ {71,16},{46,20},{33,35},{35,57},{47,78},
+ {47,101},{37,106},{31,91},{21,86},{15,108},
+ {21,137},{34,157}
 }
-local function headingAt(distance)
-  local angle=0
-  for _,part in ipairs(turns) do
-    local start,ending,turn=part[1],part[2],part[3]
-    if distance<=start then break end
-    local t=math.min(1,(distance-start)/(ending-start))
-    angle+=turn*(1-math.cos(math.pi*t))*.5
-    if distance<ending then break end
+local density=64
+local samples={}
+local function pointAt(i) return controls[((i-1)%#controls)+1] end
+for i=1,#controls do
+ local a,b,c,d=pointAt(i-1),pointAt(i),pointAt(i+1),pointAt(i+2)
+ for j=0,density-1 do
+  local t=j/density;local t2=t*t;local t3=t2*t
+  local function axis(k)
+   return .5*(2*b[k]+(c[k]-a[k])*t+
+    (2*a[k]-5*b[k]+4*c[k]-d[k])*t2+
+    (-a[k]+3*b[k]-3*c[k]+d[k])*t3)
   end
-  return angle
+  table.insert(samples,Vector2.new(axis(1),axis(2)))
+ end
 end
-local cx,cz,yaws={}, {},{}
-cx[1]=0;cz[1]=0
-for index=0,COURSE_LENGTH/STEP do
-  local s=index*STEP
-  yaws[index+1]=headingAt(s)
-  if index>0 then
-    local h=headingAt(s-STEP*.5)
-    cx[index+1]=cx[index]+math.sin(h)*STEP
-    cz[index+1]=cz[index]+math.cos(h)*STEP
-  end
+table.insert(samples,samples[1])
+local distances={[1]=0}
+for i=2,#samples do distances[i]=distances[i-1]+(samples[i]-samples[i-1]).Magnitude end
+local factor=COURSE_LENGTH/distances[#distances]
+local origin=samples[1]
+local function xy(distance)
+ local target=math.clamp(distance,0,COURSE_LENGTH)/factor
+ local low,high=1,#samples
+ while low+1<high do
+  local middle=math.floor((low+high)/2)
+  if distances[middle]<target then low=middle else high=middle end
+ end
+ local span=distances[high]-distances[low]
+ local t=span>0 and math.clamp((target-distances[low])/span,0,1) or 0
+ local p=samples[low]:Lerp(samples[high],t)
+ return (p.X-origin.X)*factor,(origin.Y-p.Y)*factor
 end
 local function centerAt(distance)
-  local d=math.clamp(tonumber(distance) or 0,0,COURSE_LENGTH)
-  local i=math.min(COURSE_LENGTH/STEP-1,math.floor(d/STEP))
-  local t=(d-i*STEP)/STEP
-  local x=cx[i+1]+(cx[i+2]-cx[i+1])*t
-  local z=cz[i+1]+(cz[i+2]-cz[i+1])*t
-  local yaw=yaws[i+1]+(yaws[i+2]-yaws[i+1])*t
-  local y=2.5*math.sin(d/185)^2+13*math.sin(d/1500)^2+3*math.sin(d/430)^2
-  return x,y,z,yaw
+ local d=math.max(0,tonumber(distance) or 0)%COURSE_LENGTH
+ local x,z=xy(d)
+ local bx,bz=xy((d-.35+COURSE_LENGTH)%COURSE_LENGTH)
+ local ax,az=xy((d+.35)%COURSE_LENGTH)
+ local angle=d/COURSE_LENGTH*math.pi*2
+ return x,2*math.sin(angle)^2+1.2*math.sin(angle*2)^2,z,math.atan2(ax-bx,az-bz)
 end
 
 local function coursePosition(distance,lateral,height)
@@ -68,7 +74,7 @@ local latest
 local lastRound=0
 local lastUpdate=os.clock()
 
--- Cenário original montado nativamente NO ROBLOX: duas peças de pista de 300 studs.
+-- Circuito W Roblox em duas seções de 200 metros, reutilizadas a cada volta.
 -- Não faz download de mapas, roupas ou modelos para fora da plataforma.
 local scenery=Instance.new("Folder")
 scenery.Name="RaceScenery"
@@ -94,7 +100,7 @@ end
 
 for tile=1,2 do
   -- Terraces follow the centerline too; no giant straight ground slab.
-  for z=10,290,20 do
+  for z=10,190,20 do
     addBlock(tile,0,-2.9,z,126,5,26,Color3.fromRGB(234,241,249),"Ground")
     addBlock(tile,0,0,z,22,.2,20,Color3.fromRGB(151,165,185),"Road")
     for _,side in ipairs({-1,1}) do
@@ -107,12 +113,12 @@ for tile=1,2 do
         Color3.fromRGB(249,251,254),"CliffSnow")
     end
   end
-  for z=8,298,16 do
+  for z=8,198,16 do
     for _,x in ipairs({-6,-2,2,6}) do
       addBlock(tile,x,.16,z,.11,.02,5,Color3.fromRGB(247,244,226),"Marking")
     end
   end
-  for i=1,14 do
+  for i=1,10 do
     local z=i*19+4
     local x=(i%2==0 and -1 or 1)*(16+i%3*4)
     addBlock(tile,x,1.6,z,1.2,3.2,1.2,Color3.fromRGB(83,65,49),"Trunk")
@@ -123,13 +129,8 @@ for tile=1,2 do
 end
 
 local function repositionTrack(snapshot)
-  local positions={}
-  for _,runner in ipairs(snapshot.participants) do
-    table.insert(positions,tonumber(runner.progress) or 0)
-  end
-  table.sort(positions)
-  local focus=positions[math.max(1,math.floor(#positions*.45))] or 0
-  local base=math.max(0,math.floor(math.max(0,focus-170)/300)*300)
+  -- The complete W course stays fixed; laps reuse the same geometry.
+  local base=0
   local changedMap=currentMap~=snapshot.mapId
   if base==trackBase and not changedMap then return end
   trackBase=base
@@ -140,7 +141,7 @@ local function repositionTrack(snapshot)
   for tile=1,2 do
     for _,item in ipairs(tileParts[tile]) do
       if base~=nil then
-        local pos,yaw=coursePosition(base+(tile-1)*300+item.z,item.x,item.y)
+        local pos,yaw=coursePosition(base+(tile-1)*200+item.z,item.x,item.y)
         item.part.CFrame=CFrame.new(pos)*CFrame.Angles(0,yaw,0)
       end
       if changedMap then
@@ -196,16 +197,16 @@ local function distanceSign(meters)
   text.TextScaled=true
   text.Parent=gui
 end
-for dist=500,4500,500 do
+for dist=100,300,100 do
   distanceSign(dist)
   staticBlock(dist,0,.16,22,.03,.75,Color3.fromRGB(255,231,163),"Checkpoint_"..dist)
 end
 local finishColor=Color3.fromRGB(255,228,134)
-staticBlock(5000,0,.2,22,.08,1,finishColor,"FinishStripe")
+staticBlock(400,0,.2,22,.08,1,finishColor,"FinishStripe")
 for _,side in ipairs({-1,1}) do
-  staticBlock(5000,side*12.3,4.3,1,8.6,1,Color3.fromRGB(46,62,69),"FinishPillar")
+  staticBlock(400,side*12.3,4.3,1,8.6,1,Color3.fromRGB(46,62,69),"FinishPillar")
 end
-staticBlock(5000,0,8.6,25,1.3,1.2,finishColor,"FINISH_5000")
+staticBlock(400,0,8.6,25,1.3,1.2,finishColor,"FINISH_400")
 
 local function fetchRound()
   local ok,reply=pcall(function()
@@ -279,7 +280,7 @@ local function syncGiftObstacles(snapshot)
   if snapshot.phase=="RUNNING" and type(snapshot.obstacles)=="table" then
     for _,entry in ipairs(snapshot.obstacles) do
       if type(entry.id)=="string" and type(entry.z)=="number" and
-         type(entry.lane)=="number" and entry.z>=0 and entry.z<=5000 then
+         type(entry.lane)=="number" and entry.z>=0 and entry.z<=(snapshot.trackLength or COURSE_LENGTH) then
         wanted[entry.id]=true
         local piece=giftObstacleParts[entry.id]
         if not piece then
@@ -362,9 +363,10 @@ RunService.Heartbeat:Connect(function(dt)
       -- This never alters the Render result or accumulated race distance.
       local elapsed=math.clamp(os.clock()-lastUpdate,0,INTERVAL)
       local predicted=(tonumber(entry.progress) or 0)+(moving and math.max(0,tonumber(entry.speed) or 0)*elapsed or 0)
-      local progress=math.clamp(predicted,0,latest.trackLength or 5000)
+      local progress=math.clamp(predicted,0,latest.trackLength or COURSE_LENGTH)
       local bob=moving and math.abs(math.sin(os.clock()*10+entry.userId%13))*.08 or 0
-      model:SetAttribute("RaceProgress",progress)
+      model:SetAttribute("RaceProgress",progress%COURSE_LENGTH)
+      model:SetAttribute("RaceTotalProgress",progress)
       model:SetAttribute("RunnerMoving",moving)
       model:SetAttribute("RaceLane",lane)
       local pos,yaw=coursePosition(progress,(lane-2)*4,2.8+bob)

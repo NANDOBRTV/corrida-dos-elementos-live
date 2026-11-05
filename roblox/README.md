@@ -7,7 +7,7 @@ O projeto web **não contém ativos ou modelos oficiais Roblox**. Esses scripts 
 1. Um espectador envia `entrar NomeExatoDoRoblox` no TikTok. Para testes sem LIVE, envie esse texto no painel administrativo do Render.
 2. O backend consulta `users.roblox.com/v1/usernames/users` e associa o **ID da conta** ao corredor. O nome precisa existir. Escolher um nome público **não prova que o espectador seja dono dessa conta**.
 3. Um servidor de experiência Roblox acessa `/api/roblox/participants` com chave privada de integração (independente da ADMIN_KEY).
-4. Dentro do Roblox, `Players:CreateHumanoidModelFromUserIdAsync` cria o avatar real, com a aparência pública atual permitida pela plataforma. O script atualiza o progresso conforme o motor 5km.
+4. Dentro do Roblox, `Players:CreateHumanoidModelFromUserIdAsync` cria o avatar real, com a aparência pública atual permitida pela plataforma. O script atualiza o progresso conforme o motor de 400 metros por volta.
 5. A câmera espectadora segue os corredores para possível captura de vídeo por ferramenta autorizada.
 
 ## Instalação (precisa de Roblox Studio no computador)
@@ -28,4 +28,7 @@ Sem Roblox Studio e uma experiência configurada, a parte de avatares 3D oficiai
 - O serviço não usa itens Roblox fora dos serviços Roblox. Consulte as licenças antes de publicar.
 - Se quiser garantir que a pessoa é dona do avatar, utilize autorização Roblox adequada em vez de confiar apenas em um comentário do TikTok.
 
-O script server também gera uma pista 3D leve, com **Gelo e Floresta**, árvores de blocos e apenas 600 studs de cenário reutilizável para o percurso de 5.000, seguindo a ideia da versão WebGL. Os modelos reais são criados exclusivamente dentro do Roblox; a animação avançada ainda precisa ser validada no Studio.
+O script server também gera uma pista 3D leve, com **Gelo e Floresta**, árvores de blocos e apenas 400 metros do circuito W reutilizados a cada volta, seguindo a ideia da versão WebGL. Os modelos reais são criados exclusivamente dentro do Roblox; a animação avançada ainda precisa ser validada no Studio.
+
+## Versão 4.0 — W e voltas
+O script server e a câmera de espectador usam a mesma lista de pontos e a mesma interpolação Catmull-Rom do jogo web. Cada volta mede 400m, com sinalização aos 100, 200 e 300m e pórtico aos 400m. O progresso total de voltas continua vindo do servidor Render; a posição física da câmera e dos NPCs usa a distância módulo 400. As mudanças de veículos após presentes são incluídas no feed privado. Estes scripts continuam **sem validação em um Roblox Studio real**.

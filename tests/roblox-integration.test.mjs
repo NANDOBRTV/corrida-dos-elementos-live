@@ -153,3 +153,18 @@ test("Studio avatar camera uses official race time and 0–10-second randomized 
     "desired=desired:Lerp(close,blend)","Random.new(round*7937+slot*10949)"])
     assert.ok(camera.includes(marker),marker);
 });
+
+test("Optional Roblox native scripts mirror the 400m W spline and lap wrap",async()=>{
+  const {readFile}=await import("node:fs/promises");
+  const server=await readFile(new URL("../roblox/LiveRace.server.luau",import.meta.url),"utf8");
+  const camera=await readFile(new URL("../roblox/LiveCamera.client.luau",import.meta.url),"utf8");
+  for(const data of [server,camera]){
+    assert.ok(data.includes("local COURSE_LENGTH=400"));
+    assert.ok(data.includes("{48,162},{72,165},{87,152}"));
+    assert.ok(data.includes("Catmull-Rom spline"));
+  }
+  assert.ok(server.includes("for dist=100,300,100"));
+  assert.ok(server.includes("FINISH_400"));
+  assert.ok(server.includes("RaceTotalProgress"));
+  assert.ok(server.includes("for z=10,190,20"));
+});

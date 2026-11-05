@@ -12,6 +12,16 @@ on:
       - "e2e/studio-premium-glb.spec.mjs"
       - "package.json"
       - "index.html"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/studio-premium-glb-qa.yml"
+      - "src/studio-premium-assets.js"
+      - "src/studio-premium-cars.js"
+      - "src/studio-scene.js"
+      - "scripts/fetch-hero-models.mjs"
+      - "e2e/studio-premium-glb.spec.mjs"
+      - "package.json"
   workflow_dispatch:
 permissions:
   contents: read

@@ -10,9 +10,9 @@ import {
 import {buildStudioEffectParts,STUDIO_EFFECT_LIMITS} from "./studio-effects.js";
 
 export const STUDIO_SCENE_LIMITS=Object.freeze({
-  maxRunners:100,avatarParts:19,roadSegments:78,
-  segmentMeters:4,trees:112,hills:46,snowParticles:310,
-  walls:22,decorations:100,qualityMinScale:.62,maxNameplates:12
+  maxRunners:100,avatarParts:30,roadSegments:78,
+  segmentMeters:4,trees:162,hills:52,snowParticles:430,
+  walls:22,decorations:130,qualityMinScale:.62,maxNameplates:12
 });
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const isFiniteNumber=n=>typeof n==="number"&&Number.isFinite(n);
@@ -43,7 +43,19 @@ const avatarPart=[
   {p:[ .27,1.35,-.28],s:[.19,.67,.065],style:"stripe"},
   {p:[-.58,.62,.02],s:[.35,.18,.43],style:"wrist"},
   {p:[ .58,.62,.02],s:[.35,.18,.43],style:"wrist"},
-  {p:[0,1.11,-.478],s:[.52,.16,.05],style:"emblem"}
+  {p:[0,1.11,-.478],s:[.52,.16,.05],style:"emblem"},
+  // Deterministic outfit silhouettes, built only from original voxel blocks.
+  {p:[0,2.67,-.04],s:[.96,.28,.87],style:"hood",only:[1,3,6]},
+  {p:[-.47,2.13,.01],s:[.21,.74,.75],style:"hood",only:[1,3]},
+  {p:[ .47,2.13,.01],s:[.21,.74,.75],style:"hood",only:[1,3]},
+  {p:[0,2.17,.395],s:[.68,.21,.07],style:"visor",only:[0,4,6]},
+  {p:[0,1.92,.397],s:[.70,.24,.09],style:"mask",only:[2,3,6]},
+  {p:[0,1.08,-.62],s:[.86,1.18,.15],style:"cape",only:[2,5]},
+  {p:[-.75,1.48,0],s:[.45,.31,.63],style:"armor",only:[0,2,4]},
+  {p:[ .75,1.48,0],s:[.45,.31,.63],style:"armor",only:[0,2,4]},
+  {p:[0,2.79,-.08],s:[.75,.24,.71],style:"hat",only:[4,7]},
+  {p:[0,1.20,.34],s:[.53,.52,.11],style:"chest",only:[0,4,7]},
+  {p:[0,.83,.33],s:[.83,.19,.13],style:"belt",only:[0,2,5]}
 ];
 function nameHash(value){
   let h=2166136261;
@@ -87,7 +99,15 @@ function paletteFor(r){
     pack:new THREE.Color(outfit[3]),
     stripe:new THREE.Color(outfit[2]),
     wrist:new THREE.Color(outfit[2]),
-    emblem:new THREE.Color(outfit[2])
+    emblem:new THREE.Color(outfit[2]),
+    hood:new THREE.Color(seed%2?outfit[0]:outfit[1]),
+    visor:new THREE.Color(seed%3===0?0x94f7ff:0xffed91),
+    mask:new THREE.Color(seed%2?0x1a2330:outfit[1]),
+    cape:new THREE.Color(outfit[3]),
+    armor:new THREE.Color(outfit[2]),
+    hat:new THREE.Color(seed%2?outfit[0]:outfit[2]),
+    chest:new THREE.Color(outfit[2]),
+    belt:new THREE.Color(outfit[3])
   };
 }
 export function createStudioScene(canvas,{quality="balanced",
@@ -183,6 +203,12 @@ export function createStudioScene(canvas,{quality="balanced",
   effects.renderOrder=3;
   const avatars=createBatch("studio-100-runner-voxel-batch",fixedGeometry,
     materials.avatar,LIVE_STUDIO.maxRunners*STUDIO_SCENE_LIMITS.avatarParts);
+  // Visual-only leading-runner halo: a segmented orange floor ring and
+  // tall icy speed streaks. It never alters speeds, prizes, or gifts.
+  const spotlight=createBatch("studio-leader-spotlight-ring",fixedGeometry,
+    new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,
+      opacity:.86,depthWrite:false}),48);
+  spotlight.renderOrder=4;
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(580,610),materials.ground);
   ground.name="studio-ground-below-asphalt";
   ground.rotation.x=-Math.PI/2;ground.position.y=-.65;
@@ -221,6 +247,8 @@ export function createStudioScene(canvas,{quality="balanced",
   const localPos=new THREE.Vector3();
   const partScale=new THREE.Vector3();
   const noRotation=new THREE.Quaternion();
+  const limbRotation=new THREE.Quaternion();
+  const limbAxis=new THREE.Vector3(1,0,0);
   const faceVector=new THREE.Vector3();
   const lastAvatarIds=new Array(LIVE_STUDIO.maxRunners).fill(null);
   let lastFrame=null;
@@ -366,8 +394,9 @@ export function createStudioScene(canvas,{quality="balanced",
       const rootAngle=pose.heading+
         (phase==="LOBBY"||phase==="COUNTDOWN"?Math.PI:0);
       const running=phase==="RUNNING"&&r.status==="running";
+      const costume=nameHash(r.id)%8;
       const seed=nameHash(r.id)%1000;
-      const gait=running?Math.sin(t*.013+seed)*.22:0;
+      const gait=running?Math.sin(t*.013+seed)*.31:0;
       const bob=running?Math.abs(Math.sin(t*.013+seed))*.085:0;
       tmp.position.set(pose.x,pose.y+bob,pose.z);
       tmp.rotation.set(0,rootAngle,0);
@@ -387,8 +416,12 @@ export function createStudioScene(canvas,{quality="balanced",
         const meta=avatarPart[part];
         localPos.set(meta.p[0],meta.p[1],meta.p[2]+
           (meta.swing?meta.swing*gait:0));
-        partScale.set(meta.s[0],meta.s[1],meta.s[2]);
-        partMatrix.compose(localPos,noRotation,partScale);
+        const enabled=!meta.only||meta.only.includes(costume);
+        partScale.set(
+          enabled?meta.s[0]:0,enabled?meta.s[1]:0,enabled?meta.s[2]:0
+        );
+        if(meta.swing)limbRotation.setFromAxisAngle(limbAxis,meta.swing*gait);
+        partMatrix.compose(localPos,meta.swing?limbRotation:noRotation,partScale);
         composed.multiplyMatrices(rootMatrix,partMatrix);
         avatars.setMatrixAt(i*avatarPart.length+part,composed);
       }
@@ -421,6 +454,42 @@ export function createStudioScene(canvas,{quality="balanced",
       if(effects.instanceColor)effects.instanceColor.needsUpdate=true;
     }
   }
+  function updateSpotlight(state,poses){
+    if(state.phase!=="RUNNING"||!Array.isArray(state.active)){
+      spotlight.count=0;return;
+    }
+    const runners=state.active.filter(r=>r.status==="running");
+    if(!runners.length){spotlight.count=0;return;}
+    // Highlight a clear leader without faking a present from a real user.
+    const leader=runners.reduce((a,b)=>Number(b.progress)>Number(a.progress)?b:a);
+    const p=poses.get(leader.id);
+    if(!p){spotlight.count=0;return;}
+    const t=Math.max(0,Number(state.raceMs)||0);
+    const pulse=.94+.06*Math.sin(t*.008);
+    let n=0;
+    for(let k=0;k<18;k++){
+      const angle=Math.PI*2*k/18;
+      const radius=1.22*pulse;
+      put(spotlight,n,{x:p.x+Math.cos(angle)*radius,
+        y:p.y+.12,z:p.z+Math.sin(angle)*radius},
+        {x:.48,y:.14,z:.19},-angle);
+      spotlight.setColorAt(n++,new THREE.Color(k%3===0?0xffad44:0xf06537));
+    }
+    for(let k=0;k<10;k++){
+      const a=Math.PI*2*k/10+t*.00027;
+      const radius=1.45+((k*7)%3)*.19;
+      const cycle=(t*.0015+k*.37)%1;
+      const height=.35+cycle*4.6;
+      put(spotlight,n,{x:p.x+Math.cos(a)*radius,
+        y:p.y+height,z:p.z+Math.sin(a)*radius},
+        {x:.07,y:.55+cycle*.5,z:.07});
+      spotlight.setColorAt(n++,new THREE.Color(k%3===0?0xfff3aa:0xffffff));
+    }
+    spotlight.count=n;
+    spotlight.instanceMatrix.needsUpdate=true;
+    if(spotlight.instanceColor)spotlight.instanceColor.needsUpdate=true;
+  }
+
   function updatePodium(state){
     const isResults=state.phase==="RESULTS"&&
       Array.isArray(state.results)&&state.results.length>0;
@@ -483,6 +552,7 @@ export function createStudioScene(canvas,{quality="balanced",
     }
     const crowdPoses=updateAvatars(state);
     updateEffects(state,mid,crowdPoses);
+    updateSpotlight(state,crowdPoses);
     updatePodium(state);
     lastState=state;
     camera.updateMatrixWorld(true);
@@ -509,13 +579,13 @@ export function createStudioScene(canvas,{quality="balanced",
       triangles:renderer.info.render.triangles,
       runners:avatars.count/STUDIO_SCENE_LIMITS.avatarParts,
       courseRebuilds:courseBuilds,avatarColorChanges,
-      effectParts,decorations:decorations.count,
-      renderScale,mapId:biomeId};
+      effectParts,spotlightParts:spotlight.count,
+      decorations:decorations.count,renderScale,mapId:biomeId};
   }
   function dispose(){
     if(disposed)return;disposed=true;
     for(const node of [road,shoulders,centerlines,trunks,crowns,hills,walls,
-      avatars,decorations,effects]){
+      avatars,decorations,effects,spotlight]){
       scene.remove(node);node.dispose();
     }
     scene.remove(ground);ground.geometry.dispose();
@@ -525,6 +595,7 @@ export function createStudioScene(canvas,{quality="balanced",
     fixedGeometry.dispose();
     roadTexture.dispose();groundTexture.dispose();
     decorations.material.dispose();effects.material.dispose();
+    spotlight.material.dispose();
     for(const m of Object.values(materials))m.dispose();
     renderer.dispose();
     lastState=null;cameraPose=null;previousCourseBucket=null;

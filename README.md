@@ -1,3 +1,11 @@
+## Versão 3.2 — montanha nevada e cotovelos de 180°
+
+A trilha de 5.000 metros foi reconstruída por integração de comprimentos reais de arco. São três curvas fechadas de 178°, com zigue-zagues de encosta, retas panorâmicas, pequenas elevações, placas a cada 500 m, proteções laterais e terreno nevado. As coordenadas X e Z agora se movem e retornam durante os cotovelos. O minimapa deve mostrar o traçado sinuoso. Todo o cálculo visual está isolado em [src/track-path.js](src/track-path.js), sem mudar classificação ou física da corrida.
+
+Os scripts Roblox Studio têm a mesma meta visual, mas exigem validação dentro de uma experiência Roblox.
+
+---
+
 ### Roblox Studio — pista 3D sinuosa, 5 km
 
 A versão opcional para Roblox Studio também ganhou o mesmo percurso matemático, com estrada dividida em trechos que fazem curvas, sinalização a cada 500m, faixas, árvores acompanhando o caminho, pórtico de chegada na posição de 5.000m e câmera que acompanha as curvas. Os personagens Roblox verdadeiros são criados pela API nativa **somente dentro da experiência Roblox**. Esses scripts não foram executados em Studio e não substituem o jogo WebGL do Render.

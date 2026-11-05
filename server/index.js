@@ -14,6 +14,7 @@ import {createLikeBuffer,applyLikeBatch,applySimulatedLikes} from "../src/likes.
 import {parseRaceJoin} from "../src/roblox-names.js";
 import {createRobloxLookup,RobloxLookupError} from "./roblox-users.js";
 import {createStudioRuntime} from "./studio-runtime.js";
+import {createStudioLiveBridge} from "./studio-live.js";
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const mime={".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",
@@ -87,6 +88,15 @@ export async function createApp(opts={}){
   const studio=studioV5Enabled?createStudioRuntime({
     adminKey:secret,autoStart:true,
     sourceConnected:false
+  }):null;
+  const studioLive=studio&&!opts.disableTikTok?createStudioLiveBridge({
+    studio,lookup:robloxLookup,
+    fetchImpl:opts.studioAvatarFetch??globalThis.fetch,
+    username:opts.studioUsername??process.env.TIKTOK_USERNAME??"",
+    identitySalt:identitySalt.length>=16?identitySalt:randomBytes(32).toString("hex"),
+    enabled:opts.studioLiveEnabled===true||
+      (opts.studioLiveEnabled!==false&&realLiveEnabled),
+    connectionFactory:opts.studioConnectionFactory??null
   }):null;
   const subscribers=new Set();
   let lastTick=now(),lastBroadcast=0,lastSave=now();
@@ -187,6 +197,14 @@ export async function createApp(opts={}){
     const path=url.pathname;
     if(path.startsWith("/api/studio/")){
       if(!studio){sendJson(res,404,{ok:false,error:"Studio V5 ainda não ativado"});return;}
+      if(path==="/api/studio/avatars"&&req.method==="GET"){
+        sendJson(res,200,studioLive?.avatars()??{
+          ok:true,round:studio.state().round,
+          profiles:studio.state().active.map(r=>({id:r.id,robloxUsername:null,
+            avatarUrl:null,source:r.isBot?"bot":"starter"}))
+        });
+        return;
+      }
       await studio.handle(req,res,path);
       return;
     }
@@ -386,12 +404,16 @@ export async function createApp(opts={}){
     state:()=>state,
     studioState:()=>studio?.state()??null,
     studioRuntime:studio,
+    studioLiveBridge:studioLive,
     stats,
     flush:()=>persist(true),
     async listen(port=Number(process.env.PORT)||3000){
       await new Promise((resolve,reject)=>{server.once("error",reject);server.listen(port,"0.0.0.0",resolve);});
       const address=server.address();console.log("[server] corrida-dos-elementos-live http://0.0.0.0:"+address.port);
-      if(!opts.disableTikTok&&(opts.bridgeFactory||realLiveEnabled)){
+      // V5 gets one dedicated connector including follow events; do not
+      // open a second legacy connection to the same TikTok LIVE room.
+      if(studioLive?.status().enabled)void studioLive.start();
+      if(!opts.disableTikTok&&(opts.bridgeFactory||(realLiveEnabled&&!studioLive?.status().enabled))){
         bridge=(opts.bridgeFactory??startTikTokBridge)({
           username:process.env.TIKTOK_USERNAME,
           onStatus:info=>{bridgeStatus=info;liveDiagnostics.connection(info);},
@@ -424,6 +446,7 @@ export async function createApp(opts={}){
       if(closed)return;closed=true;
       clearInterval(heartbeat);clearInterval(ssePing);
       studio?.stop();
+      if(studioLive)await studioLive.close();
       for(const client of subscribers){try{client.end();}catch{}}
       subscribers.clear();
       if(bridge)await bridge.close();

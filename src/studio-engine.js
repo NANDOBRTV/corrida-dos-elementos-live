@@ -1,6 +1,7 @@
 // Motor v5 independente e determinístico. O servidor legado só migra
 // após a aprovação das integrações e testes das próximas partes.
 import {LIVE_STUDIO,BIOME_ORDER,RUNNER_COLORS} from "./config.js";
+import {resolveVehicle,vehicleForBot} from "./vehicles.js";
 
 const C=LIVE_STUDIO;
 const MAX_MESSAGES=5;
@@ -40,11 +41,17 @@ function effect(state,type,meta={},duration=2500){
   state.effects.length=Math.min(C.maxVisualEffects,state.effects.length);
   return item;
 }
-function newRunner(state,{userId,name,robloxUserId=null,isBot=false},index){
-  const id=clean(userId,128),label=clean(name)||"Corredor";
+function newRunner(state,{userId,name,vehicleId=null,robloxUserId=null,isBot=false},index){
+  const id=clean(userId,128),driverName=clean(name)||"Participante";
+  // User-selected models are never randomized. The deterministic Uno fallback
+  // keeps old administrative/test events compatible; the LIVE chat parser
+  // always requires an explicit valid selection.
+  const vehicle=resolveVehicle(vehicleId)||resolveVehicle(name)||
+    (isBot?vehicleForBot(index):resolveVehicle("Uno"));
   const variation=studioHash(id+"|"+state.seed)/4294967296;
   return {
-    id,name:label,isBot:Boolean(isBot),
+    id,name:vehicle.name,driverName,vehicleId:vehicle.id,
+    vehicleKind:vehicle.kind,isBot:Boolean(isBot),
     ...(Number.isSafeInteger(robloxUserId)&&robloxUserId>0?{robloxUserId}:{}),
     color:RUNNER_COLORS[index%RUNNER_COLORS.length],
     lane:index%10,gridPosition:index+1,progress:0,status:"waiting",
@@ -54,19 +61,25 @@ function newRunner(state,{userId,name,robloxUserId=null,isBot=false},index){
     finishMs:null,passed:[]
   };
 }
-export function studioJoin(state,{userId,name,robloxUserId=null}={}){
+export function studioJoin(state,{userId,name,vehicleId=null,robloxUserId=null}={}){
   const id=clean(userId,128);
   if(!id||id.length>128)return {ok:false,reason:"Identificador inválido"};
   if(!["LOBBY","COUNTDOWN","RUNNING","RESULTS"].includes(state.phase))
     return {ok:false,reason:"Rodada indisponível"};
+  // Reject unknown explicitly selected models rather than substituting one.
+  if(vehicleId&&!resolveVehicle(vehicleId))
+    return {ok:false,reason:"Veículo indisponível; escolha um dos 30 modelos"};
+  const selected=resolveVehicle(vehicleId)||resolveVehicle(name)||
+    resolveVehicle("Uno");
   const current=state.phase==="LOBBY",target=current?state.active:state.next;
   if(target.some(r=>r.id===id))return {ok:false,reason:"Já inscrito nesta rodada"};
   if(target.length>=C.maxRunners)return {ok:false,reason:"Limite de 100 corredores"};
-  const data={userId:id,name,robloxUserId,isBot:false};
+  const data={userId:id,name,vehicleId:selected.id,robloxUserId,isBot:false};
   target.push(current?newRunner(state,data,target.length):data);
   if(current)studioArrangeGrid(state);
-  message(state,(clean(name)||"Corredor")+" entrou na "+(current?"corrida":"fila seguinte"));
-  return {ok:true,queue:current?"atual":"próxima",round:state.round+(current?0:1)};
+  message(state,selected.name+" entrou na "+(current?"corrida":"fila seguinte"));
+  return {ok:true,vehicleId:selected.id,vehicleName:selected.name,
+    queue:current?"atual":"próxima",round:state.round+(current?0:1)};
 }
 export function studioArrangeGrid(state){
   if(state.phase!=="LOBBY"&&state.phase!=="COUNTDOWN")return;
@@ -82,7 +95,7 @@ export function studioFillBots(state,{count=C.botFillTarget}={}){
     if(state.active.some(r=>r.id===id))continue;
     state.active.push(newRunner(state,{
       userId:id,name:BOT_LABELS[i%BOT_LABELS.length]+" "+String(i+1).padStart(2,"0"),
-      isBot:true
+      vehicleId:vehicleForBot(i).id,isBot:true
     },state.active.length));
     filled++;
   }
@@ -132,7 +145,8 @@ export function studioAdvance(state){
   }else if(state.phase==="RUNNING"){
     state.phase="RESULTS";state.finishedAt=state.raceMs;
     state.results=studioRank(state.active).map((r,i)=>({
-      id:r.id,name:r.name,isBot:r.isBot,position:i+1,
+      id:r.id,name:r.name,vehicleId:r.vehicleId,vehicleKind:r.vehicleKind,
+      isBot:r.isBot,position:i+1,
       meters:Math.floor(r.progress),finishMs:r.finishMs
     }));
     message(state,"Vitória de "+(state.results[0]?.name||"ninguém"));

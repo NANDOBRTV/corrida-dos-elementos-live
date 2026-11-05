@@ -2,7 +2,7 @@ name: Captura visual — revisão da referência
 on:
   push:
     branches: [studio-v5-live-9x16]
-    paths: [".github/workflows/studio-video-reference-capture.yml"]
+    paths: [".github/workflows/studio-video-reference-capture.yml", "src/studio-scene.js", "src/studio-ui.js", "assets/studio-live.css"]
   pull_request:
     branches: [main]
     paths: [".github/workflows/studio-video-reference-capture.yml"]
@@ -51,9 +51,9 @@ jobs:
           });
           const page=await context.newPage();
           page.on('pageerror',e=>console.error('PAGEERROR:',e.message));
-          await page.goto('http://127.0.0.1:4173/?view=live&studioPreview=1&quality=low',
+          await page.goto('http://127.0.0.1:4173/?view=live&studioPreview=1&quality=low&crowd=20',
             {waitUntil:'domcontentloaded'});
-          await page.waitForFunction(()=>window.__studioV5Debug?.getSceneStats().runners===100,
+          await page.waitForFunction(()=>window.__studioV5Debug?.getSceneStats().runners===20,
             null,{timeout:30000});
           await page.waitForTimeout(2000);
           const lobby=await page.screenshot({type:'jpeg',quality:53});

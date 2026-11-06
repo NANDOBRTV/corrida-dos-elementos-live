@@ -29,7 +29,29 @@ test("Fusca, Uno, Palio, Civic, Opala load real licensed GLB models and Uno reta
   expect(results.unoLadderRungs).toBe(12);
   expect(results.premiumFailedModels).toBe(0);
   expect(errors).toEqual([]);
-  await page.screenshot({path:"test-results/ultra-six-real-glb-cars.png"});
+  const lobby=await page.screenshot({path:"test-results/ultra-six-real-glb-cars.png",
+    type:"jpeg",quality:68});
+  console.log("VISUAL_IMAGE_PREMIUM_LOBBY:"+lobby.toString("base64"));
+  await page.evaluate(async()=>{
+    const engine=await import("/src/studio-engine.js");
+    const shotModule=await import("/src/studio-camera.js");
+    const state=window.__studioV5Debug.getState();
+    engine.studioAdvance(state);engine.studioAdvance(state);
+    engine.studioTick(state,4200);
+    for(let seed=0;seed<100;seed++){
+      state.seed=seed;
+      const shot=shotModule.studioCameraShot(state);
+      const chosen=state.active.find(r=>r.id===shot.featuredId);
+      if(chosen?.vehicleId==="car-uno")break;
+    }
+  });
+  await expect.poll(()=>page.evaluate(()=>
+    window.__studioV5Debug.getSceneStats().premiumActiveVehicles),
+    {timeout:30000}).toBeGreaterThanOrEqual(1);
+  await page.waitForTimeout(900);
+  const close=await page.screenshot({path:"test-results/ultra-uno-ladder-close.jpg",
+    type:"jpeg",quality:68});
+  console.log("VISUAL_IMAGE_PREMIUM_CLOSE:"+close.toString("base64"));
   const credits=await request.get("/assets/hero-credits.html");
   expect(credits.status()).toBe(200);
   const txt=await credits.text();

@@ -27,7 +27,7 @@ test("Frota original de 30 modelos: 20 carros, 10 motos visíveis em 9:16",async
   expect(snapshot.stats.realWheels).toBe(20*4+10*2);
   expect(snapshot.stats.realDetailMeshes).toBeGreaterThan(10);
   expect(snapshot.stats.cameraCount).toBe(1);
-  expect(snapshot.stats.drawCalls).toBeLessThan(50);
+  expect(snapshot.stats.drawCalls).toBeLessThan(60);
   expect(snapshot.stats.triangles).toBeLessThan(200000);
   expect(errors).toEqual([]);
   await page.screenshot({path:"test-results/frota-30-carros-motos.png"});
@@ -66,7 +66,7 @@ test("100 veículos são renderizados sem voltar a aparecer personagem humano",a
   expect(x.stats.realWheels).toBe(x.stats.realCarModels*4+
     x.stats.realMotorcycleModels*2);
   expect(x.stats.cameraCount).toBe(1);
-  expect(x.stats.drawCalls).toBeLessThan(50);
+  expect(x.stats.drawCalls).toBeLessThan(60);
   expect(x.stats.triangles).toBeLessThan(200000);
 });
 

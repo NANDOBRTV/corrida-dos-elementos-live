@@ -8,7 +8,8 @@ export const REALISTIC_PROFILES=Object.freeze([
   "sedan","hatch","compact","pickup","suv","classic","muscle"
 ]);
 export const REALISTIC_PARTS=Object.freeze({
-  wheelsPerCar:4,wheelsPerMotorcycle:2,riderOnEveryMotorcycle:true
+  wheelsPerCar:4,wheelsPerMotorcycle:2,riderOnEveryMotorcycle:true,
+  riderLimbSegmentsPerMotorcycle:8
 });
 const pickProfile=shape=>shape==="classic-round"?"classic":
   shape==="sedan-old"?"sedan":
@@ -205,15 +206,16 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
   const tank=batch("studio-motorcycle-rounded-tanks",
     new THREE.SphereGeometry(.5,12,8),tankMaterial);
   const helmet=batch("studio-motorcycle-rider-helmets",
-    new THREE.SphereGeometry(.5,12,8),helmetMaterial);
+    new THREE.SphereGeometry(.5,18,12),helmetMaterial);
   const visor=batch("studio-motorcycle-rider-visors",
-    new THREE.SphereGeometry(.5,10,6),visorMaterial);
+    new THREE.SphereGeometry(.5,14,10),visorMaterial);
   const torso=batch("studio-motorcycle-rider-jackets",
-    new THREE.SphereGeometry(.5,12,8),jacketMaterial);
+    new THREE.CylinderGeometry(.47,.32,1,12,1),jacketMaterial);
   const limbs=batch("studio-motorcycle-rider-arms-and-legs",
-    new THREE.CylinderGeometry(.5,.5,1,8),jacketMaterial,capacity*4);
+    new THREE.CylinderGeometry(.5,.5,1,10),jacketMaterial,
+    capacity*REALISTIC_PARTS.riderLimbSegmentsPerMotorcycle);
   const riderGloves=batch("studio-motorcycle-rider-gloves-and-boots",
-    new THREE.SphereGeometry(.5,8,6),bootMaterial,capacity*4);
+    new THREE.SphereGeometry(.5,10,8),bootMaterial,capacity*5);
   const headlights=batch("studio-real-front-and-rear-lamps",
     new THREE.SphereGeometry(.5,8,6),lampMaterial,capacity*6);
   const FRONT_LAMP=new THREE.Color(0xffedbf);
@@ -224,6 +226,7 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
   const start=new THREE.Vector3(),end=new THREE.Vector3(),
     diff=new THREE.Vector3(),up=new THREE.Vector3(0,1,0);
   let renderedCars=0,renderedMotorcycles=0,totalWheels=0,totalRiders=0;
+  let riderLimbSegments=0;
   let heroModels=0,ladderRungs=0,heroDetailParts=0;
   const heroIds=new Set();
   function push(mesh,root,x,y,z,sx,sy,sz,color=null,pitch=0){
@@ -250,7 +253,7 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
     const slot=counts.get(limbs);
     if(slot>=limbs.instanceMatrix.count)return;
     limbs.setMatrixAt(slot,combined);limbs.setColorAt(slot,color);
-    counts.set(limbs,slot+1);
+    counts.set(limbs,slot+1);riderLimbSegments++;
   }
   const CHROME=new THREE.Color(0xc3ccd4);
   const DARK=new THREE.Color(0x192531);
@@ -309,6 +312,7 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
   function begin(){
     for(const mesh of ownedMeshes)counts.set(mesh,0);
     renderedCars=0;renderedMotorcycles=0;totalWheels=0;totalRiders=0;
+    riderLimbSegments=0;
     heroModels=0;ladderRungs=0;heroDetailParts=0;heroIds.clear();
   }
   function idToCabin(id){
@@ -385,18 +389,30 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
       push(tank,root,0,.97,l*.12,
         isScooter?.53:.68,isScooter?.61:.43,
         isScooter?.91:.93,paint);
-      // Every motorcycle has one helmeted rider, no rider on cars.
-      push(torso,root,0,seatY+.48,-l*.16+lean*.30,
-        .68,.92,.42,jersey,-lean);
+      // Anatomical silhouette: tapered jacket, neck seal, articulated elbows
+      // and knees. All pieces remain in the existing shared GPU batches.
+      // This is a stylized driver, not a licensed scan of a human rider.
+      push(torso,root,0,seatY+.50,-l*.13+lean*.29,
+        .76,.92,.72,jersey,-lean);
+      push(riderGloves,root,0,seatY+.91,-l*.09+lean*.27,
+        .30,.17,.27);
       push(helmet,root,0,seatY+1.17,l*.01+lean*.36,
         .65,.70,.67,helmetColor,-lean*.45);
       push(visor,root,0,seatY+1.18,l*.01+.29+lean*.34,
         .53,.27,.22);
       for(const side of [-1,1]){
-        segment(root,side*.28,seatY+.78,-l*.13,
-          side*.39,1.53,gripZ,.12,jersey);
-        segment(root,side*.20,seatY+.10,-l*.26,
-          side*.33,.67,l*.06,.17,jersey);
+        // Bent arms reach the grips rather than forming rigid sticks.
+        const elbowX=side*.51,elbowY=seatY+.55,elbowZ=l*.12;
+        segment(root,side*.30,seatY+.79,-l*.11,
+          elbowX,elbowY,elbowZ,.16,jersey);
+        segment(root,elbowX,elbowY,elbowZ,
+          side*.39,1.53,gripZ,.115,jersey);
+        // Separate thigh and shin follow the tank and reach the footrests.
+        const kneeX=side*.44,kneeY=.88,kneeZ=-l*.04;
+        segment(root,side*.22,seatY+.10,-l*.27,
+          kneeX,kneeY,kneeZ,.205,jersey);
+        segment(root,kneeX,kneeY,kneeZ,
+          side*.33,.67,l*.06,.155,jersey);
         push(riderGloves,root,side*.39,1.53,gripZ,
           .21,.18,.27);
         push(riderGloves,root,side*.33,.67,l*.06,
@@ -432,6 +448,7 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
   function stats(){return {
     realCarModels:renderedCars,realMotorcycleModels:renderedMotorcycles,
     motorcycleRiders:totalRiders,realWheels:totalWheels,
+    riderLimbSegments,
     heroModels,heroUniqueModels:heroIds.size,
     unoLadderRungs:ladderRungs,heroDetailParts,
     realDetailMeshes:ownedMeshes.filter(mesh=>mesh.count>0).length

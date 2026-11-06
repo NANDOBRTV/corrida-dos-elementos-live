@@ -27,6 +27,7 @@ test("Four intact licensed GLB cars load, and sculpted Opala/Gol remain and Uno 
   expect(results.heroUniqueModels).toBe(6);
   expect(results.realCarModels).toBe(6);
   expect(results.unoLadderRungs).toBe(12);
+  expect(results.premiumUnoLadders).toBe(1);
   expect(results.premiumFailedModels).toBe(0);
   console.log("PREMIUM_SOURCE_DIMS:"+JSON.stringify(results.premiumSourceDimensions));
   console.log("PREMIUM_ALIGNED_DIMS:"+JSON.stringify(results.premiumAlignedDimensions));

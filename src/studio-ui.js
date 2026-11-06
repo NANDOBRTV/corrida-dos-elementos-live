@@ -274,11 +274,13 @@ export async function startStudioLive({preview=false}={}){
   const params=new URLSearchParams(location.search);
   const qualityParam=(params.get("quality")||"").toLowerCase();
   const deviceMemory=navigator.deviceMemory;
-  const low=qualityParam==="low"||(qualityParam!=="high"&&deviceMemory&&deviceMemory<=4);
+  const premiumRequested=qualityParam==="high"||qualityParam==="ultra";
+  const low=qualityParam==="low"||(!premiumRequested&&deviceMemory&&deviceMemory<=4);
   let world;
   try{
     world=createStudioScene($("studioCanvas"),{
-      quality:low?"low":qualityParam==="high"?"high":"balanced",
+      quality:low?"low":qualityParam==="ultra"?"ultra":
+        premiumRequested?"high":"balanced",
       shadows:false
     });
   }catch(error){

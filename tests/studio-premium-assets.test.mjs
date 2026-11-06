@@ -5,10 +5,10 @@ import {PREMIUM_HERO_MODELS,PREMIUM_CAR_IDS,SOURCE_COMMIT,
 import {HERO_CAR_IDS} from "../src/vehicles.js";
 
 test("Licenças CC BY visíveis, artistas corretos e URLs imutáveis",()=>{
-  assert.equal(PREMIUM_CAR_IDS.length,5);
+  assert.equal(PREMIUM_CAR_IDS.length,4);
   assert.equal(SOURCE_COMMIT.length,40);
   assert.deepEqual([...PREMIUM_CAR_IDS].sort(),[
-    "car-civic","car-fusca","car-opala","car-palio","car-uno"
+    "car-civic","car-fusca","car-palio","car-uno"
   ].sort());
   for(const id of PREMIUM_CAR_IDS){
     assert.ok(HERO_CAR_IDS.includes(id));
@@ -24,5 +24,6 @@ test("Licenças CC BY visíveis, artistas corretos e URLs imutáveis",()=>{
   // The source catalog's "volkswagen-gol" is a Golf MK1, NOT a Gol.
   // Keep the Brazilian Gol geometry hand-made instead of mislabeling assets.
   assert.equal(PREMIUM_HERO_MODELS["car-gol"],undefined);
+  assert.equal(PREMIUM_HERO_MODELS["car-opala"],undefined);
   assert.equal(premiumModelUrl("car-gol"),null);
 });

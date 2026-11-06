@@ -60,8 +60,8 @@ export function createPremiumCars(THREE,scene,{
   }
   function warmAll(){
     if(!enabled)return;
-    // Five source-correct CC BY originals. The catalog's mislabeled Golf is
-    // intentionally NOT used as Gol; the bespoke Gol stays procedural.
+    // Four verified CC BY originals. The rejected Opala and mislabeled Golf are
+    // intentionally NOT used; both Opala and Gol retain sculpted 3D models.
     for(const id of Object.keys(PREMIUM_HERO_MODELS))warm(id);
   }
   function buildLadder(holder){

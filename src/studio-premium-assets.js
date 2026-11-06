@@ -17,7 +17,7 @@ export const PREMIUM_HERO_MODELS=Object.freeze({
   "car-palio":Object.freeze({
     file:"fiat-palio.glb",bytes:317144,author:"Fall0X",
     source:"https://sketchfab.com/3d-models/8a3e71d4b4234110b59b09ef663e9448",
-    material:"g1m1",license:"CC BY 4.0"
+    material:"g1m1",license:"CC BY 4.0",yawCorrection:Math.PI
   }),
   "car-civic":Object.freeze({
     file:"honda-civic.glb",bytes:331484,author:"rifdanzz",

@@ -640,6 +640,16 @@ export function createStudioScene(canvas,{quality="balanced",
     if(map!==biomeId)paint(map);
     const dt=clamp(Number(deltaSeconds)||1/30,.001,.2);
     cameraPose=advanceStudioCamera(cameraPose,state,dt);
+    const shot=studioCameraShot(state);
+    const desiredFov=shot.mode==="VEHICLE_CLOSEUP"?
+      STUDIO_CAMERA.closeFov??49:STUDIO_CAMERA.fovPortrait;
+    // One physical camera: smoothly zoom for 10 seconds, then widen to
+    // fit the first three cars without a jump in perspective.
+    const alphaFov=1-Math.exp(-3.8*dt);
+    const nextFov=camera.fov+(desiredFov-camera.fov)*alphaFov;
+    if(Math.abs(nextFov-camera.fov)>.002){
+      camera.fov=nextFov;camera.updateProjectionMatrix();
+    }
     camera.position.set(cameraPose.position.x,cameraPose.position.y,
       cameraPose.position.z);
     faceVector.set(cameraPose.target.x,cameraPose.target.y,

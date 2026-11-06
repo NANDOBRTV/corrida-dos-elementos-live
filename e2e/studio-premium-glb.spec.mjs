@@ -13,7 +13,7 @@ test("Four intact licensed GLB cars load, and sculpted Opala/Gol remain and Uno 
   }
   const errors=[];page.on("pageerror",e=>errors.push(e.message));
   await page.setViewportSize({width:390,height:693});
-  await page.goto("/?view=live&studioPreview=1&quality=high&crowd=6&hero=1&showcase=Uno",
+  await page.goto("/?view=live&studioPreview=1&quality=ultra&crowd=6&hero=1&showcase=Uno",
     {waitUntil:"domcontentloaded"});
   await expect(page.locator("#studioLive")).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>

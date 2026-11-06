@@ -74,6 +74,9 @@ export function createPremiumCars(THREE,scene,{
       v.set(...item.p);q.identity();scale.set(...item.s);
       matrix.compose(v,q,scale);ladder.setMatrixAt(i,matrix);
     }
+    // In licensed Uno GLB the roof reaches approximately 1.65m.
+    // Shift the separately modeled ladder ABOVE it (not hidden inside).
+    ladder.position.y=.29;
     ladder.instanceMatrix.needsUpdate=true;
     ladder.frustumCulled=false;holder.add(ladder);
   }
@@ -173,6 +176,10 @@ export function createPremiumCars(THREE,scene,{
     return {
       premiumEnabled:enabled,premiumReadyModels:templates.size,
       premiumActiveVehicles:visible.size,premiumFailedModels:failures.size,
+      premiumUnoLadders:[...instances.entries()].filter(([id,group])=>
+        visible.has(id)&&group.children.some(child=>
+          child.name==="studio-premium-uno-roof-ladder"||
+          child.getObjectByName("studio-premium-uno-roof-ladder"))).length,
       premiumSourceDimensions:Object.fromEntries(sourceDimensions),
       premiumAlignedDimensions:Object.fromEntries(normalizedDimensions)
     };

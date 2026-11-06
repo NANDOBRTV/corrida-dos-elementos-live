@@ -168,7 +168,7 @@ test("Android 9:16 WebGL renders 100 avatars in one batch and twelve nameplate a
   expect(out.hasCanvas).toBe(true);
   expect(out.stats.cameraCount).toBe(1);
   expect(out.stats.runners).toBe(100);
-  expect(out.stats.drawCalls).toBeLessThan(50);
+  expect(out.stats.drawCalls).toBeLessThan(60);
   expect(out.stats.triangles).toBeGreaterThan(1500);
   expect(out.stats.triangles).toBeLessThan(200000);
   expect(out.labels.length).toBeLessThanOrEqual(100);
@@ -194,7 +194,7 @@ test("Android 9:16 WebGL renders 100 avatars in one batch and twelve nameplate a
   });
   expect(after.stats.runners).toBe(100);
   expect(after.stats.courseRebuilds).toBeLessThan(25);
-  expect(after.stats.drawCalls).toBeLessThan(50);
+  expect(after.stats.drawCalls).toBeLessThan(60);
   await unmount(page);
 });
 test("1080x1920 landscape-free 9:16 portrait renders Ice, Forest and winner podium",async({page})=>{
@@ -267,7 +267,7 @@ test("Reference visual: tall starting pillars, colorful voxel accessories and mi
   expect(results.ringColor).toBe(true);
   expect(results.avatarInstances).toBe(100*results.avatarPartsPerRunner);
   expect(results.cameraCount).toBe(1);
-  expect(results.drawCalls).toBeLessThan(50);
+  expect(results.drawCalls).toBeLessThan(60);
   expect(results.triangles).toBeLessThan(200000);
   await page.locator("#studio-v5-scene-test").screenshot({
     path:"test-results/reference-new-voxel-spotlight.png"

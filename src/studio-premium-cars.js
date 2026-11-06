@@ -15,6 +15,10 @@ export function createPremiumCars(THREE,scene,{
   const templates=new Map(),promises=new Map(),failures=new Map();
   const sourceDimensions=new Map(),normalizedDimensions=new Map();
   const instances=new Map(),visible=new Set();
+  // Retain a small number of featured car clones between camera cuts.
+  // GLTF meshes are shared by clones, but unbounded Group objects can still
+  // grow for every runner in a multi-hour, 100-vehicle broadcast.
+  const cacheLimit=Math.max(4,Math.min(24,maxDetailed*2));
   const ladderGeometry=new THREE.BoxGeometry(1,1,1);
   const ladderMaterial=new THREE.MeshStandardMaterial({
     color:0xc3ccd4,metalness:.75,roughness:.26
@@ -167,6 +171,15 @@ export function createPremiumCars(THREE,scene,{
       holder.rotation.set(0,rootAngle,0);
       holder.scale.setScalar(.79);
       holder.visible=true;visible.add(r.id);
+      // Refresh LRU order; repeated highlights should reuse the same clone.
+      instances.delete(r.id);instances.set(r.id,holder);
+    }
+    // Never remove any car on screen. Retired clones are safe to discard:
+    // their textures and geometries live on in the source template.
+    for(const [id,holder] of instances){
+      if(instances.size<=cacheLimit)break;
+      if(visible.has(id))continue;
+      scene.remove(holder);instances.delete(id);
     }
   }
   function isVisible(runnerId){
@@ -176,6 +189,7 @@ export function createPremiumCars(THREE,scene,{
     return {
       premiumEnabled:enabled,premiumReadyModels:templates.size,
       premiumActiveVehicles:visible.size,premiumFailedModels:failures.size,
+      premiumCachedVehicles:instances.size,premiumCacheLimit:cacheLimit,
       premiumUnoLadders:[...instances.entries()].filter(([id,group])=>
         visible.has(id)&&group.children.some(child=>
           child.name==="studio-premium-uno-roof-ladder"||

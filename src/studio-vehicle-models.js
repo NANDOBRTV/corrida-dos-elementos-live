@@ -152,14 +152,14 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
     color:0xffffff,roughness:.22,metalness:.20});
   const visorMaterial=new THREE.MeshStandardMaterial({
     color:0x0d1d2a,roughness:.08,metalness:.4});
-  const lampMaterial=new THREE.MeshBasicMaterial({color:0xffedbf});
-  const tailMaterial=new THREE.MeshBasicMaterial({color:0xd82e39});
+  // Front and rear lamps use one GPU batch, preserving colors per instance.
+  const lampMaterial=new THREE.MeshBasicMaterial({color:0xffffff});
   const bootMaterial=new THREE.MeshStandardMaterial({
     color:0x202632,roughness:.78,metalness:0});
   const ownedMeshes=[],ownedGeometries=[],ownedMaterials=[
     shellMaterial,glassMaterial,tireMaterial,hubMaterial,tankMaterial,
     jacketMaterial,helmetMaterial,visorMaterial,
-    lampMaterial,tailMaterial,bootMaterial
+    lampMaterial,bootMaterial
   ];
   const body=new Map(),windows=new Map();
   const heroBody=new Map(),heroWindows=new Map(),heroRoofs=new Map();
@@ -214,10 +214,10 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
     new THREE.CylinderGeometry(.5,.5,1,8),jacketMaterial,capacity*4);
   const riderGloves=batch("studio-motorcycle-rider-gloves-and-boots",
     new THREE.SphereGeometry(.5,8,6),bootMaterial,capacity*4);
-  const headlights=batch("studio-real-front-headlamps",
-    new THREE.SphereGeometry(.5,8,6),lampMaterial,capacity*4);
-  const taillights=batch("studio-real-rear-taillamps",
-    new THREE.SphereGeometry(.5,8,6),tailMaterial,capacity*2);
+  const headlights=batch("studio-real-front-and-rear-lamps",
+    new THREE.SphereGeometry(.5,8,6),lampMaterial,capacity*6);
+  const FRONT_LAMP=new THREE.Color(0xffedbf);
+  const REAR_LAMP=new THREE.Color(0xd82e39);
   const local=new THREE.Matrix4(),combined=new THREE.Matrix4();
   const pos=new THREE.Vector3(),scale=new THREE.Vector3(),rotation=new THREE.Quaternion();
   const xAxis=new THREE.Vector3(1,0,0);
@@ -289,7 +289,7 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
       // Double round headlamps and longer bright rear chrome bumper.
       for(const side of [-1,1]){
         push(headlights,root,side*w*.19,.74,l*.49,
-          .26,.24,.11);
+          .26,.24,.11,FRONT_LAMP);
         heroDetailParts++;
       }
       push(heroTrim,root,0,.67,l*.498,w*.66,.05,.045,CHROME);
@@ -369,9 +369,9 @@ export function createRealisticVehicleFleet(THREE,scene,{capacity=100}={}){
         // Different profiles receive differently sized light assemblies.
         push(headlights,root,side*w*.35,high?.86:.73,l*.49,
           classic?.32:sport?.45:upright?.23:.31,
-          classic?.28:sport?.11:upright?.29:.18,.11);
-        push(taillights,root,side*w*.37,high?.91:.74,-l*.49,
-          profile==="compact"?.22:.34,profile==="compact"?.39:.16,.1);
+          classic?.28:sport?.11:upright?.29:.18,.11,FRONT_LAMP);
+        push(headlights,root,side*w*.37,high?.91:.74,-l*.49,
+          profile==="compact"?.22:.34,profile==="compact"?.39:.16,.1,REAR_LAMP);
       }
     }else{
       renderedMotorcycles++;totalRiders++;

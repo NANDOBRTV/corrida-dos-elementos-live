@@ -51,9 +51,16 @@ test("Four intact licensed GLB cars load, and sculpted Opala/Gol remain and Uno 
   });
   expect(chosen).toBe("car-uno");
   await page.waitForTimeout(900);
+  const closeFov=await page.evaluate(()=>
+    window.__studioV5Debug.getSceneStats().cameraFov);
+  expect(closeFov).toBeLessThan(60);
   const close=await page.screenshot({path:"test-results/ultra-uno-ladder-close.jpg",
     type:"jpeg",quality:68});
   console.log("VISUAL_IMAGE_PREMIUM_CLOSE:"+close.toString("base64"));
+  await page.evaluate(()=>{window.__studioV5Debug.getState().raceMs=12000;});
+  await page.waitForTimeout(850);
+  const topThree=await page.evaluate(()=>window.__studioV5Debug.getSceneStats());
+  expect(topThree.cameraFov).toBeGreaterThan(60);
   const credits=await request.get("/assets/hero-credits.html");
   expect(credits.status()).toBe(200);
   const txt=await credits.text();

@@ -26,3 +26,17 @@ export function laneX(index) { return (index - (LANES-1)/2) * LANE_WIDTH; }
 const NO_AUTOMATIC_OBSTACLES=Object.freeze([]);
 export function obstaclesFor(){return NO_AUTOMATIC_OBSTACLES;}
 export const RUNNER_COLORS = ["#c9f86e","#65d9fa","#ffd47d","#ea98ff","#ff9389","#6be6c9","#f9b0dc","#f2f7fa","#a2b5ff","#d6a97c"];
+ 
+// Projeto Studio v5: parâmetros visuais e regras de uma corrida contínua.
+// Valores independentes do motor legado até a integração validada.
+export const LIVE_STUDIO=Object.freeze({
+  designWidth:1080,designHeight:1920,safeTop:120,safeBottom:220,
+  maxRunners:100,botFillTarget:100,
+  defaultDistance:1200,minDistance:1000,maxDistance:1500,distanceStep:50,
+  lobbyMs:60000,countdownMs:3000,resultsMs:8000,maxRaceMs:240000,
+  speedMin:8.5,speedRange:4.5,speedCap:20,
+  likeThreshold:20,likeSpeedBonus:0.15,likeSpeedCap:1.5,
+  roseTurboMs:4000,jetpackMs:8000,turboChargeMs:900,
+  maxTurboCharges:20,obstacleMs:9000,torpedoTravelMs:1800,
+  torpedoSlowMs:2000,maxVisualEffects:60
+});

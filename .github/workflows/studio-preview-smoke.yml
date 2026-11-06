@@ -1,0 +1,25 @@
+name: Smoke Test — Studio V5 Render Preview
+on:
+  push:
+    branches: [studio-v5-live-9x16]
+    paths:
+      - ".github/workflows/studio-preview-smoke.yml"
+      - "scripts/studio-preview-smoke.mjs"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout da versão V5
+        uses: actions/checkout@v4
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Conferir preview isolado na internet
+        env:
+          STUDIO_PREVIEW_URL: https://corrida-elementos-v5-preview.onrender.com
+        run: node scripts/studio-preview-smoke.mjs

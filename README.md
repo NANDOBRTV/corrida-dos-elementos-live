@@ -1,3 +1,139 @@
+# Studio V5 — Parte 8/10: implantação no Render, OBS e recuperação
+
+> **Estado desta branch:** o V5 continua em desenvolvimento na branch
+> `studio-v5-live-9x16` (PR #18); **não foi ativado no Render público**.
+> O `render.yaml` continua ligado à branch `main` e inicia com
+> `STUDIO_V5_ENABLED=false`. O jogo anterior permanece disponível.
+
+## Implantações separadas, sem risco à LIVE atual
+
+- URL pública atual: `https://corrida-dos-elementos-live.onrender.com/?view=live`
+  (continua rodando a versão atual até o merge, deploy e ativação do V5).
+- Prévia V5 **após a branch ser implantada**:
+  `https://corrida-dos-elementos-live.onrender.com/?view=live&studioPreview=1&quality=low`.
+  A opção `studioPreview=1` simula 100 bots **apenas neste navegador**, não
+  inicia conexão externa nem modifica o banco. Ela não existe na versão pública
+  anterior; publicá-la requer deploy desta branch.
+- Motor V5 real **após ativação e banco PostgreSQL**:
+  `https://corrida-dos-elementos-live.onrender.com/?view=live`.
+- Diagnóstico: `/health` para o processo geral; `/api/studio/health`
+  para V5 (404 enquanto desligado). O diagnóstico V5 mostra
+  `storage.mode`, `storage.healthy`, `storage.dirty`, `storage.savedAt`,
+  `round`, `phase` e `connected`.
+
+## Variáveis do Render (Dashboard → serviço → Environment)
+
+| Variável | Configuração | Função |
+|---|---|---|
+| `NODE_ENV` | `production` | Modo do processo |
+| `STUDIO_V5_ENABLED` | `false` durante QA; `true` somente na liberação | Seleciona motor e HUD V5 |
+| `DATABASE_URL` | URL **privada** do PostgreSQL durável | Restauração V5 e legado, tabelas separadas |
+| `ADMIN_KEY` | Segredo longo gerado no Render | Comandos administrativos |
+| `TIKTOK_ID_SALT` | Segredo estável longo | Pseudonimização, manter estável entre deploys |
+| `TIKTOK_LIVE_MODE` | `disabled` durante QA; `enabled` após validação | Conexão com a LIVE real |
+| `TIKTOK_USERNAME` | Nome da conta sem `@` | Identifica a sala da LIVE |
+| `ROBLOX_BRIDGE_KEY` | Opcional, segredo separado | Somente ponte com Roblox Studio |
+| `DATABASE_SSL` | Ajustar apenas se o provedor do banco exigir | TLS do Postgres |
+
+**Nunca** colocar `ADMIN_KEY`, `DATABASE_URL`, cookies ou segredos no Git,
+no HTML ou nos parâmetros da URL. `sync: false` no Blueprint solicita
+o valor na **criação** de um serviço, mas **não modifica o ambiente de
+um serviço Render já existente**. Configure ou confirme as variáveis no Dashboard.
+
+## Publicar com segurança pelo celular (GitHub ou Termux)
+
+**Pelo GitHub no Android:**
+1. Abra o PR `https://github.com/NANDOBRTV/corrida-dos-elementos-live/pull/18`.
+2. Confirme os checks do motor e do navegador das Partes 9 e 10.
+3. Confirme o PostgreSQL, a configuração do conector e faça backup da base.
+4. Somente depois, faça merge na `main` pelo GitHub; o Render fará o deploy
+   conforme `autoDeployTrigger: checksPass`.
+5. Confira `/health`, `/api/studio/health`, as duas câmeras
+   de OBS/celular e o retorno de um checkpoint após um reinício.
+6. Ative `STUDIO_V5_ENABLED=true` **primeiro com** `TIKTOK_LIVE_MODE=disabled`;
+   valide a interface e depois ative a LIVE real com a conta autorizada.
+7. Se falhar, desative `STUDIO_V5_ENABLED` no Dashboard e faça rollback do deploy.
+
+**Com git no Termux, se quiser enviar novas alterações à branch de trabalho:**
+
+```sh
+pkg update -y
+pkg install git nodejs -y
+git clone https://github.com/NANDOBRTV/corrida-dos-elementos-live.git
+cd corrida-dos-elementos-live
+git fetch origin
+git switch --track origin/studio-v5-live-9x16
+npm install --include=dev --no-audit --no-fund
+npm run check
+npm test
+git status
+# Depois de editar arquivos: substitua "arquivo" pelo nome realmente alterado.
+git add arquivo
+git commit -m "ajuste Studio V5"
+git push -u origin studio-v5-live-9x16
+```
+
+Se o repositório já estiver no Termux, **não** clone de novo: abra a pasta
+existente e use `git fetch origin && git switch studio-v5-live-9x16`.
+Para autenticação, utilize os métodos do GitHub; nunca cole token no chat.
+
+## Fonte Navegador do OBS — 1080 × 1920
+
+1. Crie uma cena com **base/canvas 1080 × 1920**, orientação vertical.
+2. Adicione **Fonte Navegador / Browser Source**.
+3. URL: `https://corrida-dos-elementos-live.onrender.com/?view=live`.
+4. Largura: **1080**; altura: **1920**; FPS: **30**.
+5. Ajuste a fonte a 100% dentro do canvas. Desative recargas automáticas
+   conflitantes da própria cena, se estiverem configuradas.
+6. Mantenha uma única fonte ativa durante a LIVE, sem expor o painel
+   `?view=operator` nem a chave administrativa na transmissão.
+7. A página V5 preserva margem vertical de aproximadamente **120 px no topo**
+   e **220 px no rodapé**, com painel, ranking, chat e botões dentro da área útil.
+
+O navegador V5 usa `EventSource` com reconexão automática e consultas
+de recuperação, além de reduzir a resolução interna se o FPS cair.
+O **watchdog verifica a cada 5 segundos** se os quadros pararam por 30
+segundos, se o WebGL perdeu o contexto ou se o estado remoto ficou sem
+atualização por mais de 45 segundos; ele tenta recuperar e limita a
+**três recargas em 15 minutos** para evitar ciclos infinitos. Guias em
+segundo plano e navegadores totalmente offline não são recarregados à força.
+Isso não corrige falhas físicas do dispositivo, perda prolongada de internet
+nem um OBS que esteja fechado.
+
+## Hospedagem contínua e monitoramento externo
+
+O plano **Free** do Render pode suspender o processo após **15 minutos
+sem tráfego de entrada**. A API, o temporizador interno e SSE enviados
+pelo servidor **não fazem o serviço trabalhar enquanto suspenso**.
+Uma consulta externa a `https://corrida-dos-elementos-live.onrender.com/health`
+a cada **5 minutos** pode ser configurada em um monitor autorizado que
+faça requisições HTTP (não é um ping interno do mesmo serviço). **Isso não
+garante uptime 24h nem substitui um plano pago adequado à LIVE.**
+As condições do provedor e limites de uso continuam valendo.
+
+Para operação de transmissão contínua, use serviço que não suspenda o
+processo (por exemplo, plano pago no Render), PostgreSQL com retenção
+e backups, rede estável e cliente OBS aberto. Verifique o custo antes de
+alterar o plano. `healthCheckPath: /health` permite ao Render detectar
+falhas; não é um monitor externo de disponibilidade.
+
+## Segurança e limites ainda pendentes
+
+- Parte 8 prepara configurações e watchdog; **nenhum deploy do V5 real**
+  nem cobrança de hospedagem foram executados.
+- O teste motor anterior passou; a **Parte 9 ainda precisa medir FPS real
+  em 1080 × 1920 e em Android médio** e verificar todas as colisões do HUD.
+- A conexão TikTok real exige uma transmissão autorizada e teste ponta a
+  ponta. A implementação com pacote conector não garante acesso à LIVE.
+- Os recursos Roblox são miniaturas públicas e personagens voxel originais;
+  o avatar 3D oficial exige Roblox Studio.
+- Um desligamento abrupto (queda de energia ou SIGKILL) pode perder até
+  a última janela de gravação; um encerramento normal salva o checkpoint.
+- Recuperação do browser é diferente de operação 24h do servidor: nenhuma
+  página consegue continuar se a hospedagem ou a rede permanecerem fora do ar.
+
+---
+
 ### Detalhes dos avatares na câmera frontal
 
 Os avatares originais do simulador web agora têm olhos e boca simples, visíveis de frente na contagem regressiva. Isso evita a aparência de cabeças sem rosto e não importa modelos oficiais do Roblox. As pequenas peças são adicionadas ao lote 3D já existente, sem novas draw calls.

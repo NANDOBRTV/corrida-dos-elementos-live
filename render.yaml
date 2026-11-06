@@ -1,6 +1,7 @@
-# Este blueprint documenta a implantação do jogo no Render.
-# Plano gratuito = testes, NÃO operação 24h garantida. Para sempre ligado,
-# altere o plano de compute para Starter (pago) pelo Dashboard.
+# Studio V5, Parte 8 — rollout com proteção da versão pública.
+# Render Free suspende o serviço sem tráfego de entrada; não garante 24h.
+# NÃO habilite o V5 nem o conector antes de concluir QA, Postgres e streaming.
+# Depois da aprovação: mude STUDIO_V5_ENABLED e TIKTOK_LIVE_MODE via Dashboard.
 services:
   - type: web
     name: corrida-dos-elementos-live
@@ -8,16 +9,38 @@ services:
     region: ohio
     plan: free
     branch: main
-    buildCommand: npm install --omit=dev && npm run check && npm test
+    # Deploy automático só depois das verificações da branch alvo passarem.
+    autoDeployTrigger: checksPass
+    buildCommand: >-
+      npm install --omit=dev --no-audit --no-fund
+      && npm run check
+      && node --check src/studio-engine.js
+      && node --check src/studio-camera.js
+      && node --check src/studio-scene.js
+      && node --check src/studio-effects.js
+      && node --check src/studio-ui.js
+      && node --check server/studio-runtime.js
+      && node --check server/studio-live.js
+      && npm test
     startCommand: npm start
     healthCheckPath: /health
-    autoDeployTrigger: commit
     envVars:
       - key: NODE_ENV
         value: production
+      - key: STUDIO_V5_ENABLED
+        value: "false"
       - key: TIKTOK_LIVE_MODE
         value: disabled
       - key: ADMIN_KEY
         generateValue: true
-      # Opcional: adicione DATABASE_URL pelo Dashboard usando um Postgres durável.
-      # Nunca coloque credenciais em render.yaml ou no GitHub.
+      - key: TIKTOK_ID_SALT
+        generateValue: true
+      # Variáveis sem segredo no repositório; para um Blueprint existente
+      # sync:false não atualiza as variáveis, ajuste pelo Dashboard.
+      - key: TIKTOK_USERNAME
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      # Opcional apenas para experiência Roblox Studio nativa:
+      - key: ROBLOX_BRIDGE_KEY
+        sync: false

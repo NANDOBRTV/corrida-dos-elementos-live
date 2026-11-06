@@ -1,0 +1,492 @@
+
+/* Studio V5 broadcast — strictly a 9:16 stage (1080 × 1920 design units).
+   Nothing interactive or visual occupies the first 120 or last 220 pixels. */
+body.studio-live-active{
+  margin:0!important;padding:0!important;background:#090e18!important;
+  display:flex!important;align-items:center;justify-content:center;
+  min-height:100dvh;color:#fff!important;font-family:system-ui,"DM Sans",sans-serif;
+  overflow:hidden!important
+}
+.studio-live-active *{box-sizing:border-box}
+.studio-stage{
+  position:relative;width:min(100vw,56.25dvh);
+  height:auto;max-height:100dvh;aspect-ratio:9/16;
+  margin:auto;background:#b9d2e5;isolation:isolate;
+  container-type:inline-size;overflow:hidden;touch-action:manipulation
+}
+.studio-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0}
+.studio-stage [hidden]{display:none!important}
+.studio-stage button{font-family:inherit;cursor:pointer;border:0;white-space:nowrap}
+.studio-channel{position:absolute;left:3.1%;top:6.3%;width:48%;z-index:8;
+  display:flex;gap:1.2cqw;align-items:flex-start;padding:1.7cqw;
+  border-radius:2.3cqw;background:rgba(8,16,32,.72);backdrop-filter:blur(5px)}
+.studio-channel-icon{width:7.9cqw;height:7.9cqw;flex:none;border-radius:50%;
+  display:grid;place-items:center;background:linear-gradient(145deg,#f2d35c,#e8742f);
+  font-size:4.3cqw;box-shadow:0 .4cqw 1.8cqw #0008}
+.studio-channel-info{display:grid;grid-template-columns:minmax(0,1fr) auto;
+  gap:.8cqw;min-width:0;flex:1;align-items:center}
+.studio-channel-name{font-size:2.36cqw;line-height:1.12;grid-column:1/3;
+  font-weight:900;text-shadow:0 .2cqw .5cqw #0008}
+.studio-channel-info>span{font-size:1.95cqw;color:#d8e5f0;align-self:center}
+.studio-follow{font-size:1.95cqw;color:#fff;background:#eb3c40;
+  padding:.7cqw 1.35cqw;border-radius:1.15cqw;font-weight:900}
+.studio-chips{position:absolute;left:3.1%;top:13.5%;z-index:7;
+  display:flex;gap:1.05cqw;max-width:57%}
+.studio-chips>span{font-size:1.6cqw;letter-spacing:.04em;
+  padding:.65cqw 1.3cqw;border-radius:4cqw;font-weight:900;
+  border:1px solid #ffffff49;background:rgba(9,19,36,.76)}
+.studio-chips>span:first-child{background:#cc3446;color:white}
+.studio-viewers{position:absolute;top:6.55%;right:3%;width:39%;z-index:7;
+  display:flex;justify-content:flex-end;align-items:center;gap:1.3cqw}
+.studio-viewer-faces{display:flex;align-items:center;padding-left:2cqw}
+.studio-viewer-faces>.studio-avatar{width:6.8cqw;height:6.8cqw;
+  margin-left:-2cqw;border:.34cqw solid #fff}
+.studio-viewer-count{display:flex;flex-direction:column;align-items:center;
+  min-width:10cqw;padding:.9cqw 1.4cqw;border-radius:2cqw;
+  background:rgba(6,19,34,.75);line-height:1.1}
+.studio-viewer-count b{font-size:2.6cqw;font-variant-numeric:tabular-nums}
+.studio-viewer-count span{font-size:1.58cqw;color:#dfebf3}
+.studio-ranking{position:absolute;top:17.5%;left:3%;width:38%;
+  z-index:6;border-radius:2.4cqw;padding:1.5cqw;
+  background:rgba(8,15,30,.83);box-shadow:0 .9cqw 3cqw #0c11215a}
+.studio-panel-title{font-size:2.33cqw;letter-spacing:.06em;font-weight:1000;
+  display:flex;align-items:center;gap:1cqw;margin-bottom:1.1cqw}
+.studio-live-dot{width:1.4cqw;height:1.4cqw;border-radius:50%;
+  background:#ed4050;box-shadow:0 0 1cqw #ec5d76}
+.studio-ranking-rows{padding:0;margin:0;list-style:none;display:grid;gap:.52cqw}
+.studio-rank-row{display:flex;align-items:center;gap:.55cqw;
+  padding:.65cqw .5cqw;border-radius:1.15cqw;min-width:0;
+  background:rgba(255,255,255,.045)}
+.studio-rank-row.leader{background:linear-gradient(95deg,#efb83a3b,transparent);
+  box-shadow:inset .3cqw 0 #f5c85a}
+.studio-medal{width:4.05cqw;font-size:2.5cqw;text-align:center;flex:none;font-weight:800}
+.studio-avatar{display:grid;place-items:center;overflow:hidden;flex:none;
+  width:4.5cqw;height:4.5cqw;border-radius:50%;font-size:2.15cqw;
+  background:var(--avatar-color,#78bdcb);border:.2cqw solid #ffffffaa;
+  color:#111a22;font-weight:900}
+.studio-avatar img{width:100%;height:100%;object-fit:cover}
+.studio-rank-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-size:2.06cqw;font-weight:800}
+.studio-rank-meters{flex:none;font-size:1.85cqw;font-variant-numeric:tabular-nums;
+  color:#c4d6e7;white-space:nowrap}
+.studio-fire{font-size:2.25cqw}
+.studio-race-data{position:absolute;right:3%;top:17.5%;width:31%;
+  z-index:6;display:grid;gap:.8cqw;padding:1.55cqw 1.65cqw;
+  border-radius:2cqw;background:rgba(8,17,32,.82);text-align:center}
+.studio-race-time{font-size:6.1cqw;line-height:1.03;font-weight:950;
+  font-variant-numeric:tabular-nums;text-shadow:0 .3cqw .7cqw #000a}
+.studio-race-remaining,.studio-race-count{display:flex;align-items:center;
+  justify-content:center;gap:.5cqw;flex-wrap:wrap;line-height:1.1}
+.studio-race-remaining>span:first-child{color:#f3d65e;font-size:2.85cqw}
+.studio-race-remaining b{font-size:2.8cqw;color:#fff}
+.studio-race-remaining>span:last-child,.studio-race-count>span:last-child{
+  font-size:1.55cqw;color:#e0e9f2}
+.studio-race-count b{font-size:2.7cqw;color:#a6f6c1}
+.studio-minimap{position:absolute;right:4.8%;top:29.0%;width:22%;
+  height:14.0%;z-index:5;pointer-events:none;background:none!important;
+  border:0!important;box-shadow:none!important;opacity:.94}
+.studio-minimap svg{width:100%;height:100%;overflow:visible;
+  filter:drop-shadow(0 0 .5cqw #051525b7)}
+.studio-plates{position:absolute;inset:0;z-index:4;pointer-events:none}
+.studio-nameplate{position:absolute;transform:translate(-50%,-100%);
+  display:flex;align-items:center;gap:.35cqw;min-width:0;max-width:27cqw;
+  border-radius:1.3cqw;padding:.38cqw .7cqw;white-space:nowrap;
+  background:rgba(13,20,35,.79);border:.12cqw solid #e3f1ff80;
+  box-shadow:0 .4cqw 1.2cqw #070b1199}
+.studio-nameplate.studio-gold{background:rgba(94,61,9,.9);
+  border-color:#ffe682;box-shadow:0 0 2cqw #ffdf76a8}
+.studio-position{font-size:1.95cqw;color:#ffda6c}
+.studio-nameplate>.studio-avatar{width:3.3cqw;height:3.3cqw;font-size:1.8cqw}
+.studio-plate-name{font-weight:850;font-size:1.76cqw;overflow:hidden;
+  text-overflow:ellipsis;max-width:14cqw}
+.studio-opening{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);
+  z-index:9;min-width:47%;display:grid;justify-items:center;text-align:center;
+  gap:.7cqw;padding:2.5cqw 4cqw;border-radius:3cqw;
+  background:rgba(11,21,35,.81);box-shadow:0 .5cqw 3cqw #070e218a}
+.studio-opening>span{font-size:3.05cqw;font-weight:1000;letter-spacing:.06em}
+.studio-opening>strong{font-weight:1000;font-size:10cqw;
+  line-height:1;font-variant-numeric:tabular-nums;color:#ffdc70}
+.studio-opening>small{font-size:2cqw;max-width:75cqw;font-weight:850;line-height:1.25}
+.studio-stage[data-phase="countdown"] .studio-opening{top:36%;opacity:.82}
+.studio-countdown{position:absolute;z-index:10;left:50%;top:51%;
+  transform:translate(-50%,-50%);font-size:26cqw;font-weight:1000;
+  color:#fff;-webkit-text-stroke:.9cqw #1e2a39;
+  text-shadow:0 .7cqw 1cqw #000a,0 0 2.5cqw #ffffffb2;line-height:1}
+.studio-winner{position:absolute;z-index:9;left:50%;top:31%;
+  transform:translateX(-50%);text-align:center;min-width:46%;
+  padding:1.8cqw 3cqw;background:rgba(40,31,10,.87);
+  border:.3cqw solid #ffda77;border-radius:2.5cqw;
+  display:flex;flex-direction:column;gap:1cqw}
+.studio-winner span{font-size:3cqw;font-weight:900;color:#ffe787}
+.studio-winner strong{font-size:4cqw;line-height:1.05}
+.studio-winner small{font-size:2.3cqw}
+.studio-chat{position:absolute;z-index:6;left:3%;bottom:11.8%;width:52%;
+  height:20.2%;display:flex;flex-direction:column;justify-content:flex-end;
+  pointer-events:none}
+.studio-chat-title{font-size:2.2cqw;font-weight:950;color:#f0f7fc;
+  text-shadow:0 .3cqw .5cqw #05080d;margin-bottom:1cqw}
+.studio-chat-entries{display:flex;flex-direction:column-reverse;gap:.65cqw;
+  min-height:0;max-height:82%;overflow:hidden}
+.studio-chat-line{display:flex;align-items:center;gap:1cqw;
+  max-width:100%;min-height:4.3cqw;line-height:1.16;
+  padding:.4cqw .6cqw;border-radius:1cqw;
+  background:linear-gradient(90deg,rgba(9,16,29,.70),rgba(9,16,29,.16))}
+.studio-chat-line>.studio-avatar{width:3.6cqw;height:3.6cqw;font-size:1.5cqw}
+.studio-chat-content{font-size:1.95cqw;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;color:#eef7fc;text-shadow:0 .15cqw .3cqw #000b}
+.studio-chat-content b{color:#9bd7ff}
+.studio-interactions{position:absolute;z-index:6;right:3%;bottom:11.8%;
+  width:42%;display:flex;flex-direction:column;align-items:flex-end;gap:1.5cqw}
+.studio-action-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  width:100%;gap:.7cqw}
+.studio-action{display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:.35cqw;min-height:12cqw;
+  border:.22cqw solid #ffffff9a!important;
+  border-radius:1.55cqw;color:#fff;font-size:2.06cqw;font-weight:1000;
+  box-shadow:0 .4cqw 1.1cqw #060d1ba6}
+.studio-action>span{font-size:3.9cqw;line-height:1}
+.studio-action small{font-size:1.5cqw}
+.studio-action.boost{background:#1659aa}
+.studio-action.join{background:#167b4f}
+.studio-action.sprint{background:#a83b3b}
+.studio-social-actions{display:flex;gap:1.65cqw;margin-right:.3cqw}
+.studio-social-actions button{display:grid;place-items:center;
+  width:7.6cqw;height:7.6cqw;background:#172638ce;
+  color:#fff;border:1px solid #ffffff7b;border-radius:50%;
+  font-size:3.9cqw;line-height:1}
+.studio-toast{position:absolute;z-index:15;left:50%;bottom:22%;
+  transform:translateX(-50%);background:rgba(6,16,27,.92);
+  padding:1.9cqw 3cqw;max-width:85%;width:max-content;text-align:center;
+  color:#f4fbff;border:1px solid #b2d9fda3;border-radius:2cqw;
+  font-size:2.55cqw;line-height:1.35;box-shadow:0 .5cqw 2.7cqw #06111bc4}
+@media(prefers-reduced-motion:reduce){
+  .studio-stage *{transition:none!important;animation:none!important}
+}
+
+
+/* Video-reference visual pass (original graphics; no external branding).
+   Preserve existing platform-safe 120 px top / 220 px bottom zones.
+   Compact race HUD, translucent scorecards and small right-hand powers. */
+.studio-live-active .studio-stage{
+  background:#afc1dd;
+}
+.studio-live-active .studio-channel{
+  background:rgba(15,21,32,.54);
+  padding:.95cqw 1.2cqw;border-radius:3.4cqw;
+  width:44%;
+  box-shadow:0 .4cqw 1.2cqw #1522353b;
+}
+.studio-live-active .studio-channel-icon{
+  width:6.5cqw;height:6.5cqw;font-size:3.2cqw;
+}
+.studio-live-active .studio-channel-name{font-size:2.25cqw}
+.studio-live-active .studio-ranking{
+  top:16.0%;width:35.2%;
+  background:rgba(10,15,27,.79);
+  border-radius:2.2cqw;padding:1.4cqw;
+  box-shadow:0 .45cqw 2.1cqw #10172c4e;
+  backdrop-filter:blur(2px);
+}
+.studio-live-active .studio-panel-title{
+  font-size:2.05cqw;color:#ffe083;
+  letter-spacing:.08em;margin-bottom:.95cqw;
+}
+.studio-live-active .studio-live-dot{
+  width:1.2cqw;height:1.2cqw;background:#f8d34b;
+  box-shadow:none;
+}
+.studio-live-active .studio-rank-row{
+  background:transparent;border-radius:.8cqw;
+  padding:.46cqw .35cqw;
+}
+.studio-live-active .studio-rank-row.leader{
+  background:#ffd76720;box-shadow:none;
+}
+.studio-live-active .studio-rank-name{font-size:2.10cqw}
+.studio-live-active .studio-rank-meters{
+  color:#ffe08c;font-weight:900;font-size:1.93cqw;
+}
+.studio-live-active .studio-race-data{
+  top:16%;right:3%;width:29%;
+  padding:1.55cqw 1.4cqw;
+  background:rgba(10,15,29,.80);
+  border-radius:2cqw;
+}
+.studio-live-active .studio-race-time{
+  font-size:6.5cqw;letter-spacing:-.04em;
+  text-shadow:0 .3cqw .6cqw #0009;
+}
+.studio-live-active .studio-minimap{
+  top:28.4%;right:3%;width:24.8%;height:13.9%;
+  background:rgba(9,15,30,.82)!important;
+  padding:1.9cqw;
+  border-radius:2.4cqw;
+  box-shadow:0 .45cqw 1.8cqw #060e2266!important;
+  backdrop-filter:blur(2px);
+}
+.studio-live-active .studio-minimap svg{
+  filter:drop-shadow(0 0 .35cqw #101b38);
+}
+.studio-live-active .studio-opening{
+  top:23%;min-width:56%;max-width:86%;
+  gap:.35cqw;
+  padding:2.0cqw 3.5cqw;
+  border-radius:2.1cqw;
+  background:rgba(10,14,24,.86);
+  box-shadow:0 .5cqw 2cqw #101c337a;
+}
+.studio-live-active .studio-opening>span{font-size:2.95cqw}
+.studio-live-active .studio-opening>strong{
+  font-size:7.8cqw;color:#ffc962;
+}
+.studio-live-active .studio-opening>small{
+  color:#fff9e7;font-size:2.05cqw;line-height:1.18;
+  text-shadow:0 .1cqw .6cqw #050912;
+}
+.studio-live-active .studio-stage[data-phase="countdown"] .studio-opening{
+  top:21%;
+}
+.studio-live-active .studio-nameplate{
+  background:rgba(10,17,32,.86);
+  border:.13cqw solid #ffffff76;
+  border-radius:1.4cqw;
+  padding:.27cqw .65cqw;
+  box-shadow:0 .24cqw .75cqw #050b1888;
+}
+.studio-live-active .studio-nameplate.studio-gold{
+  border-color:#ffd557;
+  background:rgba(47,35,16,.94);
+}
+.studio-live-active .studio-position{
+  background:#3174d4;color:white;
+  font-size:1.72cqw;font-weight:900;
+  padding:.15cqw .45cqw;border-radius:.55cqw;
+}
+.studio-live-active .studio-nameplate.studio-gold .studio-position{
+  background:#d49f2b;color:#1c160d;
+}
+.studio-live-active .studio-chat{
+  bottom:12%;height:21.8%;width:47%;
+}
+.studio-live-active .studio-chat-title{display:none}
+.studio-live-active .studio-chat-line{
+  background:linear-gradient(90deg,rgba(15,21,35,.50),transparent 97%);
+  min-height:3.4cqw;padding:.2cqw .3cqw;
+}
+.studio-live-active .studio-interactions{
+  right:3%;bottom:12%;width:31%;
+  gap:1.7cqw;
+}
+.studio-live-active .studio-action-row{
+  display:grid;grid-template-columns:minmax(0,1fr);
+  gap:.7cqw;width:100%;
+}
+.studio-live-active .studio-action{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;justify-content:end;
+  gap:.75cqw;min-height:4.6cqw;width:100%;
+  font-size:2.28cqw;font-weight:1000;
+  background:none!important;border:0!important;
+  padding:0;color:#fff;box-shadow:none!important;
+  text-align:right;
+  text-shadow:-.2cqw -.2cqw #0b1323,.2cqw -.2cqw #0b1323,
+    -.2cqw .2cqw #0b1323,.2cqw .2cqw #0b1323;
+}
+.studio-live-active .studio-action>span{
+  display:inline-block;font-size:3.65cqw;
+  line-height:1;min-width:8.3cqw;text-align:left;
+  filter:drop-shadow(0 .3cqw .2cqw #080d16);
+}
+.studio-live-active .studio-social-actions{
+  align-self:flex-end;gap:1.1cqw;margin:0;
+}
+.studio-live-active .studio-social-actions button{
+  width:6.3cqw;height:6.3cqw;
+  background:#14223699;font-size:3.1cqw;
+  border-color:#ffffff6b;
+}
+
+
+/* The reference separates the clean entry screen from the racing HUD.
+   Keep all panels mounted for SSE/UI consistency; hide visually until GO. */
+.studio-live-active .studio-guide{
+  position:absolute;z-index:9;
+  top:29%;left:50%;transform:translateX(-50%);
+  width:90%;text-align:center;pointer-events:none;
+  display:flex;flex-direction:column;align-items:center;gap:.65cqw;
+  color:#fff;text-shadow:
+    -.2cqw -.2cqw .2cqw #172336,.2cqw .2cqw .3cqw #172336,
+    0 .5cqw 1cqw #1f2a3d;
+}
+.studio-live-active .studio-guide strong{
+  font-weight:1000;font-size:2.7cqw;color:#8effa8;
+  letter-spacing:.06em;
+}
+.studio-live-active .studio-guide span{
+  font-weight:1000;font-size:3.4cqw;
+}
+.studio-live-active .studio-guide b{color:#ffe06e}
+.studio-live-active .studio-guide small{
+  font-weight:800;font-size:1.95cqw;color:#f4f8fd;
+}
+.studio-live-active .studio-stage:is([data-phase="lobby"],[data-phase="countdown"])
+  :is(.studio-ranking,.studio-race-data,.studio-minimap){display:none!important}
+.studio-live-active .studio-stage:not([data-phase="lobby"]) .studio-guide{
+  display:none!important;
+}
+.studio-live-active .studio-stage[data-phase="countdown"] .studio-opening{
+  display:none!important;
+}
+
+
+/* Short portrait perk card, matching the floating visual hierarchy in the
+   supplied video. No networked gifting is simulated as real activity. */
+.studio-live-active .studio-feature-card{
+  position:absolute;
+  left:50%;top:17.2%;
+  width:21%;min-width:0;
+  padding:1.7cqw 1.2cqw;
+  transform:translateX(-50%);
+  background:rgba(15,20,34,.94);
+  border:.38cqw solid #f3cf64;
+  border-radius:2.4cqw;
+  box-shadow:0 0 1.25cqw #ffbd58aa,0 .65cqw 3cqw #0007;
+  z-index:8;
+  display:flex;flex-direction:column;align-items:center;
+  gap:.55cqw;text-align:center;pointer-events:none;
+  animation:studio-feature-intro .23s ease-out;
+}
+.studio-live-active .studio-feature-avatar{
+  height:11cqw;width:11cqw;
+  border:solid .4cqw #fff;
+  border-radius:100%;display:grid;place-items:center;
+  font-size:6.7cqw;line-height:1;
+  color:#21222b;font-weight:1000;
+  text-shadow:0 .2cqw .35cqw #fff9;
+  box-shadow:0 .25cqw .7cqw #0005;
+}
+.studio-live-active .studio-feature-card strong{
+  font-size:2.9cqw;line-height:1.1;font-weight:1000;
+  max-width:100%;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;
+}
+.studio-live-active .studio-feature-card>span{
+  font-weight:1000;font-size:2.55cqw;color:#ffe279;
+  letter-spacing:.045em;white-space:nowrap;
+}
+.studio-live-active .studio-feature-card>small{
+  font-weight:800;font-size:1.25cqw;
+  color:#cad7e3;line-height:1.15;
+}
+@keyframes studio-feature-intro{
+  from{opacity:0;transform:translateX(-50%) scale(.88)}
+  to{opacity:1;transform:translateX(-50%) scale(1)}
+}
+@media(prefers-reduced-motion:reduce){
+  .studio-live-active .studio-feature-card{animation:none}
+}
+
+/* Low-resolution hand-painted profile art stays sharply pixelated. */
+.studio-live-active .studio-avatar img,
+.studio-live-active .studio-feature-avatar{
+  image-rendering:pixelated;
+}
+
+/* Full chosen model names instead of the former human player tags. */
+.studio-live-active .studio-nameplate{max-width:38cqw}
+.studio-live-active .studio-plate-name{
+  max-width:29cqw;font-size:1.60cqw;letter-spacing:-.01em
+}
+.studio-live-active .studio-rank-name{
+  font-size:1.80cqw;letter-spacing:-.025em;
+}
+.studio-live-active .studio-nameplate>.studio-avatar{
+  width:3.1cqw;height:3.1cqw;flex-shrink:0
+}
+
+
+/* Director shots + compact secondary car list. Names over vehicles identify
+   the spectator (@username); rankings and list identify the chosen model. */
+.studio-live-active .studio-vehicle-mini{
+  position:absolute;z-index:6;left:3%;top:43.0%;width:31.5%;
+  border:.1cqw solid #c3d5e650;border-radius:2.1cqw;
+  padding:1.1cqw 1.25cqw;
+  background:rgba(10,19,30,.77);
+  box-shadow:0 .4cqw 1.8cqw #070f1d66;
+  backdrop-filter:blur(2px);
+  pointer-events:none;
+}
+.studio-live-active .studio-vehicle-mini-title{
+  display:block;color:#f5da85;
+  font-weight:1000;font-size:1.75cqw;
+  letter-spacing:.04em;margin-bottom:.9cqw;
+}
+.studio-live-active .studio-vehicle-mini-rows{
+  list-style:none;margin:0;padding:0;
+  display:flex;flex-direction:column;gap:.23cqw;
+}
+.studio-live-active .studio-mini-vehicle{
+  display:grid;grid-template-columns:3.4cqw minmax(0,1fr);
+  gap:.6cqw;align-items:center;
+  padding:.31cqw .42cqw;
+  border-radius:.75cqw;
+  color:#f5f8fe;font-weight:850;font-size:1.85cqw;
+  line-height:1.15;min-height:3.2cqw;
+}
+.studio-live-active .studio-mini-vehicle.is-focus{
+  background:#ffcf6936;color:#ffe391;
+}
+.studio-live-active .studio-mini-number{
+  color:#f5d27b;font-size:1.65cqw;font-weight:1000;
+}
+.studio-live-active .studio-mini-name{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.studio-live-active .studio-camera-label{
+  position:absolute;z-index:7;
+  left:50%;top:12.0%;transform:translateX(-50%);
+  max-width:61%;width:max-content;
+  border-radius:1.2cqw;padding:.7cqw 1.2cqw;
+  background:rgba(8,18,31,.81);
+  color:#f6ebbd;font-size:1.8cqw;font-weight:950;
+  box-shadow:0 .35cqw 1.4cqw #0008;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  pointer-events:none;
+}
+.studio-live-active .studio-nameplate{
+  max-width:34cqw;min-height:3.2cqw;
+  gap:.45cqw;padding:.29cqw .62cqw;
+  border-radius:.9cqw;
+  background:rgba(12,22,36,.78);
+  box-shadow:0 .18cqw .85cqw #0009;
+}
+.studio-live-active .studio-plate-name{
+  max-width:27cqw;min-width:0;
+  font-size:1.72cqw;font-weight:900;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  color:#fff;
+}
+.studio-live-active .studio-nameplate.studio-camera-focus{
+  background:rgba(58,41,14,.94)!important;
+  border-color:#ffd769!important;
+  box-shadow:0 0 1.6cqw #ffca55aa;
+}
+.studio-live-active .studio-stage:is([data-phase="lobby"],[data-phase="countdown"])
+  :is(.studio-vehicle-mini,.studio-camera-label){display:none!important}
+.studio-live-active .studio-stage[data-phase="results"] .studio-camera-label{
+  display:none!important;
+}
+
+
+/* Always available CC BY attribution for the premium car GLBs. */
+.studio-live-active .studio-credits-link{
+  position:absolute;z-index:16;left:3%;bottom:4.8%;
+  font:700 1.55cqw/1.2 system-ui,sans-serif;
+  text-decoration:underline;text-underline-offset:.15cqw;
+  background:rgba(12,18,33,.65);color:#e7ebf9;
+  border-radius:.55cqw;padding:.4cqw .7cqw;
+  pointer-events:auto;
+}
+.studio-live-active .studio-credits-link:focus-visible{
+  outline:.5cqw solid #f4cf6f;outline-offset:.3cqw;
+}

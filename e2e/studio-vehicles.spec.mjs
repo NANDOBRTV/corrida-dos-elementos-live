@@ -24,6 +24,7 @@ test("Frota original de 30 modelos: 20 carros, 10 motos visíveis em 9:16",async
   expect(snapshot.stats.realMotorcycleModels).toBe(10);
   // Every motorcycle has exactly one modeled, helmeted rider.
   expect(snapshot.stats.motorcycleRiders).toBe(10);
+  expect(snapshot.stats.riderLimbSegments).toBe(80);
   expect(snapshot.stats.realWheels).toBe(20*4+10*2);
   expect(snapshot.stats.realDetailMeshes).toBeGreaterThan(10);
   expect(snapshot.stats.cameraCount).toBe(1);
@@ -63,6 +64,7 @@ test("100 veículos são renderizados sem voltar a aparecer personagem humano",a
   expect(x.ids).toHaveLength(100);
   expect(x.stats.realCarModels+x.stats.realMotorcycleModels).toBe(100);
   expect(x.stats.motorcycleRiders).toBe(x.stats.realMotorcycleModels);
+  expect(x.stats.riderLimbSegments).toBe(x.stats.realMotorcycleModels*8);
   expect(x.stats.realWheels).toBe(x.stats.realCarModels*4+
     x.stats.realMotorcycleModels*2);
   expect(x.stats.cameraCount).toBe(1);

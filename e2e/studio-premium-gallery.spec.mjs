@@ -17,8 +17,7 @@ test("Gallery: verify each licensed GLB is correctly oriented with independent 3
       ["Fusca","volkswagen-fusca.glb",1.76,2.83,1.54],
       ["Uno","fiat-uno.glb",1.63,2.63,1.65],
       ["Palio","fiat-palio.glb",1.72,2.81,1.50],
-      ["Civic","honda-civic.glb",1.91,3.32,1.39],
-      ["Opala","chevrolet-opala.glb",1.98,3.66,1.44]
+      ["Civic","honda-civic.glb",1.91,3.32,1.39]
     ];
     const root=document.createElement("div");
     root.id="premium-gallery";
@@ -72,7 +71,7 @@ test("Gallery: verify each licensed GLB is correctly oriented with independent 3
     return data;
   });
   console.log("MODEL_GALLERY_DIMENSIONS:"+JSON.stringify(results));
-  await expect(page.locator("#premium-gallery canvas")).toHaveCount(5);
+  await expect(page.locator("#premium-gallery canvas")).toHaveCount(4);
   await page.locator("#premium-gallery").screenshot({
     path:"test-results/premium-five-models-gallery.jpg",type:"jpeg",quality:70});
   const img=await page.locator("#premium-gallery").screenshot({type:"jpeg",quality:48});

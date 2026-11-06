@@ -24,11 +24,7 @@ export const PREMIUM_HERO_MODELS=Object.freeze({
     source:"https://sketchfab.com/3d-models/f81da34570b145deb463fa091604d251",
     material:"Car_Paint",license:"CC BY 4.0"
   }),
-  "car-opala":Object.freeze({
-    file:"chevrolet-opala.glb",bytes:1029156,author:"coptrum",
-    source:"https://sketchfab.com/3d-models/9a54b1a9aa9a4b7b92a2b35dda15297c",
-    material:null,license:"CC BY 4.0"
-  })
+
 });
 export const PREMIUM_CAR_IDS=Object.freeze(Object.keys(PREMIUM_HERO_MODELS));
 export const premiumModelUrl=id=>{

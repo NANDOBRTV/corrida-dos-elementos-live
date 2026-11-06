@@ -180,7 +180,12 @@ export function studioCameraShot(state){
   const cars=runners.filter(r=>r.vehicleKind!=="motorcycle");
   const pool=(cars.length?cars:runners).slice().sort((a,b)=>
     String(a.id).localeCompare(String(b.id)));
-  const chosen=pool[shotHash(String(s.seed)+"|"+s.round+"|"+cycle+"|car")%pool.length];
+  // Only the isolated preview can explicitly showcase a requested model.
+  // Real broadcasts still select closeup cars using the seeded director.
+  const previewChoice=s.previewOnly&&typeof s.previewSpotlightVehicleId==="string"?
+    pool.find(r=>r.vehicleId===s.previewSpotlightVehicleId):null;
+  const chosen=previewChoice||
+    pool[shotHash(String(s.seed)+"|"+s.round+"|"+cycle+"|car")%pool.length];
   return {mode:"VEHICLE_CLOSEUP",featuredId:chosen.id,
     focusIds:[chosen.id],cycle};
 }

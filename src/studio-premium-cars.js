@@ -13,6 +13,7 @@ export function createPremiumCars(THREE,scene,{
   enabled=false,maxDetailed=6
 }={}){
   const templates=new Map(),promises=new Map(),failures=new Map();
+  const sourceDimensions=new Map(),normalizedDimensions=new Map();
   const instances=new Map(),visible=new Set();
   const ladderGeometry=new THREE.BoxGeometry(1,1,1);
   const ladderMaterial=new THREE.MeshStandardMaterial({
@@ -45,6 +46,12 @@ export function createPremiumCars(THREE,scene,{
       .then(gltf=>{
         if(closed)return;
         templates.set(id,gltf.scene);
+        const bounds=new THREE.Box3().setFromObject(gltf.scene);
+        const size=bounds.getSize(new THREE.Vector3());
+        sourceDimensions.set(id,{
+          x:Number(size.x.toFixed(3)),y:Number(size.y.toFixed(3)),
+          z:Number(size.z.toFixed(3))
+        });
       }).catch(error=>{
         failures.set(id,String(error?.message||error).slice(0,200));
         console.warn("[studio-v5/premium] fallback procedural for "+id);
@@ -91,6 +98,11 @@ export function createPremiumCars(THREE,scene,{
       bbox=new THREE.Box3().setFromObject(pivot);
       dim=bbox.getSize(new THREE.Vector3());
     }
+    normalizedDimensions.set(r.vehicleId,{
+      x:Number(dim.x.toFixed(3)),y:Number(dim.y.toFixed(3)),
+      z:Number(dim.z.toFixed(3)),
+      rotationY:Number(pivot.rotation.y.toFixed(3))
+    });
     const targetH=vehicle.id==="car-uno"?1.65:
       vehicle.id==="car-fusca"?1.54:
       vehicle.id==="car-opala"?1.47:1.49;
@@ -150,7 +162,9 @@ export function createPremiumCars(THREE,scene,{
   function stats(){
     return {
       premiumEnabled:enabled,premiumReadyModels:templates.size,
-      premiumActiveVehicles:visible.size,premiumFailedModels:failures.size
+      premiumActiveVehicles:visible.size,premiumFailedModels:failures.size,
+      premiumSourceDimensions:Object.fromEntries(sourceDimensions),
+      premiumAlignedDimensions:Object.fromEntries(normalizedDimensions)
     };
   }
   function dispose(){

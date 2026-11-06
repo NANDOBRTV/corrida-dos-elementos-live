@@ -51,7 +51,7 @@ jobs:
         env:
           CI: "1"
           TEST_PREMIUM_GLB: "1"
-        run: npx playwright test e2e/studio-premium-glb.spec.mjs --reporter=line
+        run: npx playwright test e2e/studio-premium-glb.spec.mjs e2e/studio-premium-gallery.spec.mjs --reporter=line
       - name: Preserve premium renders and failure traces
         uses: actions/upload-artifact@v4
         if: always()

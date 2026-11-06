@@ -36,7 +36,7 @@ jobs:
           node-version: "22"
       - name: Install JavaScript dependencies
         run: npm install --include=dev --no-audit --no-fund
-      - name: Retrieve verified CC BY GLB files (5 source-correct cars)
+      - name: Retrieve verified CC BY GLB files (4 vetted source-correct cars)
         env:
           ENABLE_PREMIUM_MODELS: "1"
           REQUIRE_HERO_MODELS: "1"

@@ -27,5 +27,7 @@ test("10 motocicletas têm pneus arredondados e piloto obrigatoriamente",()=>{
   assert.equal(REALISTIC_PARTS.wheelsPerCar,4);
   assert.equal(REALISTIC_PARTS.wheelsPerMotorcycle,2);
   assert.equal(REALISTIC_PARTS.riderOnEveryMotorcycle,true);
+  // Eight jointed pieces per rider, sharing a single instanced draw call.
+  assert.equal(REALISTIC_PARTS.riderLimbSegmentsPerMotorcycle,8);
   assert.ok(new Set(motorcycles.map(m=>m.shape)).size>=4);
 });

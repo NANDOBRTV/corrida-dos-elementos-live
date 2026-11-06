@@ -173,7 +173,9 @@ test("Android 9:16 WebGL renders 100 avatars in one batch and twelve nameplate a
   expect(out.stats.triangles).toBeLessThan(200000);
   expect(out.labels.length).toBeLessThanOrEqual(100);
   expect(out.labels.every(plate=>typeof plate.username==="string")).toBe(true);
-  expect(out.angle).toBe(STUDIO_CAMERA.fovPortrait);
+  // Active cinematic closeups animate FOV; a fixed 72-degree assertion is invalid.
+  expect(out.angle).toBeGreaterThanOrEqual(STUDIO_SHOTS.closeFov);
+  expect(out.angle).toBeLessThanOrEqual(STUDIO_CAMERA.fovPortrait);
   expect(out.aspect).toBeCloseTo(390/693,3);
   expect(errors).toEqual([]);
   await page.locator("#studio-v5-scene-test").screenshot({

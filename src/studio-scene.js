@@ -621,7 +621,8 @@ export function createStudioScene(canvas,{quality="balanced",
     const height=Math.max(1,canvas.clientHeight||canvas.height||960);
     renderer.setSize(width,height,false);
     camera.aspect=width/height;
-    camera.fov=STUDIO_CAMERA.fovPortrait;
+    // Preserve the active director zoom when the canvas or render scale changes.
+    // Resetting FOV here interrupts 10-second vehicle closeups on mobile.
     camera.updateProjectionMatrix();
   }
   function setRenderScale(value){

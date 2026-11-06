@@ -68,3 +68,30 @@ test("Four intact licensed GLB cars load, and sculpted Opala/Gol remain and Uno 
   expect(txt).toContain("cacatua");
   expect(txt).toContain("rifdanzz");
 });
+
+
+test("Long broadcast: licensed-car cache stays bounded across 100 cinematic camera cycles",async({page})=>{
+  await page.setViewportSize({width:390,height:693});
+  await page.goto("/?view=live&studioPreview=1&quality=ultra&crowd=60&hero=1",
+    {waitUntil:"domcontentloaded"});
+  await expect.poll(()=>page.evaluate(()=>
+    window.__studioV5Debug?.getSceneStats()?.premiumReadyModels),
+    {timeout:85000}).toBe(4);
+  const stats=await page.evaluate(async()=>{
+    const engine=await import("/src/studio-engine.js");
+    const state=window.__studioV5Debug.getState();
+    engine.studioAdvance(state);engine.studioAdvance(state);
+    for(let cycle=0;cycle<110;cycle++){
+      // The single camera rotates through independently chosen vehicles.
+      // The browser really creates GLB instances during each animation frame.
+      state.raceMs=cycle*18000+1000;
+      await new Promise(resolve=>requestAnimationFrame(resolve));
+    }
+    return window.__studioV5Debug.getSceneStats();
+  });
+  expect(stats.premiumCacheLimit).toBe(12);
+  expect(stats.premiumCachedVehicles).toBeGreaterThan(0);
+  expect(stats.premiumCachedVehicles).toBeLessThanOrEqual(stats.premiumCacheLimit);
+  expect(stats.premiumFailedModels).toBe(0);
+  expect(stats.motorcycleRiders).toBe(0);
+});

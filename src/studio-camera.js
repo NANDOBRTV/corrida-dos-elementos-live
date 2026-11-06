@@ -147,7 +147,7 @@ export function studioCrowdPoses(state){
 // The state is read-only and shot changes use the same smoothed camera.
 export const STUDIO_SHOTS=Object.freeze({
   closeupMs:10000,topThreeMs:8000,
-  closeDistance:6.8,closeHeight:3.9,closeSide:2.3,
+  closeDistance:5.5,closeHeight:3.15,closeSide:1.55,
   leadersDistance:17.0,leadersHeight:9.5
 });
 function shotHash(input){

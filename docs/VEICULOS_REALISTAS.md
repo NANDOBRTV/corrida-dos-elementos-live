@@ -33,3 +33,27 @@ As malhas são **originais e geometricamente mais realistas**, mas **não são C
 - Validar manualmente no aparelho físico antes da LIVE real.
 
 A produção main não recebe estas mudanças até revisão do PR V5.
+
+
+## Atualização 06/11/2026 — pilotos articulados e memória controlada
+
+- Todas as **10 motos** usam piloto procedural com capacete arredondado, viseira, jaqueta de torso afunilado, proteção de pescoço, cotovelos e joelhos com duas peças por membro. Cada piloto é composto por **8 segmentos articulados** de braços e pernas, mais mãos e botas.
+- A geometria usa os mesmos `THREE.InstancedMesh` já existentes: mesmo número de categorias de chamadas GPU, sem criar um objeto WebGL por membro ou depender de download remoto.
+- `scene.stats().riderLimbSegments` permite verificar o total de segmentos desenhados (10 motos = 80; 100 motos = 800).
+- Os veículos com GLB premium (Fusca, Uno, Palio e Civic) usam cache de clones limitados a no máximo 12 por cena, reutilizado entre closes. Esse cache não limita a quantidade de participantes: pode haver 100 veículos, mas só os focalizados carregam alta fidelidade ao mesmo tempo.
+- `scene.stats().premiumCachedVehicles`, `.premiumCacheLimit` e `.premiumActiveVehicles` permitem acompanhar objetos detalhados. O cache retira clones fora de foco, sem liberar as geometrias e texturas compartilhadas que ainda estão em uso.
+- O Gol e o Opala continuam com silhuetas procedurais próprias; **não** são modelos GLB licenciados. Não confundir Gol com Golf. Modelos e artistas de terceiros precisam ter os créditos CC BY preservados.
+
+### Prévia no celular
+
+- [Modo leve com 20 veículos](https://corrida-elementos-v5-preview.onrender.com/?view=live&studioPreview=1&quality=low&crowd=20): indicado para inspecionar FPS no Android.
+- [Modo ultra com seis carros especiais](https://corrida-elementos-v5-preview.onrender.com/?view=live&studioPreview=1&quality=ultra&crowd=6&hero=1): ideal para inspecionar GLBs e detalhes quando o dispositivo suportar. O modo ultra consome mais memória e GPU.
+- A prévia é **separada da produção**. O seu deploy só contém os novos ajustes após publicar o commit correspondente no serviço Render de homologação. Esse modo não cria participantes reais, não envia presentes e não transmite ao TikTok.
+
+### Testes específicos
+
+- `tests/studio-model-geometry.test.mjs`: catálogo de 20 carros, 10 motos e oito segmentos por piloto.
+- `e2e/studio-vehicles.spec.mjs`: integridade dos pilotos, rodas, identificação e renderização até 100 veículos.
+- `e2e/studio-premium-glb.spec.mjs`: cache limitado após mudanças de câmera com arquivos GLB licenciados.
+
+A aprovação automática do Chromium não garante FPS no Redmi 13C físico. Não declarar operação 24 horas ou conexão LIVE real sem teste no hardware, banco persistente e transmissão autorizada.

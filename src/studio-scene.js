@@ -238,7 +238,7 @@ export function createStudioScene(canvas,{quality="balanced",
     road:new THREE.MeshLambertMaterial({color:0xffffff,map:roadTexture}),
     edge:makeMat(0xffffff),
     line:makeMat(0xffffff),trunk:makeMat(0xffffff),
-    crown:makeMat(0xffffff),hill:makeMat(0xffffff),
+    crown:makeMat(0xffffff),
     wall:makeMat(0xffffff),
     ground:new THREE.MeshLambertMaterial({color:0xffffff,map:groundTexture}),
     avatar:new THREE.MeshLambertMaterial({color:0xffffff})
@@ -260,11 +260,9 @@ export function createStudioScene(canvas,{quality="balanced",
   const centerlines=createBatch("studio-lane-dashes",fixedGeometry,
     materials.line,STUDIO_SCENE_LIMITS.roadSegments*3);
   const trunks=createBatch("studio-voxel-tree-trunks",fixedGeometry,
-    materials.trunk,STUDIO_SCENE_LIMITS.trees);
+    materials.trunk,STUDIO_SCENE_LIMITS.trees+STUDIO_SCENE_LIMITS.hills);
   const crowns=createBatch("studio-voxel-tree-crowns",fixedGeometry,
     materials.crown,STUDIO_SCENE_LIMITS.trees*4);
-  const hills=createBatch("studio-small-hills",fixedGeometry,
-    materials.hill,STUDIO_SCENE_LIMITS.hills);
   const walls=createBatch("studio-start-walls",fixedGeometry,
     materials.wall,STUDIO_SCENE_LIMITS.walls*2);
   // Crystals for Ice / bright undergrowth for Forest. Both live off asphalt.
@@ -366,9 +364,7 @@ export function createStudioScene(canvas,{quality="balanced",
     materials.edge.color.setHex(style.edge);
     materials.line.color.setHex(style.line);
     materials.ground.color.setHex(style.ground);
-    materials.trunk.color.setHex(style.trunk);
     materials.crown.color.setHex(style.crown);
-    materials.hill.color.setHex(style.hill);
     materials.wall.color.setHex(id==="ice"?0xb2cfe0:0x8b7452);
     // Spruce branch colors vary per block instance, not pastel blue pines.
     materials.crown.color.setHex(0xffffff);
@@ -389,6 +385,10 @@ export function createStudioScene(canvas,{quality="balanced",
     // Staging asphalt extends to -40m for all ten rows at GO.
     const start=Math.floor((center-38)/4)*4;
     let rs=0,es=0,ls=0,ts=0,cs=0,hs=0,ws=0,ds=0;
+    // Shared box batch: trunks and hills keep their independent biome colors.
+    // One instanced draw replaces two without hiding scenery on Android.
+    const trunkColor=new THREE.Color(colors[biomeId]?.trunk??colors.ice.trunk);
+    const hillColor=new THREE.Color(colors[biomeId]?.hill??colors.ice.hill);
     for(let i=0;i<STUDIO_SCENE_LIMITS.roadSegments;i++){
       const meter=start+(i+.5)*STUDIO_SCENE_LIMITS.segmentMeters;
       if(meter>distance+7)break;
@@ -426,8 +426,9 @@ export function createStudioScene(canvas,{quality="balanced",
       const lateral=side*(16.7+(i*37%25));
       const at=roadsidePoint(dist,lateral);
       const sz=.85+((i*17)%7)*.15;
-      put(trunks,ts++,{x:at.x,y:at.y+1.65*sz,z:at.z},
+      put(trunks,ts,{x:at.x,y:at.y+1.65*sz,z:at.z},
         {x:.80*sz,y:3.3*sz,z:.80*sz});
+      trunks.setColorAt(ts++,trunkColor);
       for(let level=0;level<4;level++){
         const size=3.8-level*.71;
         put(crowns,cs,{x:at.x,y:at.y+(2.75+level*.73)*sz,z:at.z},
@@ -441,8 +442,9 @@ export function createStudioScene(canvas,{quality="balanced",
       const side=i%2===0?-1:1;
       const at=roadsidePoint(start+i*9,side*(51+(i*19%38)));
       const height=2.7+(i*13%7)*.65;
-      put(hills,hs++,{x:at.x,y:at.y-.65+height*.34,z:at.z},
+      put(trunks,ts+hs,{x:at.x,y:at.y-.65+height*.34,z:at.z},
         {x:16+(i%5)*4,y:height,z:14+(i%4)*4});
+      trunks.setColorAt(ts+hs++,hillColor);
     }
     for(let i=0;i<STUDIO_SCENE_LIMITS.decorations;i++){
       const side=i%2===0?-1:1;
@@ -461,12 +463,13 @@ export function createStudioScene(canvas,{quality="balanced",
     decorations.count=ds;
     decorations.instanceColor.needsUpdate=true;
     for(const [mesh,count] of [[road,rs],[shoulders,es],[centerlines,ls],
-      [trunks,ts],[crowns,cs],[hills,hs],[walls,ws],[decorations,ds]]){
+      [trunks,ts+hs],[crowns,cs],[walls,ws],[decorations,ds]]){
       mesh.count=count;mesh.instanceMatrix.needsUpdate=true;
     }
     const base=studioCourseAt(start+145);
     ground.position.set(base.x,base.y-.20,base.z);
     if(crowns.instanceColor)crowns.instanceColor.needsUpdate=true;
+    if(trunks.instanceColor)trunks.instanceColor.needsUpdate=true;
     courseBuilds++;previousCourseBucket=Math.floor(center/8);
   }
 
@@ -717,7 +720,7 @@ export function createStudioScene(canvas,{quality="balanced",
   }
   function dispose(){
     if(disposed)return;disposed=true;
-    for(const node of [road,shoulders,centerlines,trunks,crowns,hills,walls,
+    for(const node of [road,shoulders,centerlines,trunks,crowns,walls,
       avatars,decorations,effects,spotlight]){
       scene.remove(node);node.dispose();
     }

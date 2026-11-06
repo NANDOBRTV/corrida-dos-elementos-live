@@ -45,6 +45,12 @@ test("Gallery: verify each licensed GLB is correctly oriented with independent 3
         box=new THREE.Box3().setFromObject(pivot);
         dims=box.getSize(new THREE.Vector3());
       }
+      if(file==="fiat-palio.glb"){
+        pivot.rotation.y+=Math.PI;
+        pivot.updateMatrixWorld(true);
+        box=new THREE.Box3().setFromObject(pivot);
+        dims=box.getSize(new THREE.Vector3());
+      }
       const container=new THREE.Group();
       const scale=new THREE.Group();
       scale.scale.set(width/dims.x,height/dims.y,length/dims.z);

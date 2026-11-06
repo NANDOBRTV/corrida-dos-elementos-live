@@ -98,6 +98,16 @@ export function createPremiumCars(THREE,scene,{
       bbox=new THREE.Box3().setFromObject(pivot);
       dim=bbox.getSize(new THREE.Vector3());
     }
+    // Real sources can be authored with -Z as the nose direction.
+    // Palio currently drives backwards unless its rear-lights side is
+    // turned away from the camera; correct it on the model, not track.
+    const correction=Number(PREMIUM_HERO_MODELS[r.vehicleId]?.yawCorrection)||0;
+    if(correction){
+      pivot.rotation.y+=correction;
+      pivot.updateMatrixWorld(true);
+      bbox=new THREE.Box3().setFromObject(pivot);
+      dim=bbox.getSize(new THREE.Vector3());
+    }
     normalizedDimensions.set(r.vehicleId,{
       x:Number(dim.x.toFixed(3)),y:Number(dim.y.toFixed(3)),
       z:Number(dim.z.toFixed(3)),

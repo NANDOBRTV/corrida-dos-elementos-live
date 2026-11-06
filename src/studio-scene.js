@@ -194,11 +194,13 @@ export function createStudioScene(canvas,{quality="balanced",
     STUDIO_CAMERA.near,STUDIO_CAMERA.far);
   camera.name="studio-single-chase-camera";
   const renderer=new THREE.WebGLRenderer({
-    canvas,antialias:quality==="high",alpha:false,powerPreference:"low-power"
+    canvas,antialias:quality==="high"||quality==="ultra",
+    alpha:false,powerPreference:quality==="ultra"?"high-performance":"low-power"
   });
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.shadowMap.enabled=Boolean(shadows&&quality==="high");
-  const maxPixelRatio=quality==="low"?1:quality==="high"?1.65:1.3;
+  const maxPixelRatio=quality==="low"?1:
+    quality==="ultra"?2:quality==="high"?1.65:1.3;
   const deviceRatio=typeof window==="undefined"?1:window.devicePixelRatio||1;
   const ratio=Math.min(isFiniteNumber(pixelRatio)?pixelRatio:deviceRatio,maxPixelRatio);
   renderer.setPixelRatio(Math.max(.65,ratio));

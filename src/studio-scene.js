@@ -4,7 +4,7 @@
 import * as THREE from "three";
 import {LIVE_STUDIO,BIOME_ORDER,RUNNER_COLORS} from "./config.js";
 import {
-  STUDIO_CAMERA,studioCourseAt,studioRunnerPose,studioCrowdPoses,
+  STUDIO_CAMERA,STUDIO_SHOTS,studioCourseAt,studioRunnerPose,studioCrowdPoses,
   studioCameraShot,advanceStudioCamera,studioVisibleNameplates
 } from "./studio-camera.js";
 import {buildStudioEffectParts,STUDIO_EFFECT_LIMITS} from "./studio-effects.js";
@@ -642,10 +642,11 @@ export function createStudioScene(canvas,{quality="balanced",
     cameraPose=advanceStudioCamera(cameraPose,state,dt);
     const shot=studioCameraShot(state);
     const desiredFov=shot.mode==="VEHICLE_CLOSEUP"?
-      STUDIO_CAMERA.closeFov??49:STUDIO_CAMERA.fovPortrait;
+      STUDIO_SHOTS.closeFov:shot.mode==="TOP_THREE"?
+        STUDIO_SHOTS.leadersFov:STUDIO_CAMERA.fovPortrait;
     // One physical camera: smoothly zoom for 10 seconds, then widen to
     // fit the first three cars without a jump in perspective.
-    const alphaFov=1-Math.exp(-3.8*dt);
+    const alphaFov=1-Math.exp(-STUDIO_SHOTS.transitionSpeed*dt);
     const nextFov=camera.fov+(desiredFov-camera.fov)*alphaFov;
     if(Math.abs(nextFov-camera.fov)>.002){
       camera.fov=nextFov;camera.updateProjectionMatrix();
@@ -704,7 +705,8 @@ export function createStudioScene(canvas,{quality="balanced",
     });
   }
   function stats(){
-    return {cameraCount:1,drawCalls:renderer.info.render.calls,
+    return {cameraCount:1,cameraFov:Number(camera.fov.toFixed(2)),
+      drawCalls:renderer.info.render.calls,
       triangles:renderer.info.render.triangles,
       runners:avatars.count/STUDIO_SCENE_LIMITS.avatarParts,
       courseRebuilds:courseBuilds,avatarColorChanges,

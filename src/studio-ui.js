@@ -727,6 +727,12 @@ export async function startStudioLive({preview=false}={}){
     }
   };
   const previewState=preview?createStudioState({connected:false,seed:5001}):null;
+  if(previewState){
+    previewState.previewOnly=true;
+    const showcase=resolveVehicle(params.get("showcase"));
+    if(heroPreview&&showcase?.kind==="car")
+      previewState.previewSpotlightVehicleId=showcase.id;
+  }
   let previewGiftBucket=-1,previewGiftRound=-1;
   if(previewState){
     studioFillBots(previewState,{count:previewBots});

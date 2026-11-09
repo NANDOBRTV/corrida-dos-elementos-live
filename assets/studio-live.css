@@ -490,3 +490,33 @@ body.studio-live-active{
 .studio-live-active .studio-credits-link:focus-visible{
   outline:.5cqw solid #f4cf6f;outline-offset:.3cqw;
 }
+
+
+/* Narrador esportivo da V5 — visível apenas na fonte de vídeo V5.
+   Toggle isolado do ranking e legenda sem elementos externos nem cookies. */
+.studio-live-active .studio-narrator-toggle{
+  position:absolute;right:3%;top:38.5%;z-index:14;
+  min-width:19cqw;min-height:8cqw;max-width:29cqw;
+  padding:1.1cqw 1.6cqw;border-radius:2cqw;
+  font:900 2cqw/1.2 system-ui,sans-serif;
+  letter-spacing:.01em;text-align:center;white-space:normal;
+  background:rgba(14,25,43,.82);color:#f0f8ff;
+  border:.17cqw solid #bad8ff88;box-shadow:0 .3cqw 1.1cqw #0008;
+  touch-action:manipulation;
+}
+.studio-live-active .studio-narrator-toggle[aria-pressed="true"]{
+  background:rgba(11,65,49,.90);color:#edfff3;border-color:#8cf5b4;
+}
+.studio-live-active .studio-narrator-toggle:disabled{opacity:.68;cursor:not-allowed}
+.studio-live-active .studio-narrator-toggle:focus-visible{
+  outline:.6cqw solid #ffd96f;outline-offset:.5cqw;
+}
+.studio-live-active .studio-narrator-caption{
+  position:absolute;z-index:13;left:50%;top:61%;
+  transform:translateX(-50%);width:82%;max-width:82%;
+  text-align:center;padding:1.1cqw 2cqw;
+  border-radius:1.6cqw;background:rgba(10,19,32,.77);
+  color:#fdf1d1;font:900 2.4cqw/1.34 system-ui,sans-serif;
+  text-shadow:0 .2cqw .5cqw #000;pointer-events:none;
+  box-shadow:0 .25cqw 1.2cqw #080d169c;
+}

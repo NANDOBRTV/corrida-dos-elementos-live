@@ -4,6 +4,7 @@ import {studioCourseAt,studioCameraShot,STUDIO_SHOTS} from "./studio-camera.js";
 import {createStudioState,studioFillBots,studioTick,studioRank,studioGift,studioJoin} from "./studio-engine.js";
 import {LIVE_STUDIO} from "./config.js";
 import {resolveVehicle,parseVehicleChoice,HERO_CAR_IDS} from "./vehicles.js";
+import {createStudioCommentary,createStudioVoice} from "./studio-commentary.js";
 
 const $=id=>document.getElementById(id);
 const clamp=(n,min,max)=>Math.min(max,Math.max(min,n));
@@ -73,6 +74,8 @@ const MARKUP=[
       "<ol id='studioVehicleList' class='studio-vehicle-mini-rows'></ol>",
     "</aside>",
     "<div id='studioCameraLabel' class='studio-camera-label' hidden aria-live='off'></div>",
+    "<button id='studioNarratorToggle' class='studio-narrator-toggle' type='button' aria-pressed='false' aria-label='Ativar narração esportiva'>🎙️ ATIVAR NARRADOR</button>",
+    "<div id='studioNarratorCaption' class='studio-narrator-caption' role='status' aria-live='off' hidden></div>",
     "<aside class='studio-race-data' aria-label='Informações da corrida'>",
       "<div class='studio-race-time' id='studioRaceTime'>0:00</div>",
       "<div class='studio-race-remaining'><span aria-hidden='true'>⚑</span><b id='studioRemaining'>1200 m</b><span>restantes</span></div>",
@@ -303,6 +306,7 @@ export async function startStudioLive({preview=false}={}){
     likes:$("studioLikes"),viewers:$("studioViewerTotal"),
     faces:$("studioViewerFaces"),rank:$("studioRankRows"),
     vehicleList:$("studioVehicleList"),cameraLabel:$("studioCameraLabel"),
+    narratorButton:$("studioNarratorToggle"),narratorCaption:$("studioNarratorCaption"),
     time:$("studioRaceTime"),remaining:$("studioRemaining"),
     count:$("studioRunnerCount"),mapPath:$("studioMapPath"),
     mapDot:$("studioMapDot"),chat:$("studioChatEntries"),
@@ -322,6 +326,39 @@ export async function startStudioLive({preview=false}={}){
     clearTimeout(liveState.toastTimer);
     liveState.toastTimer=setTimeout(()=>{ui.toast.hidden=true;},3300);
   }
+  const raceCommentary=createStudioCommentary();
+  let captionTimer=null;
+  const speaker=createStudioVoice({
+    onCaption:line=>{
+      clearTimeout(captionTimer);
+      text(ui.narratorCaption,line);
+      ui.narratorCaption.hidden=!line;
+      if(line)captionTimer=setTimeout(()=>{
+        ui.narratorCaption.hidden=true;
+      },6800);
+    },
+    onStatus:status=>{
+      const active=speaker.state().enabled;
+      ui.narratorButton.setAttribute("aria-pressed",String(active));
+      ui.narratorButton.textContent=active?"🎙️ NARRADOR LIGADO":"🎙️ ATIVAR NARRADOR";
+      if(status==="error")toast("A voz não pôde ser reproduzida. Confira o áudio do navegador.");
+    }
+  });
+  if(!speaker.state().supported){
+    ui.narratorButton.textContent="🎙️ VOZ INDISPONÍVEL";
+    ui.narratorButton.disabled=true;
+    ui.narratorButton.title="Abra no Chrome para usar voz em português.";
+  }
+  ui.narratorButton.addEventListener("click",()=>{
+    if(speaker.state().enabled){
+      speaker.disable();
+      toast("Narração desligada.");
+    }else{
+      raceCommentary.reset();
+      if(speaker.enable())toast("Narrador ligado: áudio em português brasileiro.");
+      else toast("Narração indisponível neste navegador.");
+    }
+  });
   $("studioFollow").addEventListener("click",()=>
     toast("Toque em Seguir no perfil do canal da transmissão."));
   $("studioJoin").addEventListener("click",()=>{
@@ -620,6 +657,11 @@ export async function startStudioLive({preview=false}={}){
     }
     stage.dataset.phase=phase.toLowerCase();
     stage.dataset.connected=state.connected?"yes":"no";
+    if(speaker.state().enabled){
+      // Read authoritative snapshots, never extrapolated render-only positions.
+      // One narrator works across every new round; no gifts or races are created.
+      speaker.update(raceCommentary.next(state,performance.now()));
+    }
     renderRank(state);renderViewerFaces(state);renderMessages(state);
     renderVehicleMiniList(state,board);
     rebuildMap(state);
@@ -851,6 +893,8 @@ export async function startStudioLive({preview=false}={}){
     cancelAnimationFrame(rafId);
     for(const timer of intervals)clearInterval(timer);
     clearTimeout(liveState.toastTimer);
+    clearTimeout(captionTimer);
+    speaker.dispose();
     liveState.connection?.close();
     canvas.removeEventListener("webglcontextlost",onContextLost);
     canvas.removeEventListener("webglcontextrestored",onContextRestored);
@@ -863,6 +907,8 @@ export async function startStudioLive({preview=false}={}){
     getState:()=>liveState.source,
     getSceneStats:()=>world.stats(),
     getCameraShot:()=>studioCameraShot(liveState.source),
+    getNarratorState:()=>speaker.state(),
+    getNarratorCaption:()=>ui.narratorCaption.textContent,
     getPlateCount:()=>liveState.plateNodes.size,
     getMapLength:()=>ui.mapPath.getTotalLength(),
     getWatchdog:()=>({

@@ -136,3 +136,38 @@ test("Câmera 10s de close, depois top 3; mini lista e @usuário sobre o carro",
   expect(errors).toEqual([]);
   await page.screenshot({path:"test-results/closeup-username-mini-list.png"});
 });
+
+
+test("Narração esportiva: controle de áudio, legendas e todas as rodadas",async({page})=>{
+  const errors=[];page.on("pageerror",e=>errors.push(e.message));
+  await page.setViewportSize({width:390,height:693});
+  await page.goto("/?view=live&studioPreview=1&quality=low&crowd=8",
+    {waitUntil:"domcontentloaded"});
+  await expect(page.locator("#studioNarratorToggle")).toBeVisible();
+  await expect(page.locator("#studioNarratorToggle")).toHaveAttribute("aria-pressed","false");
+  const supported=await page.evaluate(()=>
+    window.__studioV5Debug.getNarratorState().supported);
+  if(!supported){
+    await expect(page.locator("#studioNarratorToggle")).toBeDisabled();
+    return;
+  }
+  await page.locator("#studioNarratorToggle").click();
+  await expect(page.locator("#studioNarratorToggle")).toHaveAttribute("aria-pressed","true");
+  const state=await page.evaluate(()=>window.__studioV5Debug.getNarratorState());
+  expect(state.enabled).toBe(true);
+  expect(state.spoken).toBeGreaterThanOrEqual(1);
+  await expect(page.locator("#studioNarratorCaption")).toContainText("Narração esportiva");
+  await page.evaluate(async()=>{
+    const mod=await import("/src/studio-engine.js");
+    const s=window.__studioV5Debug.getState();
+    mod.studioAdvance(s);mod.studioAdvance(s);
+    mod.studioTick(s,1000);
+  });
+  await expect.poll(()=>page.evaluate(()=>
+    window.__studioV5Debug.getNarratorState().spoken),{timeout:10000})
+    .toBeGreaterThanOrEqual(2);
+  await page.locator("#studioNarratorToggle").click();
+  await expect(page.locator("#studioNarratorToggle")).toHaveAttribute("aria-pressed","false");
+  await expect(page.locator("#studioNarratorCaption")).toBeHidden();
+  expect(errors).toEqual([]);
+});

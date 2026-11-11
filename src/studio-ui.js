@@ -84,7 +84,7 @@ const MARKUP=[
     "<div class='studio-minimap' aria-label='Minimapa da pista'>",
       "<svg id='studioMap' viewBox='0 0 180 180' preserveAspectRatio='xMidYMid meet' aria-hidden='true'>",
         "<path id='studioMapPath' fill='none' stroke='white' stroke-width='5' stroke-linejoin='round' stroke-linecap='round'></path>",
-        "<circle id='studioMapDot' r='6' fill='#ffcb45' stroke='#151c27' stroke-width='2'></circle>",
+        "<g id='studioMapRunners'></g>",
       "</svg>",
     "</div>",
     "<div id='studioPlates' class='studio-plates' aria-label='Identificação dos líderes'></div>",
@@ -309,7 +309,7 @@ export async function startStudioLive({preview=false}={}){
     narratorButton:$("studioNarratorToggle"),narratorCaption:$("studioNarratorCaption"),
     time:$("studioRaceTime"),remaining:$("studioRemaining"),
     count:$("studioRunnerCount"),mapPath:$("studioMapPath"),
-    mapDot:$("studioMapDot"),chat:$("studioChatEntries"),
+    mapRunners:$("studioMapRunners"),chat:$("studioChatEntries"),
     plates:$("studioPlates"),opening:$("studioOpening"),
     openingTitle:$("studioOpeningTitle"),
     openingClock:$("studioOpeningClock"),
@@ -665,9 +665,13 @@ export async function startStudioLive({preview=false}={}){
     renderRank(state);renderViewerFaces(state);renderMessages(state);
     renderVehicleMiniList(state,board);
     rebuildMap(state);
-    const dot=liveState.map.point(meters);
-    ui.mapDot.setAttribute("cx",dot.x.toFixed(1));
-    ui.mapDot.setAttribute("cy",dot.y.toFixed(1));
+    // Plot every vehicle, not just the leader; preserve race ordering and
+    // use small dots so a full 100-runner field remains legible.
+    ui.mapRunners.innerHTML=state.active.map((runner,index)=>{
+      const point=liveState.map.point(Math.max(0,Number(runner.progress)||0));
+      const leader=index===0;
+      return `<circle cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="${leader?4:2.4}" fill="${leader?"#ffcb45":"#59d8ff"}" stroke="#151c27" stroke-width=".6"/>`;
+    }).join("");
     liveState.previousPhase=phase;
   }
   function interpolate(state,now){

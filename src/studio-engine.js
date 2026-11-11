@@ -276,6 +276,24 @@ function stepRace(state,ms){
       r.status="finished";r.finishMs=state.raceMs;r.speed=0;
     }
   }
+  // Physical spacing: vehicles in the same lane cannot pass through one another.
+  // Resolve front-to-back after all movement and lane changes, so ordering
+  // does not depend on the active array iteration order.
+  const laneGroups=Array.from({length:10},()=>[]);
+  for(const r of state.active){
+    if(r.status==="running")laneGroups[r.lane]?.push(r);
+  }
+  for(const lane of laneGroups){
+    lane.sort((a,b)=>b.progress-a.progress||a.id.localeCompare(b.id));
+    for(let i=1;i<lane.length;i++){
+      const ahead=lane[i-1],behind=lane[i];
+      const safeProgress=Math.max(0,ahead.progress-5);
+      if(behind.progress>safeProgress){
+        behind.progress=safeProgress;
+        behind.speed=Math.min(behind.speed,ahead.speed);
+      }
+    }
+  }
   state.effects=state.effects.filter(fx=>fx.expiresAt>state.raceMs)
     .slice(0,C.maxVisualEffects);
 }

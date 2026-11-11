@@ -137,8 +137,11 @@ export function studioAdvance(state){
     message(state,"Inscrições encerradas. Preparar!");
   }else if(state.phase==="COUNTDOWN"){
     state.phase="RUNNING";state.raceMs=0;state.effects=[];
+    const gridRows=Math.ceil(state.active.length/10);
     for(const r of state.active){
-      r.progress=0;r.status="running";r.speed=0;r.finishMs=null;
+      // Stagger grid rows to avoid 100 vehicles spawning in the same spot.
+      r.progress=.01+Math.max(0,gridRows-1-Math.floor((r.gridPosition-1)/10))*5;
+      r.status="running";r.speed=0;r.finishMs=null;
       r.turboUntil=0;r.jetpackUntil=0;r.slowUntil=0;r.turboCharges=0;r.passed=[];
     }
     message(state,"LARGADA!");

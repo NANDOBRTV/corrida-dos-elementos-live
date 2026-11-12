@@ -171,3 +171,37 @@ test("Narração esportiva: controle de áudio, legendas e todas as rodadas",asy
   await expect(page.locator("#studioNarratorCaption")).toBeHidden();
   expect(errors).toEqual([]);
 });
+
+
+test("Minimapa 3D: todos os pontos, faixas distintas e líder verdadeiro",async({page})=>{
+  await page.setViewportSize({width:390,height:693});
+  await page.goto("/?view=live&studioPreview=1&quality=low&crowd=30",
+    {waitUntil:"domcontentloaded"});
+  await expect.poll(()=>page.evaluate(()=>
+    window.__studioV5Debug?.getSceneStats()?.runners)).toBe(30);
+  await page.evaluate(async()=>{
+    const {studioAdvance}=await import("/src/studio-engine.js");
+    const state=window.__studioV5Debug.getState();
+    studioAdvance(state);studioAdvance(state);
+    state.paused=true;
+    state.active.forEach((r,i)=>{r.progress=40;r.lane=i%10;});
+    state.active[0].lane=0;
+    state.active[1].lane=9;
+    state.active[3].progress=90;
+  });
+  await expect.poll(()=>page.locator("#studioMapRunners circle").count()).toBe(30);
+  await expect.poll(()=>page.locator("#studioMapRunners circle").nth(3)
+    .getAttribute("r")).toBe("4");
+  const markers=await page.locator("#studioMapRunners circle").evaluateAll(nodes=>
+    nodes.map(node=>({x:node.getAttribute("cx"),y:node.getAttribute("cy"),
+      color:node.getAttribute("fill")})));
+  expect(markers[3].color).toBe("#ffcb45");
+  expect([markers[0].x,markers[0].y])
+    .not.toEqual([markers[1].x,markers[1].y]);
+  for(const marker of markers){
+    expect(Number(marker.x)).toBeGreaterThanOrEqual(4);
+    expect(Number(marker.x)).toBeLessThanOrEqual(176);
+    expect(Number(marker.y)).toBeGreaterThanOrEqual(4);
+    expect(Number(marker.y)).toBeLessThanOrEqual(176);
+  }
+});

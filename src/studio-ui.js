@@ -1,6 +1,6 @@
 
 import {createStudioScene} from "./studio-scene.js";
-import {studioCourseAt,studioCameraShot,STUDIO_SHOTS} from "./studio-camera.js";
+import {studioCourseAt,studioPositionOnCourse,studioCameraShot,STUDIO_SHOTS} from "./studio-camera.js";
 import {createStudioState,studioFillBots,studioTick,studioRank,studioGift,studioJoin} from "./studio-engine.js";
 import {LIVE_STUDIO} from "./config.js";
 import {resolveVehicle,parseVehicleChoice,HERO_CAR_IDS} from "./vehicles.js";
@@ -255,9 +255,12 @@ function trackMap(distance){
   });
   const projected=points.map(project);
   const path=projected.map((p,i)=>(i?"L":"M")+p.x.toFixed(1)+" "+p.y.toFixed(1)).join(" ");
-  function point(progress){
-    const p=studioCourseAt(clamp(asNum(progress),0,length));
-    return project(p);
+  function point(progress,lane=4){
+    // Use the same lane offset as the actual 3D vehicles, not the
+    // centerline for every participant. Keep edge markers inside the SVG.
+    const p=studioPositionOnCourse(clamp(asNum(progress),0,length),lane);
+    const coords=project(p);
+    return {x:clamp(coords.x,4,176),y:clamp(coords.y,4,176)};
   }
   return {length,path,point};
 }
@@ -665,12 +668,19 @@ export async function startStudioLive({preview=false}={}){
     renderRank(state);renderViewerFaces(state);renderMessages(state);
     renderVehicleMiniList(state,board);
     rebuildMap(state);
-    // Plot every vehicle, not just the leader; preserve race ordering and
-    // use small dots so a full 100-runner field remains legible.
-    ui.mapRunners.innerHTML=state.active.map((runner,index)=>{
-      const point=liveState.map.point(Math.max(0,Number(runner.progress)||0));
-      const leader=index===0;
-      return `<circle cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="${leader?4:2.4}" fill="${leader?"#ffcb45":"#59d8ff"}" stroke="#151c27" stroke-width=".6"/>`;
+    // Minimap ordering comes from live progress, never signup order.
+    // Each marker follows its actual 3D lane instead of overlapping on
+    // the centerline. Bikes are orange; the top three have podium colors.
+    const topIds=new Map(studioRank(state.active).slice(0,3)
+      .map((runner,index)=>[runner.id,index]));
+    const podiumColors=["#ffcb45","#dce8f5","#dc9357"];
+    ui.mapRunners.innerHTML=state.active.map(runner=>{
+      const point=liveState.map.point(runner.progress,runner.lane);
+      const place=topIds.get(runner.id);
+      const color=place===undefined?
+        (runner.vehicleKind==="motorcycle"?"#ff9465":"#59d8ff"):
+        podiumColors[place];
+      return `<circle cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="${place===0?4:place===undefined?2.1:2.8}" fill="${color}" stroke="#151c27" stroke-width=".5"/>`;
     }).join("");
     liveState.previousPhase=phase;
   }

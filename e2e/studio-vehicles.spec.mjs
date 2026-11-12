@@ -196,6 +196,19 @@ test("Minimapa 3D: todos os pontos, faixas distintas e líder verdadeiro",async(
     nodes.map(node=>({x:node.getAttribute("cx"),y:node.getAttribute("cy"),
       color:node.getAttribute("fill")})));
   expect(markers[3].color).toBe("#ffcb45");
+  const previousY=await page.evaluate(()=>{
+    window.__minimapMarkerReference=
+      document.querySelectorAll("#studioMapRunners circle")[3];
+    return window.__minimapMarkerReference.getAttribute("cy");
+  });
+  await page.evaluate(()=>{
+    window.__studioV5Debug.getState().active[3].progress=180;
+  });
+  await expect.poll(()=>page.locator("#studioMapRunners circle").nth(3)
+    .getAttribute("cy")).not.toBe(previousY);
+  expect(await page.evaluate(()=>
+    document.querySelectorAll("#studioMapRunners circle")[3]===
+      window.__minimapMarkerReference)).toBe(true);
   expect([markers[0].x,markers[0].y])
     .not.toEqual([markers[1].x,markers[1].y]);
   for(const marker of markers){

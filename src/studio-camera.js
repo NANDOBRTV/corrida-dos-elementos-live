@@ -243,7 +243,9 @@ export function cameraTargetFor(state){
           z:place.z-dz*STUDIO_SHOTS.closeDistance+
             rightZ*STUDIO_SHOTS.closeSide
         },
-        target:{x:place.x,y:place.y+1.05,z:place.z},
+        // Aim slightly above the roof so the 3D-anchored username stays
+        // within the portrait HUD safe area during tight closeups.
+        target:{x:place.x,y:place.y+1.48,z:place.z},
         mode:"VEHICLE_CLOSEUP",leaderId:chosen.id,heading:place.heading
       };
     }

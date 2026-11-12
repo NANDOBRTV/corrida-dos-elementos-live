@@ -674,14 +674,28 @@ export async function startStudioLive({preview=false}={}){
     const topIds=new Map(studioRank(state.active).slice(0,3)
       .map((runner,index)=>[runner.id,index]));
     const podiumColors=["#ffcb45","#dce8f5","#dc9357"];
-    ui.mapRunners.innerHTML=state.active.map(runner=>{
+    // Reuse SVG nodes for the lifetime of the broadcast: replacing 100
+    // circles five times per second creates needless GC on Android/OBS.
+    const nodes=ui.mapRunners.children;
+    while(nodes.length<state.active.length){
+      const circle=document.createElementNS("http://www.w3.org/2000/svg","circle");
+      circle.setAttribute("stroke","#151c27");
+      circle.setAttribute("stroke-width",".5");
+      ui.mapRunners.append(circle);
+    }
+    while(nodes.length>state.active.length)nodes[nodes.length-1].remove();
+    state.active.forEach((runner,index)=>{
       const point=liveState.map.point(runner.progress,runner.lane);
       const place=topIds.get(runner.id);
       const color=place===undefined?
         (runner.vehicleKind==="motorcycle"?"#ff9465":"#59d8ff"):
         podiumColors[place];
-      return `<circle cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="${place===0?4:place===undefined?2.1:2.8}" fill="${color}" stroke="#151c27" stroke-width=".5"/>`;
-    }).join("");
+      const node=nodes[index];
+      node.setAttribute("cx",point.x.toFixed(1));
+      node.setAttribute("cy",point.y.toFixed(1));
+      node.setAttribute("r",place===0?"4":place===undefined?"2.1":"2.8");
+      node.setAttribute("fill",color);
+    });
     liveState.previousPhase=phase;
   }
   function interpolate(state,now){

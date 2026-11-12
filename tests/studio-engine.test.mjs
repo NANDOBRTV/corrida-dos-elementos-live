@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {LIVE_STUDIO as C} from "../src/config.js";
 import {createStudioState,validStudioDistance,studioJoin,studioFillBots,
   studioSetDistance,studioCountdown,studioTick,studioAdvance,studioRank,
-  studioGift,studioLike,studioFollow} from "../src/studio-engine.js";
+  studioGift,studioLike,studioFollow,studioHash} from "../src/studio-engine.js";
 
 test("Studio v5: 1080x1920 safe zones, 100 runners, 1000 to 1500 metres",()=>{
   assert.deepEqual([C.designWidth,C.designHeight,C.safeTop,C.safeBottom],
@@ -122,4 +122,46 @@ test("Overtakes move lanes and ranking is deterministic",()=>{
   assert.ok(ranked.some(r=>r.progress>100));
   assert.ok(s.active.every(r=>r.lane>=0&&r.lane<10));
   assert.ok(ranked.every((r,i)=>i===0||ranked[i-1].progress>=r.progress));
+});
+
+test("Sólidos: veículo rápido não atravessa o carro da frente na mesma faixa",()=>{
+  const state=createStudioState({connected:true});
+  studioJoin(state,{userId:"leader",name:"Líder"});
+  studioJoin(state,{userId:"chaser",name:"Perseguidor"});
+  studioAdvance(state);studioAdvance(state);
+  const leader=state.active.find(r=>r.id==="leader");
+  const chaser=state.active.find(r=>r.id==="chaser");
+  leader.lane=chaser.lane=3;
+  leader.progress=95;chaser.progress=89.9;
+  leader.baseSpeed=2;chaser.baseSpeed=90;
+  leader.lastLaneChangeAt=chaser.lastLaneChangeAt=1000000;
+  for(let i=0;i<30;i++){
+    studioTick(state,100);
+    assert.ok(leader.progress-chaser.progress>=5-1e-7,
+      "Os carros devem manter ao menos 5 m de separação longitudinal");
+  }
+});
+
+test("Mudança de faixa é bloqueada quando outro carro já ocupa o espaço",()=>{
+  const state=createStudioState({connected:true});
+  let candidateId="";
+  for(let i=0;i<100;i++){
+    const id="sideways-"+i;
+    const hash=studioHash(id+"|1|"+state.seed);
+    if(hash%5===0&&hash%2===0){candidateId=id;break;}
+  }
+  assert.ok(candidateId,"Encontrar mudança de faixa determinística");
+  studioJoin(state,{userId:candidateId,name:"Mudança"});
+  studioJoin(state,{userId:"occupied",name:"Ocupado"});
+  studioAdvance(state);studioAdvance(state);
+  const candidate=state.active.find(r=>r.id===candidateId);
+  const occupied=state.active.find(r=>r.id==="occupied");
+  candidate.lane=0;occupied.lane=1;
+  candidate.progress=100;occupied.progress=100;
+  candidate.lastLaneChangeAt=-3000;
+  occupied.lastLaneChangeAt=1000000;
+  state.raceMs=1700;
+  studioTick(state,100);
+  assert.equal(candidate.lane,0,
+    "Não é permitido entrar na faixa ocupada por outro carro");
 });

@@ -13,6 +13,8 @@ import {createLiveDiagnostics} from "./telemetry.js";
 import {createLikeBuffer,applyLikeBatch,applySimulatedLikes} from "../src/likes.js";
 import {parseRaceJoin} from "../src/roblox-names.js";
 import {createRobloxLookup,RobloxLookupError} from "./roblox-users.js";
+import {createStudioRuntime,openStudioStore} from "./studio-runtime.js";
+import {createStudioLiveBridge} from "./studio-live.js";
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const mime={".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",
@@ -79,6 +81,30 @@ export async function createApp(opts={}){
   const robloxLookup=opts.robloxLookup??createRobloxLookup();
   // Segurança pré-lançamento: TIKTOK_USERNAME pode permanecer salvo sem abrir conexão.
   const realLiveEnabled=process.env.TIKTOK_LIVE_MODE==="enabled";
+  // Studio V5 remains strictly opt-in. The legacy public game, its PostgreSQL
+  // state and existing /api/* routes are unchanged while UI/QA is unfinished.
+  const studioV5Enabled=opts.studioV5Enabled===true||
+    (opts.studioV5Enabled!==false&&process.env.STUDIO_V5_ENABLED==="true");
+  // Studio V5 persists independently of the legacy state (separate table).
+  // Fail closed in a production V5 deployment if no durable DB is configured.
+  const studioStore=studioV5Enabled?(opts.studioStore??await openStudioStore({
+    requireDatabase:opts.studioRequireDatabase??(
+      process.env.NODE_ENV==="production"&&process.env.STUDIO_V5_ENABLED==="true")
+  })):null;
+  const checkpoint=studioStore?.enabled?await studioStore.load():null;
+  const studio=studioV5Enabled?createStudioRuntime({
+    adminKey:secret,autoStart:true,sourceConnected:false,
+    store:studioStore,checkpoint
+  }):null;
+  const studioLive=studio&&!opts.disableTikTok?createStudioLiveBridge({
+    studio,lookup:robloxLookup,
+    fetchImpl:opts.studioAvatarFetch??globalThis.fetch,
+    username:opts.studioUsername??process.env.TIKTOK_USERNAME??"",
+    identitySalt:identitySalt.length>=16?identitySalt:randomBytes(32).toString("hex"),
+    enabled:opts.studioLiveEnabled===true||
+      (opts.studioLiveEnabled!==false&&realLiveEnabled),
+    connectionFactory:opts.studioConnectionFactory??null
+  }):null;
   const subscribers=new Set();
   let lastTick=now(),lastBroadcast=0,lastSave=now();
   let revision=0,savedRevision=recovered&&!biomeMigrated?0:-1;
@@ -176,6 +202,19 @@ export async function createApp(opts={}){
     if(closed){sendJson(res,503,{ok:false,error:"Serviço encerrando"});return;}
     const url=new URL(req.url??"/","http://localhost");
     const path=url.pathname;
+    if(path.startsWith("/api/studio/")){
+      if(!studio){sendJson(res,404,{ok:false,error:"Studio V5 ainda não ativado"});return;}
+      if(path==="/api/studio/avatars"&&req.method==="GET"){
+        sendJson(res,200,studioLive?.avatars()??{
+          ok:true,round:studio.state().round,
+          profiles:studio.state().active.map(r=>({id:r.id,robloxUsername:null,
+            avatarUrl:null,source:r.isBot?"bot":"starter"}))
+        });
+        return;
+      }
+      await studio.handle(req,res,path);
+      return;
+    }
     if(req.method==="GET"&&path==="/health"){
       sendJson(res,200,{ok:true,service:"corrida-dos-elementos-live",role:"race-engine",
         uptimeSeconds:Math.round(process.uptime()),instanceId,round:state.round,phase:state.phase,
@@ -183,6 +222,7 @@ export async function createApp(opts={}){
         storage:storage.enabled?"postgres":"memory",storageHealthy:storage.enabled&&!lastPersistError,
         giftsProcessed:stats.giftsProcessed,giftBoosts:stats.giftBoosts,
         persistedAt:lastPersistSuccess,unflushedChanges:storage.enabled&&savedRevision!==revision,
+        studio:studio?.storageHealth()??null,
         tiktokEnabled:bridgeStatus.enabled,tiktokConnected:bridgeStatus.connected,
         liveEventsMode:realLiveEnabled?"enabled":"staged"});
       return;
@@ -370,12 +410,18 @@ export async function createApp(opts={}){
   ssePing.unref?.();
   return {
     state:()=>state,
+    studioState:()=>studio?.state()??null,
+    studioRuntime:studio,
+    studioLiveBridge:studioLive,
     stats,
     flush:()=>persist(true),
     async listen(port=Number(process.env.PORT)||3000){
       await new Promise((resolve,reject)=>{server.once("error",reject);server.listen(port,"0.0.0.0",resolve);});
       const address=server.address();console.log("[server] corrida-dos-elementos-live http://0.0.0.0:"+address.port);
-      if(!opts.disableTikTok&&(opts.bridgeFactory||realLiveEnabled)){
+      // V5 gets one dedicated connector including follow events; do not
+      // open a second legacy connection to the same TikTok LIVE room.
+      if(studioLive?.status().enabled)void studioLive.start();
+      if(!opts.disableTikTok&&(opts.bridgeFactory||(realLiveEnabled&&!studioLive?.status().enabled))){
         bridge=(opts.bridgeFactory??startTikTokBridge)({
           username:process.env.TIKTOK_USERNAME,
           onStatus:info=>{bridgeStatus=info;liveDiagnostics.connection(info);},
@@ -407,6 +453,10 @@ export async function createApp(opts={}){
     async close(){
       if(closed)return;closed=true;
       clearInterval(heartbeat);clearInterval(ssePing);
+      if(studioLive)await studioLive.close();
+      const studioSaved=await studio?.shutdown();
+      if(studio&&studioSaved===false)
+        console.error("[studio-v5/storage] Encerramento sem snapshot confirmado");
       for(const client of subscribers){try{client.end();}catch{}}
       subscribers.clear();
       if(bridge)await bridge.close();
@@ -423,9 +473,27 @@ export async function createApp(opts={}){
 async function boot(){
   const app=await createApp();
   await app.listen();
-  const shutdown=async()=>{await app.close();process.exit(0);};
-  process.once("SIGTERM",shutdown);
-  process.once("SIGINT",shutdown);
+  let stopping=false;
+  const shutdown=async(code=0)=>{
+    if(stopping)return;stopping=true;
+    try{await app.close();}catch(error){
+      console.error("[server] Erro ao encerrar:",String(error?.message??error).slice(0,180));
+      code=1;
+    }
+    process.exitCode=code;
+  };
+  process.once("SIGTERM",()=>{void shutdown(0);});
+  process.once("SIGINT",()=>{void shutdown(0);});
+  // Continuing after a fatal exception could corrupt a live race.
+  // Persist the last snapshot and let the host restart the process instead.
+  process.once("uncaughtException",error=>{
+    console.error("[server] Exceção fatal:",error);
+    void shutdown(1);
+  });
+  process.once("unhandledRejection",error=>{
+    console.error("[server] Rejeição não tratada:",error);
+    void shutdown(1);
+  });
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   boot().catch(e=>{console.error(e);process.exit(1);});

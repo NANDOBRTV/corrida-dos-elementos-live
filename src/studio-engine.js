@@ -231,6 +231,10 @@ export function studioFollow(state,{userId="",name="Espectador"}={}){
 function stepRace(state,ms){
   state.raceMs+=ms;
   const seconds=ms/1000;
+  // Preserve positions before this fixed timestep so a fast car cannot
+  // tunnel past the car ahead and silently reverse their lane order.
+  const before=new Map(state.active.filter(r=>r.status==="running")
+    .map(r=>[r.id,r.progress]));
   const liveEffects=state.effects;
   for(const fx of liveEffects){
     if(fx.type==="torpedo"&&!fx.impacted&&
@@ -271,12 +275,22 @@ function stepRace(state,ms){
        r.progress<state.distance-10){
       const f=studioHash(r.id+"|"+Math.floor(state.raceMs/1700)+"|"+state.seed);
       if(f%5===0){
-        r.lane=clamp(r.lane+(f%2===0?1:-1),0,9);
-        r.lastLaneChangeAt=state.raceMs;
+        const target=clamp(r.lane+(f%2===0?1:-1),0,9);
+        const clearance=6;
+        // A lane change is an overtake, not a teleport into another car.
+        // Check both endpoints of the timestep to prevent side-swipe overlaps.
+        const clear=target!==r.lane&&state.active.every(other=>{
+          if(other.id===r.id||other.status!=="running"||
+             other.lane!==target)return true;
+          return Math.abs(other.progress-r.progress)>=clearance&&
+            Math.abs(finite(before.get(other.id),other.progress)-
+              finite(before.get(r.id),r.progress))>=clearance;
+        });
+        if(clear){
+          r.lane=target;
+          r.lastLaneChangeAt=state.raceMs;
+        }
       }
-    }
-    if(r.progress>=state.distance){
-      r.status="finished";r.finishMs=state.raceMs;r.speed=0;
     }
   }
   // Physical spacing: vehicles in the same lane cannot pass through one another.
@@ -287,7 +301,8 @@ function stepRace(state,ms){
     if(r.status==="running")laneGroups[r.lane]?.push(r);
   }
   for(const lane of laneGroups){
-    lane.sort((a,b)=>b.progress-a.progress||a.id.localeCompare(b.id));
+    lane.sort((a,b)=>(before.get(b.id)??b.progress)-
+      (before.get(a.id)??a.progress)||a.id.localeCompare(b.id));
     for(let i=1;i<lane.length;i++){
       const ahead=lane[i-1],behind=lane[i];
       const safeProgress=Math.max(0,ahead.progress-5);
@@ -295,6 +310,13 @@ function stepRace(state,ms){
         behind.progress=safeProgress;
         behind.speed=Math.min(behind.speed,ahead.speed);
       }
+    }
+  }
+  // Resolve collisions before marking a racer finished: otherwise a car
+  // reaching the line could become a ghost while another still overlaps it.
+  for(const r of state.active){
+    if(r.status==="running"&&r.progress>=state.distance){
+      r.status="finished";r.finishMs=state.raceMs;r.speed=0;
     }
   }
   state.effects=state.effects.filter(fx=>fx.expiresAt>state.raceMs)

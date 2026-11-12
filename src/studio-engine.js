@@ -140,7 +140,7 @@ export function studioAdvance(state){
     const gridRows=Math.ceil(state.active.length/10);
     for(const r of state.active){
       // Stagger grid rows to avoid 100 vehicles spawning in the same spot.
-      r.progress=.01+Math.max(0,gridRows-1-Math.floor((r.gridPosition-1)/10))*6.5;
+      r.progress=.01+Math.max(0,gridRows-1-Math.floor((r.gridPosition-1)/10))*12;
       r.status="running";r.speed=0;r.finishMs=null;
       r.turboUntil=0;r.jetpackUntil=0;r.slowUntil=0;r.turboCharges=0;r.passed=[];
     }
